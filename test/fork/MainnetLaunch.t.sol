@@ -90,10 +90,6 @@ contract MainnetLaunchTest is Test {
 
     function _launch() internal {
         // On mainnet the implementations come from the preceding contracts-only launch; here they are etched.
-        vm.etch(MarginaliaImpls.ROUTER_IMPL, address(new MarginaliaRouter()).code);
-        vm.etch(MarginaliaImpls.JUDGE_IMPL, address(new MarginaliaJudge()).code);
-        vm.etch(MarginaliaImpls.TREASURY_IMPL, address(new MarginaliaTreasury()).code);
-        vm.etch(MarginaliaImpls.PRICER, address(new MarginaliaPricer()).code);
         bytes memory tokenCode = type(Marginalia).creationCode;
         address predictedToken = FACTORY.predictToken(LAUNCH_NUMBER, tokenCode);
         bytes memory hookCode = abi.encodePacked(
