@@ -91,7 +91,7 @@ contract HoldRuleTest is Fixture {
         vm.recordLogs();
         hook.observe(id);
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        (,,, uint256 balance) = abi.decode(logs[logs.length - 1].data, (uint64, uint256, uint256, uint256));
+        (, uint256 balance) = abi.decode(logs[logs.length - 1].data, (uint256, uint256));
         assertEq(balance, type(uint256).max, "the unverifiable sentinel is on record");
         vm.warp(end + 30 minutes);
         vm.roll(vm.getBlockNumber() + 150);
@@ -132,7 +132,7 @@ contract HoldRuleTest is Fixture {
         // a higher price IS more adverse to a SELL call and gets in, in the very same block
         _buy(bob, 100_000 ether);
         vm.expectEmit(true, false, false, false, address(hook));
-        emit MarginaliaHook.Observed(id, 0, 0, 0, 0);
+        emit MarginaliaHook.Observed(id, 0, 0);
         hook.observe(id);
     }
 

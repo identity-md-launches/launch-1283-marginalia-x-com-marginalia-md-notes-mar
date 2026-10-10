@@ -101,7 +101,7 @@ contract RouterHandler is Test {
             assertLe(spent, imdIn, "author charged more than offered");
             if (spent < imdIn) ghostRefunds += 1;
             // the deposit is held back by the hook inside the swap; what the router reports is what arrived
-            T.Note memory n = hook.noteOf(bytes32(hook.noteCount()));
+            T.NoteView memory n = hook.noteOf(bytes32(hook.noteCount()));
             assertEq(n.author, who);
             assertGt(n.deposit, 0, "a noted buy locked no deposit");
             assertEq(token.balanceOf(who) - before, received, "author received other than reported");

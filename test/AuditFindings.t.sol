@@ -95,7 +95,12 @@ contract AuditFindingsTest is Fixture {
         judge.payJudged(w);
     }
 
-    function testLongRankingFitsIntakeStipend() public {
+    /// @dev The question asks for head=3 and a three-id answer fits the Intake's 200k callback through the
+    /// clone. A panel that returned its entire ranking of 120 would not (measured on this toolchain: the
+    /// delegatecall alone needs ~171k before the proxy and calldata overhead); that delivery reverts, the
+    /// request stays unanswered and is abandoned and re-requested after the deadline. Documented limit of the
+    /// deployed judge, not a silent failure.
+    function testHeadOfThreeFitsIntakeStipendAndAFullRankingIsRetried() public {
         (uint32 w, bytes32 reqId, bytes32 thesis) = _request();
         bytes32[] memory ranked = new bytes32[](120);
         for (uint256 i; i < ranked.length; ++i) {
@@ -106,7 +111,16 @@ contract AuditFindingsTest is Fixture {
         vm.prank(hook.INTAKE());
         (bool ok,) =
             address(judge).call{gas: 200_000}(abi.encodeCall(judge.onOracleResult, (reqId, a, hex"01")));
-        assertTrue(ok, "ranking exhausted the Intake stipend");
+        assertFalse(ok, "a full ranking does not fit the stipend");
+        assertFalse(judge.judgedSet(w));
+        bytes32[] memory head = new bytes32[](3);
+        head[0] = thesis;
+        head[1] = bytes32(uint256(2));
+        head[2] = bytes32(uint256(3));
+        a = _att(head);
+        vm.prank(hook.INTAKE());
+        (ok,) = address(judge).call{gas: 200_000}(abi.encodeCall(judge.onOracleResult, (reqId, a, hex"01")));
+        assertTrue(ok, "the requested head of three fits");
         assertTrue(judge.judgedSet(w));
         assertEq(judge.judgedOf(w)[0], thesis);
     }

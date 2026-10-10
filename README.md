@@ -12,7 +12,7 @@ No owner, no pause, no upgrade. Spec: `SPEC.md`.
 | Contract | Role |
 |---|---|
 | `Marginalia` | The launch ERC-20: 1,000,000,000 × 1e18 minted once to its deployer (the launch factory). |
-| `MarginaliaHook` | The hook (flags `0x20cc`): binds the launch pool, takes the stamp and deposit on noted buys and the 1%/3% fee on sells, holds notes, observations, records and the three pools, and pays out. Its constructor clones the three companions (EIP-1167) from audited implementations and initialises each once. |
+| `MarginaliaHook` | The hook (flags `0x20cc`): binds the launch pool, takes the stamp and deposit on noted buys and the 1%/3% fee on sells, holds notes, observations, records and the three pools, and pays out. Its constructor clones the three companions (EIP-1167) from the live launch-1240 implementations and initialises each once. Notes can be counters: a thesis may rebut another author's open thesis, a call may take the other side of another author's open call on the same token (`parentId` pointing at that note). |
 | `MarginaliaRouter` | The only path that can attach a note; optionally trades X on Uniswap v4, v3 or v2 in the same transaction so the position is proven, and refuses a note about a token other than the one traded. Plain MARG buys and sells go through any v4 router. |
 | `MarginaliaJudge` | The oracle consumer: once a week buys the panel's ranking of the week's long-form theses through the IMD Intake, verifies the EIP-712 attestation, tells the hook whom to pay. Short-form calls are never judged. |
 | `MarginaliaTreasury` | Receives prizes and gifts in IMD; drips 2% of its IMD into the pools daily. No withdraw; refuses ETH. |
@@ -33,15 +33,22 @@ except through the score, which is difficulty-weighted, netted against wrong cal
 
 ## Deployment order
 
-1. Contracts-only launch: `MarginaliaRouter`, `MarginaliaJudge`, `MarginaliaTreasury` implementations
-   (ownerless; they lock themselves in their constructors so only clones can be initialised, once, by the hook)
-   plus the stateless `MarginaliaPricer`.
-2. Set the four addresses in `src/MarginaliaImpls.sol`.
-3. Later hook launch (its manifest is produced separately): the factory deploys the token and the hook; the hook's constructor clones
-   the three implementations and initialises each with itself in the same transaction.
+1. ✅ Contracts-only launch **#1240** (Ethereum mainnet, tx `0x93a1b0cce64e04d4bd7edd7b5fb6e6268b1fd5ab68fb5b990e66c56e972d71a3`,
+   block 26163341): `MarginaliaRouter` `0x365CcB3cfBC430600485234F56FD5ECb23fd70D1`, `MarginaliaJudge`
+   `0xC93460730a79a22282f063A0c6BA5E340Ac372b4`, `MarginaliaTreasury` `0xe2086012f5F9CC7cAECDBC70dE392e263aAe8481`
+   (ownerless implementations that lock themselves in their constructors so only clones can be initialised, once,
+   by the hook) plus the stateless `MarginaliaPricer` `0xEaff9B262341A0cB05579227e662BFE768A71cfb`. The on-chain
+   runtime bytecode matches this tree's build (the judge differs only in its EIP-712 immutables).
+2. ✅ The four addresses are pinned in `src/MarginaliaImpls.sol`.
+3. Hook launch (`launch.json`, kind `univ4_hook`): the factory deploys the token and the hook; the hook's constructor
+   clones the three implementations and initialises each with itself in the same transaction. The constructor is
+   chain-state-free (the launcher rehearses constructors in an empty EVM): it reads no code at any address, and a
+   codeless companion would revert on first use because every companion call expects return data.
 
-The hook's initcode is 26,016 bytes (EIP-3860 cap 49,152) and its runtime 24,411 bytes (EIP-170 cap 24,576);
-`forge build --sizes` is the gate for both.
+Because the router is deployed, the `NoteParams` ABI it accepts is fixed; that is why a counter rides the existing
+`parentId` field instead of a new one. `forge build --sizes` is the gate for the hook's runtime (EIP-170, 24,576) and
+initcode (EIP-3860, 49,152) sizes; the mainnet-fork rehearsal (`test/fork`) runs against the live implementations
+without etching.
 
 ## Build and test
 
@@ -63,11 +70,16 @@ MAINNET_RPC_URL=https://... forge test --match-path test/fork/MainnetLaunch.t.so
 
 ## Launch
 
-The next launch step writes the contracts-only manifest for `MarginaliaRouter`, `MarginaliaJudge`,
-`MarginaliaTreasury` and `MarginaliaPricer`, with empty constructor argument lists. This repository no
-longer carries the old hook-launch manifest. No token or pool is deployed by this launch. The first
-three implementations are deliberately locked; only their later, atomically initialized clones hold
-application state. See `ADAPTATION.md` for the reproduced findings, changes and validation.
+The implementations are live (launch #1240, above). `launch.json` is the hook launch: `MarginaliaHook` with
+`$poolManager, $token, $factory`, the `Marginalia` token, and the MARG/IMD pool at LP fee 12500. See
+`ADAPTATION.md` for the implementations' reproduced findings, changes and validation.
+
+Counters and duels: a thesis whose `parentId` is another author's open thesis is a rebuttal; it needs its own child
+call like any thesis and then competes in the same weekly judged set. A call whose `parentId` is another author's
+open call on the same token, from the opposite side, is a counter-call. No deposit moves between the two: each
+settles on its own price and keeps or forfeits its own deposit, their scores move in opposite directions, and the
+duel's outcome is the pair of `Settled` events (the link is in `NotePosted.parentId`), read off-chain. The keeper who
+settles a wrong or broken call earns 10% of the forfeited deposit (`KEEPER_BPS`).
 
 Before posting a price call, anyone calls `router.checkpointVenue(noteParams, venueKey)` for its
 canonical venue. Its first checkpoint must be at least one hour old, from an earlier block, and at
@@ -138,7 +150,12 @@ hold rule is unchanged). The advisory `sqrt(2) == 2` is also fixed. See `ADAPTAT
   block, which costs the mover the same swap fees and arbitrage exposure as a pump.
 - Sells of MARG pay 3% through any router, or 1% plus the stamp through `sellWithNote` with a note and deposit attached.
 - The X trade leg supports v4 pools (including native-ETH pairs), v3 pools and v2 pairs; exact-input only.
-- The implementation addresses in `MarginaliaImpls.sol` are rehearsal placeholders; tests etch code there.
+- Quiet (un-noted) MARG sells are exact-input only: an exact-output sell through any router reverts
+  (`NoteNeedsExactInput`). Exact-output buys are unaffected.
+- `noteOf` returns a slim `NoteView`; the venue, text and timestamps are in the `NotePosted` event, which carries
+  the ids, class, side, target, horizon, parent and text (price and deposit are read from `noteOf`).
+- The implementation addresses in `MarginaliaImpls.sol` are the live launch-1240 deployments; the local tests etch
+  rehearsal code at those same addresses, the fork tests use the live code.
 - The action fee on follow trades, treasury conversion of ETH/USDC/USDT to IMD, the on-chain ERC-8004 agent
   badge (contract wallets are marked Agent), and attestation re-delivery are specified but not yet built.
 - The judge binds an answer to the Intake request it paid for and to this chain id; it does not recompute
@@ -150,5 +167,5 @@ hold rule is unchanged). The advisory `sqrt(2) == 2` is also fixed. See `ADAPTAT
   (MARG/IMD under this hook) score. A depth, age or counterparty policy that would let other venues score is a
   design decision for the requester (there is no owner).
 - SELL calls have no hold rule: they settle on price alone. BUY calls must keep their post balance.
-- The later hook launch must take the four implementation addresses as constructor arguments (verified on
-  first use) rather than requiring their code at construction, so it passes the hook floor's empty chain.
+- The hook's constructor reads no chain state (the launcher rehearses constructors in an empty EVM); the pinned
+  implementation addresses are exercised by the mainnet-fork rehearsal instead.

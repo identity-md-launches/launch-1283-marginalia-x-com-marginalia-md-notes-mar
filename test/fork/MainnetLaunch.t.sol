@@ -212,7 +212,7 @@ contract MainnetLaunchTest is Test {
         router.tradeAndNote(x, p, hub, 5 ether, 1, block.timestamp + 1);
         vm.stopPrank();
         assertGt(alice.balance, ethBefore, "received ETH for the IMD sold");
-        T.Note memory n = hook.noteOf(bytes32(hook.noteCount()));
+        T.NoteView memory n = hook.noteOf(bytes32(hook.noteCount()));
         assertEq(uint8(n.class), uint8(T.Class.Traded));
         assertEq(n.x, IMD);
         assertEq(n.postBalance, IERC20(IMD).balanceOf(alice));
@@ -268,7 +268,7 @@ contract MainnetLaunchTest is Test {
         uint256 linkBefore = IERC20(LINK).balanceOf(alice);
         router.tradeAndNote(x, p, noKey, 5 ether, 1, block.timestamp + 1);
         vm.stopPrank();
-        T.Note memory n = hook.noteOf(bytes32(hook.noteCount()));
+        T.NoteView memory n = hook.noteOf(bytes32(hook.noteCount()));
         assertGt(IERC20(LINK).balanceOf(alice), linkBefore, "bought LINK");
         assertEq(uint8(n.class), uint8(T.Class.Traded));
         assertEq(n.x, LINK);
@@ -326,7 +326,7 @@ contract MainnetLaunchTest is Test {
         uint256 uniBefore = IERC20(UNI).balanceOf(alice);
         router.tradeAndNote(x, p, noKey, 5 ether, 1, block.timestamp + 1);
         vm.stopPrank();
-        T.Note memory n = hook.noteOf(bytes32(hook.noteCount()));
+        T.NoteView memory n = hook.noteOf(bytes32(hook.noteCount()));
         assertGt(IERC20(UNI).balanceOf(alice), uniBefore, "bought UNI");
         assertEq(uint8(n.class), uint8(T.Class.Traded));
         assertEq(n.x, UNI);
@@ -361,7 +361,7 @@ contract MainnetLaunchTest is Test {
         uint256 received = router.note(p, hubKey, 20 ether, 1, block.timestamp + 1);
         vm.stopPrank();
         bytes32 id = bytes32(hook.noteCount());
-        T.Note memory n = hook.noteOf(id);
+        T.NoteView memory n = hook.noteOf(id);
         assertEq(n.author, alice);
         assertEq(n.x, IMD);
         assertApproxEqRel(n.postPrice, 1e18, 0.01e18); // IMD priced in IMD through the hub ≈ 1

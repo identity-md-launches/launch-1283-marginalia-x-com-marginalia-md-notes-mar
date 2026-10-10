@@ -251,6 +251,13 @@ abstract contract Fixture is Test {
         p.text = text;
     }
 
+    /// @dev A third funded poster for the counter-note tests (carol is otherwise unfunded on purpose).
+    function _fundCarol() internal {
+        imd.transfer(carol, 1_000_000 ether);
+        vm.prank(carol);
+        imd.approve(address(router), type(uint256).max);
+    }
+
     function _note(address who, T.NoteParams memory p, uint256 imdIn)
         internal
         returns (bytes32 id, uint256 received)

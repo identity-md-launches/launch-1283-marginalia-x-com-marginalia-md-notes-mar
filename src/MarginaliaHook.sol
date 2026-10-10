@@ -55,7 +55,8 @@ contract MarginaliaHook is IUnlockCallback {
     uint256 public constant OBS_GAP_BLOCKS = 20;
     /// @dev Observations must span at least this long, so no single block (or pair of blocks) sets the price.
     uint256 public constant OBS_MIN_SPAN = 1 hours;
-    uint256 public constant KEEPER_BPS = 200;
+    /// @dev The settler's share of a forfeited deposit: the bounty for closing a wrong or broken call.
+    uint256 public constant KEEPER_BPS = 1000;
     /// @dev A week's theses are capped at what the judge can put in front of the panel (its MAX_JUDGED), and a
     /// thesis past the cap is refused before its stamp and deposit are taken, never silently unjudgeable.
     uint256 public constant MAX_WEEK_THESES = 120;
@@ -166,13 +167,10 @@ contract MarginaliaHook is IUnlockCallback {
         T.Side side,
         uint32 targetBps,
         uint16 horizonDays,
-        uint256 postPrice,
-        uint256 deposit,
         bytes32 parentId,
-        uint256 xResult,
         string text
     );
-    event Observed(bytes32 indexed id, uint64 timestamp, uint256 xRead, uint256 quoteRead, uint256 balance);
+    event Observed(bytes32 indexed id, uint256 xRead, uint256 balance);
     event Settled(
         bytes32 indexed id, T.Status status, uint256 settlePrice, int256 scoreDelta, address keeper
     );
@@ -190,8 +188,12 @@ contract MarginaliaHook is IUnlockCallback {
 
     // ------------------------------------------------------------------ construction
 
+    /// @dev Chain-state-free by design: the launcher rehearses constructors in an empty EVM, so nothing here
+    /// reads code at another address. The implementation addresses are compile-time constants pinned to the
+    /// live launch #1240 and exercised by the mainnet-fork rehearsal; were one ever codeless, every companion
+    /// call expects return data and would revert on first use, never fail silently.
     constructor(IPoolManager poolManager_, address token_, address factory_) {
-        if (address(poolManager_).code.length == 0 || token_.code.length == 0 || factory_ == address(0)) {
+        if (address(poolManager_) == address(0) || token_ == address(0) || factory_ == address(0)) {
             revert InvalidUnlock();
         }
         poolManager = poolManager_;
@@ -199,10 +201,6 @@ contract MarginaliaHook is IUnlockCallback {
         factory = factory_;
         Hooks.validateHookPermissions(IHooks(address(this)), getHookPermissions());
         // Companions are EIP-1167 clones of audited implementations, initialised here and never again.
-        if (
-            MarginaliaImpls.TREASURY_IMPL.code.length == 0 || MarginaliaImpls.ROUTER_IMPL.code.length == 0
-                || MarginaliaImpls.JUDGE_IMPL.code.length == 0 || MarginaliaImpls.PRICER.code.length == 0
-        ) revert InvalidUnlock();
         MarginaliaTreasury t = MarginaliaTreasury(payable(Clones.clone(MarginaliaImpls.TREASURY_IMPL)));
         t.init(address(this));
         treasury = t;
@@ -304,9 +302,7 @@ contract MarginaliaHook is IUnlockCallback {
             pendingSellDeposit = depositMarg;
             specifiedTake = depositMarg;
         } else if (kind != T.DATA_EXEMPT && params.amountSpecified > 0) {
-            // Exact-output IMD sell: gross the quiet fee up so the requested output is net of it.
-            uint256 bps = SELL_QUIET_BPS;
-            specifiedTake = (uint256(params.amountSpecified) * bps + (10_000 - bps) - 1) / (10_000 - bps);
+            revert NoteNeedsExactInput(); // quiet sells are exact-input only
         }
         return (IHooks.beforeSwap.selector, toBeforeSwapDelta(specifiedTake.toInt128(), 0), 0);
     }
@@ -359,16 +355,8 @@ contract MarginaliaHook is IUnlockCallback {
         }
 
         // Quiet sell.
-        uint256 quietFee;
-        int128 returned = 0;
-        if (params.amountSpecified > 0) {
-            uint256 bps = SELL_QUIET_BPS;
-            quietFee = (uint256(params.amountSpecified) * bps + (10_000 - bps) - 1) / (10_000 - bps);
-            if (poolImd != uint256(params.amountSpecified) + quietFee) revert PartialFill();
-        } else {
-            quietFee = poolImd * SELL_QUIET_BPS / 10_000;
-            returned = quietFee.toInt128();
-        }
+        uint256 quietFee = poolImd * SELL_QUIET_BPS / 10_000;
+        int128 returned = quietFee.toInt128();
         if (quietFee > 0) {
             poolManager.mint(address(this), _id(imd), quietFee);
             _accrue(quietFee);
@@ -410,7 +398,8 @@ contract MarginaliaHook is IUnlockCallback {
         bool thesis = p.targetBps == 0;
         uint256 textLen = bytes(p.text).length;
         if (thesis) {
-            if (textLen == 0 || textLen > THESIS_TEXT_MAX || p.parentId != bytes32(0)) revert InvalidNote();
+            if (textLen == 0 || textLen > THESIS_TEXT_MAX) revert InvalidNote();
+            if (p.parentId != bytes32(0)) _checkCounter(p, author, true); // a rebuttal of another author's thesis
         } else {
             if (textLen == 0 || textLen > TEXT_MAX) revert InvalidNote();
             if (p.horizonDays == 0 || p.horizonDays > MAX_HORIZON_DAYS) revert InvalidNote();
@@ -442,7 +431,6 @@ contract MarginaliaHook is IUnlockCallback {
         n.day = _today();
         n.deposit = depositMarg;
         n.parentId = p.parentId;
-        n.textHash = keccak256(bytes(p.text));
         notesPerDay[n.day] += 1;
         if (thesis) {
             n.status = T.Status.ThesisOpen;
@@ -455,8 +443,13 @@ contract MarginaliaHook is IUnlockCallback {
             n.postBalance = IERC20(p.x).balanceOf(author) + (p.x == token ? margToAuthor : 0);
             if (p.parentId != bytes32(0)) {
                 T.Note storage parent = notes[p.parentId];
-                if (parent.author != author || parent.status != T.Status.ThesisOpen) revert InvalidNote();
-                parent.children += 1;
+                if (parent.author == author) {
+                    // a child call under the author's own open thesis
+                    if (parent.status != T.Status.ThesisOpen) revert InvalidNote();
+                    parent.children += 1;
+                } else {
+                    _checkCounter(p, author, false); // a counter-call against another author's call
+                }
             }
         }
         records[author].posted += 1;
@@ -468,12 +461,23 @@ contract MarginaliaHook is IUnlockCallback {
             p.side,
             p.targetBps,
             p.horizonDays,
-            n.postPrice,
-            depositMarg,
             p.parentId,
-            xResult,
             p.text
         );
+    }
+
+    /// @dev A counter argues against another author's live note: a thesis against an open thesis, a call
+    /// against an open call on the same X from the other side. Deposits never change hands between them;
+    /// the scores already move in opposite directions, and a duel's outcome is the pair of Settled events
+    /// (the link is NotePosted.parentId pointing at another author's note), kept off-chain for code size.
+    function _checkCounter(T.NoteParams memory p, address author, bool thesis) private view {
+        T.Note storage t = notes[p.parentId];
+        if (t.author == address(0) || t.author == author) revert InvalidNote();
+        if (thesis) {
+            if (t.status != T.Status.ThesisOpen) revert InvalidNote();
+        } else if (t.status != T.Status.Open || t.x != p.x || t.side == p.side) {
+            revert InvalidNote();
+        }
     }
 
     function pricer() public pure returns (MarginaliaPricer) {
@@ -508,7 +512,7 @@ contract MarginaliaHook is IUnlockCallback {
         } else {
             obs.push(o);
         }
-        emit Observed(id, uint64(block.timestamp), xRead, quoteRead, balance);
+        emit Observed(id, xRead, balance);
     }
 
     /// @dev The author's X balance by staticcall with bounded gas. A read that reverts, re-enters or returns
@@ -548,7 +552,7 @@ contract MarginaliaHook is IUnlockCallback {
         return n.side == T.Side.Buy ? pn < pl : pn > pl;
     }
 
-    /// @notice Anyone settles a note once its window has closed. The keeper earns 2% of a forfeited deposit.
+    /// @notice Anyone settles a note once its window has closed. The keeper earns KEEPER_BPS of a forfeited deposit.
     function settle(bytes32 id) external {
         T.Note storage n = _note(id);
         if (n.status != T.Status.Open) revert NotOpen();
@@ -670,7 +674,6 @@ contract MarginaliaHook is IUnlockCallback {
     function _resolveChild(T.Note storage n) private {
         if (n.parentId == bytes32(0)) return;
         T.Note storage parent = notes[n.parentId];
-        parent.resolvedChildren += 1;
         if (parent.status == T.Status.ThesisOpen) {
             parent.status = T.Status.ThesisClosed;
             emit ThesisReleased(n.parentId);
@@ -919,7 +922,20 @@ contract MarginaliaHook is IUnlockCallback {
         if (n.author == address(0)) revert UnknownNote();
     }
 
-    function noteOf(bytes32 id) external view returns (T.Note memory) {
-        return _note(id);
+    /// @notice The fields a reader needs; venue, text and timestamps are in the NotePosted event.
+    function noteOf(bytes32 id) external view returns (T.NoteView memory v) {
+        T.Note storage n = _note(id);
+        v.author = n.author;
+        v.x = n.x;
+        v.side = n.side;
+        v.targetBps = n.targetBps;
+        v.horizonDays = n.horizonDays;
+        v.class = n.class;
+        v.status = n.status;
+        v.postPrice = n.postPrice;
+        v.postBalance = n.postBalance;
+        v.deposit = n.deposit;
+        v.parentId = n.parentId;
+        v.children = n.children;
     }
 }

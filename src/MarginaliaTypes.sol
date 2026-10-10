@@ -52,6 +52,10 @@ library MarginaliaTypes {
         Side side;
         uint32 targetBps;
         uint16 horizonDays;
+        /// @dev The note this one hangs off: the author's own open thesis (a child call), or ANOTHER author's
+        /// note it argues against — an open thesis for a counter-thesis, an open call on the same X from the
+        /// other side for a counter-call. Zero = standalone. (One field, because the deployed router fixes
+        /// this struct's ABI.)
         bytes32 parentId;
         uint8 class;
         string text;
@@ -95,10 +99,25 @@ library MarginaliaTypes {
         /// @dev MARG locked for the horizon. Returned fee-free on RIGHT, forfeited to the pot otherwise.
         uint256 deposit;
         bytes32 parentId;
-        bytes32 textHash;
-        /// @dev Children a thesis has; resolved children release the thesis deposit.
+        /// @dev Children a thesis has; the first resolved child releases the thesis deposit.
         uint32 children;
-        uint32 resolvedChildren;
+    }
+
+    /// @dev The read model of a note: what a renderer or a test needs without the whole record (the venue,
+    /// timestamps and text travel in the NotePosted event).
+    struct NoteView {
+        address author;
+        address x;
+        Side side;
+        uint32 targetBps;
+        uint16 horizonDays;
+        uint8 class;
+        Status status;
+        uint256 postPrice;
+        uint256 postBalance;
+        uint256 deposit;
+        bytes32 parentId;
+        uint32 children;
     }
 
     /// @dev hookData kinds. Only the router may send NOTE / SELL_NOTE; only the hook itself sends EXEMPT.

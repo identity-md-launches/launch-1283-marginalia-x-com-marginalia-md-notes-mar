@@ -60,7 +60,7 @@ contract LifecycleTest is Fixture {
         uint256 margBefore = token.balanceOf(alice);
         (bytes32 id, uint256 received) =
             _note(alice, _margNote(T.Side.Buy, 20_000, 7, "2x: fee pot compounding"), 10 ether);
-        T.Note memory n = hook.noteOf(id);
+        T.NoteView memory n = hook.noteOf(id);
         assertEq(n.author, alice);
         assertEq(uint8(n.status), uint8(T.Status.Open));
         assertEq(uint8(n.class), uint8(T.Class.Declared));
@@ -105,7 +105,7 @@ contract LifecycleTest is Fixture {
         vm.prank(bob);
         uint256 out = router.sellWithNote(p, key, 100 ether, 1, block.timestamp + 1);
         bytes32 id = bytes32(hook.noteCount());
-        T.Note memory n = hook.noteOf(id);
+        T.NoteView memory n = hook.noteOf(id);
         assertEq(n.author, bob);
         assertEq(uint8(n.side), uint8(T.Side.Sell));
         assertApproxEqRel(n.deposit, 0.5 ether, 0.02e18);
@@ -139,7 +139,7 @@ contract LifecycleTest is Fixture {
         hook.settle(id);
         vm.warp(hook.horizonEnd(id) + hook.SETTLE_WINDOW() + 1);
         hook.settle(id);
-        T.Note memory n = hook.noteOf(id);
+        T.NoteView memory n = hook.noteOf(id);
         assertEq(uint8(n.status), uint8(T.Status.Right));
         MarginaliaHook.Record memory r = _rec(alice);
         assertEq(r.right, 1);
@@ -167,8 +167,10 @@ contract LifecycleTest is Fixture {
         vm.prank(carol);
         hook.settle(id);
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.Wrong));
-        assertEq(token.balanceOf(carol), deposit * 200 / 10_000);
-        assertEq(hook.potMarg(), deposit - deposit * 200 / 10_000);
+        uint256 bounty = deposit * hook.KEEPER_BPS() / 10_000;
+        assertEq(bounty, deposit / 10);
+        assertEq(token.balanceOf(carol), bounty);
+        assertEq(hook.potMarg(), deposit - bounty);
         assertLt(_rec(alice).score, 0);
         vm.prank(alice);
         vm.expectRevert(MarginaliaHook.NothingToClaim.selector);
@@ -508,4 +510,84 @@ contract LifecycleTest is Fixture {
         hook.settle(id);
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.VoidNoData));
     }
+    /// @dev A rebuttal is a thesis that points at another author's open thesis; it needs its own child call
+    /// and then sits in the same judged set, where the panel ranks argument against counter-argument.
+    function testCounterThesisEntersTheJudgedSet() public {
+        _fundCarol();
+        uint32 w = hook.week();
+        (bytes32 tid,) = _note(alice, _margNote(T.Side.Buy, 0, 0, "Privacy re-rates after the next exploit"), 10 ether);
+        T.NoteParams memory rebuttal = _margNote(T.Side.Sell, 0, 0, "Privacy does not re-rate: every exploit so far was a bridge");
+        rebuttal.parentId = tid;
+        // the author cannot rebut themself
+        vm.prank(alice);
+        vm.expectRevert();
+        router.note(rebuttal, key, 10 ether, 1, block.timestamp + 1);
+        (bytes32 rid,) = _note(bob, rebuttal, 10 ether);
+        assertEq(hook.noteOf(rid).parentId, tid);
+        // not judged until it stakes a call of its own
+        assertEq(judge.eligibleTheses(w).length, 0);
+        T.NoteParams memory proof = _margNote(T.Side.Sell, 9000, 7, "MARG -10% in 7d: the exploit narrative fades");
+        proof.parentId = rid;
+        _note(bob, proof, 10 ether);
+        bytes32[] memory judged = judge.eligibleTheses(w);
+        assertEq(judged.length, 1);
+        assertEq(judged[0], rid);
+        // a rebuttal of a closed thesis is refused
+        T.NoteParams memory late = _margNote(T.Side.Sell, 0, 0, "too late");
+        late.parentId = rid; // rid is still ThesisOpen: fine for carol
+        _note(carol, late, 10 ether);
+        vm.warp(block.timestamp + hook.THESIS_GRACE() + 1);
+        hook.settleThesis(tid); // alice's thesis had no child: forfeited
+        T.NoteParams memory dead = _margNote(T.Side.Buy, 0, 0, "rebutting a corpse");
+        dead.parentId = tid;
+        vm.prank(carol);
+        vm.expectRevert();
+        router.note(dead, key, 10 ether, 1, block.timestamp + 1);
+    }
+
+    /// @dev A counter-call is the opposite side on the same token. No deposit changes hands: the loser's
+    /// forfeit goes to the pot as always; the duel's outcome is the pair of settlements.
+    function testCounterCallDuel() public {
+        _buy(bob, 1_500_000 ether); // bob holds MARG at a high
+        (bytes32 a,) = _note(alice, _margNote(T.Side.Buy, 11_000, 1, "+10%"), 10 ether);
+        T.NoteParams memory c = _margNote(T.Side.Sell, 9000, 1, "no: -10%, bob is about to sell");
+        c.parentId = a;
+        // same side as the target is not a counter
+        T.NoteParams memory sameSide = _margNote(T.Side.Buy, 12_000, 1, "+20%");
+        sameSide.parentId = a;
+        vm.prank(bob);
+        vm.expectRevert();
+        router.note(sameSide, key, 10 ether, 1, block.timestamp + 1);
+        (bytes32 b,) = _note(bob, c, 10 ether);
+        assertEq(hook.noteOf(b).parentId, a);
+        // a SELL baseline is the window minimum (the 1:1 checkpoint), so the dump must go below 90% of that
+        token.transfer(bob, 3_000_000 ether);
+        _sell(bob, token.balanceOf(bob)); // the dump: bob's SELL call is right, alice's BUY call is wrong
+        assertLt(hook.margPriceInImd(), hook.noteOf(b).postPrice * 9 / 10);
+        assertLt(hook.margPriceInImd(), hook.noteOf(a).postPrice * 9 / 10);
+        vm.warp(hook.horizonEnd(a));
+        uint256 startBlock = block.number;
+        uint256 startTs = block.timestamp;
+        for (uint256 i = 0; i < 3; ++i) {
+            hook.observe(a);
+            hook.observe(b);
+            vm.roll(startBlock + 25 * (i + 1));
+            vm.warp(startTs + 30 minutes * (i + 1));
+        }
+        vm.warp(hook.horizonEnd(a) + hook.SETTLE_WINDOW() + 1);
+        hook.settle(b); // either order
+        hook.settle(a);
+        assertEq(uint8(hook.noteOf(a).status), uint8(T.Status.Wrong));
+        assertEq(uint8(hook.noteOf(b).status), uint8(T.Status.Right));
+        assertGt(_rec(bob).score, 0);
+        assertLt(_rec(alice).score, 0);
+        // a counter against a settled call is refused
+        _fundCarol();
+        T.NoteParams memory stale = _margNote(T.Side.Sell, 9000, 1, "late");
+        stale.parentId = a;
+        vm.prank(carol);
+        vm.expectRevert();
+        router.note(stale, key, 10 ether, 1, block.timestamp + 1);
+    }
+
 }

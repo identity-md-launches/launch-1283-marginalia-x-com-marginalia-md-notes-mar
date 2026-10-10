@@ -875,7 +875,7 @@ contract RouterFailuresTest is Fixture {
         uint256 margBefore = token.balanceOf(alice);
         vm.prank(alice);
         uint256 received = router.tradeAndNote(x, p, key, 10 ether, 1, vm.getBlockTimestamp());
-        T.Note memory n = hook.noteOf(bytes32(hook.noteCount()));
+        T.NoteView memory n = hook.noteOf(bytes32(hook.noteCount()));
         assertEq(uint8(n.class), uint8(T.Class.Traded));
         assertGt(token.balanceOf(alice) - margBefore, received, "the X leg's MARG did not reach the author");
         assertEq(imd.balanceOf(address(router)), 0);
