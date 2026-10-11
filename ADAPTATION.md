@@ -1,3 +1,114 @@
+# Independent-review revision — 2026-10-11
+
+This is a revision of the accepted hook launch, not a new implementation. The only executable
+production source changed is `src/MarginaliaHook.sol`. The launch token, constructor arguments,
+permission flags `0x20cc`, implementation addresses, companion sources/ABIs, dependencies and build
+configuration are unchanged. `.imd-responses.json` answers all 22 reported items individually.
+
+## Reproductions and changes
+
+The starting tree's 186 existing local tests passed. The supplied late-child proof was copied
+unchanged to `test/scratch/Proof_7ee86ab40f33.t.sol`; it failed with `NotOpen()` before the fix.
+The new `test/HookReview.t.sol` regressions were run before changing production code. They reproduced
+all six reopened findings and the v2/v3 alias advisory. The paired-price tests use real router/pricer
+code with controlled PoolManager price/liquidity slots; observation-monopoly and hostile-reading
+tests use actual swaps on the local PoolManager.
+
+| Finding | Change in `src/MarginaliaHook.sol` | Regression / reason |
+| --- | --- | --- |
+| `6bbdcb1e` | `_checkCallVenue` rejects calls or seals on the bound IMD, and a subject identical to the venue quote. | IMD denominated in IMD is an identity price, not a falsifiable 10% move. BUY, SELL and seal refusal are atomic; target-zero theses can still discuss IMD. |
+| `7ee86ab4` | An own-thesis child must be posted no later than `parent.postedAt + THESIS_GRACE`. | An overdue parent cannot be rescued before its keeper settles it. The supplied proof passes; tests cover the exact inclusive deadline, late refusal, exact returned bond, forfeiture split and 10% bounty. |
+| `27af4563` | A slot replacement retains its opening block for the append gap, while updating its actual timestamp, price/accumulator and balance. The final slot is reserved until the actual first-to-last timestamps span one hour. | Dust swaps every 19 blocks previously prevented every honest append. The attack now resolves Wrong and pays the keeper. Testing the first fix also reproduced a capped series shorter than one hour after a first-slot replacement; reserving the final slot closes that related refundable-void path. Neither a timestamp nor an accumulator is backdated. |
+| `5acec328` | Adds `MAX_AUTHOR_THESES = 3` and `thesesPerAuthor[week][author]`; the count applies to every thesis, including rebuttals. | Three is the existing ranked-head size. One wallet can no longer consume all 120 slots; the regression admits 3 of 120 attempts, another author can enter, and the allowance resets next week. No stamp, bond or prize amount changes. This is an address occupancy cap, not Sybil resistance. |
+| `c6e68a4f` | The first `drawForJudging` is gated until `(week + 1) * 7 days + THESIS_GRACE`. | A week-boundary request can no longer freeze out late theses' timely children. Tests verify atomic refusal before the deadline, success at the exact deadline, both eligible ids in the question, the 0.5 IMD draw and unchanged retry behavior. |
+| `5869aec9` | `_settlementPrice` prices each complete v4 observation separately through the pinned pricer, then chooses the minimum product for BUY or maximum for SELL. | BUY/SELL series whose complete prices were all 4 IMD previously settled on synthetic 1/16 IMD component products and forfeited. Both now settle Right and return exactly 0.65 IMD. V3/v2 continue passing their whole series to the live pricer for first-to-last TWAP and adverse hub leg; canonical accumulator settlement is checked too. Unpriceable calls remain VoidNoData. |
+| `607bc1b0` | `_checkCallVenue` rejects nonzero high 12 bytes of a v3/v2 ref at both posting and sealing. | The live router still admits alias checkpoints, but none can price an accepted note/seal. Four regressions reproduce different window start times, reject the alias without payment, and post/settle successfully using the same pool's canonical address encoding. |
+| `0def2ef9` | Documentation only: fixes `observe`/span comments and the current README/SPEC claims. | A dump-observe-unwind regression confirms one hostile adverse reading survives price recovery and can decide settlement. Honest readings defeat favourable pumps, not adverse attacks. The requested settlement rule is preserved. |
+
+`_settlementPrice` makes at most 16 read-only calls for v4 (the existing observation cap), or one
+for an accumulator venue. It introduces no new stateful external call, payment, permission or
+privileged role. The live pricer's own multi-observation method remains unchanged. Its posting
+window also remains unchanged: the immutable router stores separate component extrema, so an
+ETH-quoted baseline is a conservative bound, not necessarily a price seen at one instant. Recovering
+historical paired samples from that window is impossible; changing the posting scheme or deploying
+a replacement companion is outside this revision. The settlement error is repaired at the hook.
+
+## Tests and documentation adjusted
+
+- `test/HookReview.t.sol`: 18 regressions covering the changes above and the documented adverse
+  reading / liquidity-exit limits. The additional full-series span regression failed against the
+  first spacing fix before its cause was repaired.
+- `test/RevisionFindings.t.sol`: the existing global 120-entry cap test now uses distinct authors;
+  its purpose remains refusal of entry 121 without taking payment. The judging setup waits for
+  the full grace.
+- `test/AuditFindings.t.sol`, `test/Lifecycle.t.sol`: judging setups wait until week-end plus grace;
+  callback, payout, retry and sweep assertions are retained.
+- `test/fork/MainnetLaunch.t.sol`: both historical calls about IMD now assert refusal and no loss
+  of IMD/ETH; the optional X trade rolls back too. A valid thesis activates the initially one-sided
+  launch liquidity before the retained wrong-subject check. Other live-venue tests are unchanged.
+- `README.md`, `SPEC.md`: document the current hook launch, admission/weekly limits and judging
+  timing, paired v4 settlement, conservative posting bound, observation limitations, and advisories.
+  The historical SPEC row advertising a successful IMD/IMD call is marked superseded.
+- `.imd-responses.json`: complete machine-readable findings, verdicts and reproduction details.
+
+## Preserved decisions and advisory findings
+
+- The imported seal-binding, supply-read, lapsed-seal, refund-denominator, manifest and gas-test
+  findings were already fixed in the accepted tree. Their existing regressions pass; those fixes
+  were retained, not rewritten. There is no root `launch.json` to repair or submit.
+- The immutable Judge does not check `questionHash`. Its own pending request plus the trusted
+  Intake routes the answer. In particular, `keccak256(questionBody(week))` is **not** the protocol's
+  canonical question hash: the supplied oracle-consumer reference includes the resolved block
+  window and definitions, and this judge uses a relative 168-hour window. The hook never sees the
+  attestation and cannot add this check. No replacement Judge, signer or Intake was introduced.
+- Observation incentives are unchanged: observations are unpaid, only a forfeiting settlement pays
+  10%, and insufficient data returns the bond with a negative score. Paying observers or treating
+  no-data calls as forfeits would change the brief's explicit amounts or resolution rule.
+- Refund eligibility is checked when claimed after the posting day. Retraction prevents an unpaid
+  refund, forfeits the full bond and decrements the count only once; it does not recover a refund
+  already paid. This accepted behavior is reproduced by
+  `testARetractionAfterTheRefundClaimDoesNotDoubleCount` and now stated without the misleading
+  “never gets a refund” comment. A deferred 90-day claim conflicts with the 28-day sweep schedule.
+- Fees remain swap fees. The single-sided-liquidity regression confirms a MARG range can become
+  IMD through buyers and be withdrawn without a hook fee. Adding liquidity callbacks would change
+  the mandatory `0x20cc` flags and the factory liquidity policy.
+- The accepted initialization boundary remains: only the supplied factory through PoolManager can
+  bind the first pool, with fee 12500; pair and spacing are supplied by that factory. The mainnet
+  rehearsal uses IMD and spacing 60. No chain-specific restriction was added to local deployments.
+- EIP-1167 companions and constructor initialization are expressly required by the brief. Third-party
+  nonempty hookData remains refused; integrators must use empty data for quiet swaps.
+
+## Validation of this revision
+
+- `forge build` and `forge build --sizes`: passed with the existing configuration (compiler/lint warnings only).
+  Hook runtime **23,916 bytes**, creation bytecode **25,454 bytes**; runtime margin **660 bytes**.
+- `forge test --no-match-path 'test/fork/*'`: **205 passed, 0 failed** with the unchanged supplied proof in
+  scratch. This is **204 deliverable tests** (186 existing + 18 new) plus that one proof.
+- Plain `forge test` with no `MAINNET_RPC_URL`: **205 passed, 0 failed, 1 skipped suite setup**. The skip
+  explicitly reports the unavailable fork environment; it is not counted as a fork pass.
+- `MAINNET_RPC_URL=https://ethereum-rpc.publicnode.com forge test --match-path 'test/fork/*' -vv`:
+  **5 passed, 0 failed** against the live implementations. The real factory's deployment portion used
+  **8,306,882 gas**, below 16,777,216; test-side salt mining is outside that deployment measurement.
+- Both supplied protected floors were copied unchanged under `test/scratch/univ4_hook/` and run against
+  the built creation code with local constructor probes, flags 0x20cc, mainnet IMD pairing, fee 12500,
+  spacing 60, price 2^96, supply 10^27 and decimals 18: **11 passed, 0 failed**. This included the
+  empty-companion-EVM constructor rehearsal, factory initialization and runtime opcode/size checks.
+  The temporary floor copies were then removed so an ordinary test run needs no probe environment.
+- `git diff --check` and parsing/validating all 22 response records: passed.
+- No Slither, Mythril, broadcast or explorer verification is claimed.
+
+The live-code comparison at Ethereum block **26169085** found Router, Treasury and Pricer byte-for-byte
+identical to the compiled artifacts; Judge matched after masking only its compiler-declared EIP-712
+immutable ranges. The pair reports symbol `IMD` and 18 decimals. No companion code was changed.
+
+No dependency was installed; no build configuration, dependency, `.git`, `.github`, environment file
+or `node_modules` path was modified. No mainnet transaction was broadcast: the deployment transaction
+is the subsequent launch service's step, and the fork impersonates the real factory's launch wallet.
+
+---
+
+# Previously accepted hook-launch adaptation (retained history)
+
 # Marginalia hook launch (univ4_hook, Ethereum mainnet): adaptation
 
 This round makes the tree as delivered (commit 8075b3e, v0.8) the hook launch: the `Marginalia` token and

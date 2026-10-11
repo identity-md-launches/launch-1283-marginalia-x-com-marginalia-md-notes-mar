@@ -187,7 +187,7 @@ contract MainnetLaunchTest is Test {
         assertLt(launchGas, 16_777_216);
     }
 
-    function testTradeAndNoteSellsImdOnTheHubPool() public {
+    function testTradeAndNoteOnImdIsRefusedAtomically() public {
         _launch();
         deal(IMD, alice, 1000 ether);
         vm.startPrank(alice);
@@ -209,17 +209,22 @@ contract MainnetLaunchTest is Test {
         p.text = "IMD -30% in 14d: launch-night sells into a thin hub";
         _checkpoint(p, hub);
         uint256 ethBefore = alice.balance;
+        uint256 imdBefore = IERC20(IMD).balanceOf(alice);
+        vm.expectRevert(); // a traded IMD call has the same identity price as a declared one
         router.tradeAndNote(x, p, hub, 5 ether, 1, block.timestamp + 1);
         vm.stopPrank();
-        assertGt(alice.balance, ethBefore, "received ETH for the IMD sold");
-        T.NoteView memory n = hook.noteOf(bytes32(hook.noteCount()));
-        assertEq(uint8(n.class), uint8(T.Class.Traded));
-        assertEq(n.x, IMD);
-        assertEq(n.postBalance, IERC20(IMD).balanceOf(alice));
+        assertEq(alice.balance, ethBefore, "the X trade is rolled back too");
+        assertEq(IERC20(IMD).balanceOf(alice), imdBefore);
+        assertEq(hook.noteCount(), 0);
         // a traded note about a token other than the one traded is refused
         p.x = address(token);
         p.venue = T.Venue(T.VenueKind.UniV4, PoolId.unwrap(key.toId()), address(0), false);
         vm.startPrank(alice);
+        // The rejected call rolled back the first MARG swap too. A valid thesis activates the
+        // factory's one-sided launch liquidity before validating the launch pool as a price venue.
+        p.targetBps = 0;
+        router.note(p, key, 0.6 ether, 1, block.timestamp + 1);
+        p.targetBps = 7000;
         vm.expectRevert(MarginaliaRouter.NoteTokenMismatch.selector);
         router.tradeAndNote(x, p, key, 5 ether, 1, block.timestamp + 1);
         vm.stopPrank();
@@ -340,7 +345,7 @@ contract MainnetLaunchTest is Test {
         vm.stopPrank();
     }
 
-    function testNoteAboutImdOnTheHubPool() public {
+    function testNoteAboutImdOnTheHubPoolIsRefused() public {
         _launch();
         deal(IMD, alice, 1000 ether);
         vm.startPrank(alice);
@@ -358,21 +363,12 @@ contract MainnetLaunchTest is Test {
         p.class = uint8(T.Class.Declared);
         p.text = "IMD 1.5x in 30d: the hackathon launches are IMD-paired and every note here is an IMD buy";
         _checkpoint(p, hubKey);
-        uint256 received = router.note(p, hubKey, 10 ether, 1, block.timestamp + 1);
+        uint256 before = IERC20(IMD).balanceOf(alice);
+        vm.expectRevert(); // IMD priced in IMD cannot meet a +/-10% target (finding 6bbdcb1e).
+        router.note(p, hubKey, 10 ether, 1, block.timestamp + 1);
         vm.stopPrank();
-        bytes32 id = bytes32(hook.noteCount());
-        T.NoteView memory n = hook.noteOf(id);
-        assertEq(n.author, alice);
-        assertEq(n.x, IMD);
-        assertApproxEqRel(n.postPrice, 1e18, 0.01e18); // IMD priced in IMD through the hub ≈ 1
-        assertGt(received, 0);
-        assertGt(n.deposit, 0);
-        assertEq(
-            hook.refundPool(hook.today()) + hook.thesisPool(hook.week()),
-            hook.STAMP()
-        );
-        emit log_named_uint("MARG received for 10 IMD (0.25 spent on MARG)", received);
-        emit log_named_uint("bond (IMD)", n.deposit);
-        emit log_named_uint("post price of IMD in IMD (1e18)", n.postPrice);
+        assertEq(IERC20(IMD).balanceOf(alice), before, "no stamp or bond is taken");
+        assertEq(hook.noteCount(), 0);
+        assertEq(hook.refundPool(hook.today()) + hook.thesisPool(hook.week()), 0);
     }
 }

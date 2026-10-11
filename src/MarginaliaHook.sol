@@ -61,13 +61,15 @@ contract MarginaliaHook is IUnlockCallback {
     uint256 public constant OBS_MIN = 3;
     uint256 public constant OBS_MAX = 16;
     uint256 public constant OBS_GAP_BLOCKS = 20;
-    /// @dev Observations must span at least this long, so no single block (or pair of blocks) sets the price.
+    /// @dev Observation timestamps must span at least this long; sampled extremes are not a TWAP.
     uint256 public constant OBS_MIN_SPAN = 1 hours;
     /// @dev The settler's share of a forfeited deposit: the bounty for closing a wrong or broken call.
     uint256 public constant KEEPER_BPS = 1000;
     /// @dev A week's theses are capped at what the judge can put in front of the panel (its MAX_JUDGED), and a
     /// thesis past the cap is refused before its stamp and deposit are taken, never silently unjudgeable.
     uint256 public constant MAX_WEEK_THESES = 120;
+    /// @dev One author may occupy at most the size of the panel's ranked head, leaving room for others.
+    uint256 public constant MAX_AUTHOR_THESES = 3;
     /// @dev Gas allowed to a note token's balanceOf during an observation; a read that fails is "not held".
     uint256 public constant BALANCE_READ_GAS = 100_000;
     uint256 public constant JUDGE_THRESHOLD = 2 ether; // IMD, in the week's thesis pot
@@ -145,6 +147,7 @@ contract MarginaliaHook is IUnlockCallback {
     mapping(uint32 => uint32) public notesPerDay;
     mapping(bytes32 => bool) public refundClaimed;
     mapping(uint32 => bytes32[]) private weekTheses;
+    mapping(uint32 => mapping(address => uint32)) public thesesPerAuthor;
 
     // ------------------------------------------------------------------ transient-ish scratch
 
@@ -419,7 +422,7 @@ contract MarginaliaHook is IUnlockCallback {
                     revert InvalidNote();
                 }
             }
-            if (p.x == address(0) || p.x.code.length == 0) revert InvalidNote();
+            _checkCallVenue(p.x, p.venue);
         }
         uint8 class = p.class;
         if (class >= uint8(T.Class.Attested)) revert InvalidNote(); // the panel's class is never self-declared
@@ -443,8 +446,12 @@ contract MarginaliaHook is IUnlockCallback {
         notesPerDay[n.day] += 1;
         if (thesis) {
             n.status = T.Status.ThesisOpen;
-            if (weekTheses[_week()].length >= MAX_WEEK_THESES) revert InvalidNote();
-            weekTheses[_week()].push(id);
+            uint32 w = _week();
+            if (weekTheses[w].length >= MAX_WEEK_THESES || thesesPerAuthor[w][author] >= MAX_AUTHOR_THESES) {
+                revert InvalidNote();
+            }
+            thesesPerAuthor[w][author] += 1;
+            weekTheses[w].push(id);
         } else {
             bool buy = p.side == T.Side.Buy;
             // The MARG this very swap delivers reaches the author after the callback; count it for a note on MARG.
@@ -472,7 +479,12 @@ contract MarginaliaHook is IUnlockCallback {
                 T.Note storage parent = notes[p.parentId];
                 if (parent.author == author) {
                     // a child call under the author's own open thesis
-                    if (parent.status != T.Status.ThesisOpen) revert InvalidNote();
+                    if (
+                        parent.status != T.Status.ThesisOpen
+                            || block.timestamp > uint256(parent.postedAt) + THESIS_GRACE
+                    ) {
+                        revert InvalidNote();
+                    }
                     parent.children += 1;
                 } else {
                     _checkCounter(p, author, false); // a counter-call against another author's call
@@ -481,6 +493,15 @@ contract MarginaliaHook is IUnlockCallback {
         }
         records[author].posted += 1;
         emit NotePosted(id, author, p.x, class, p.side, p.targetBps, p.horizonDays, p.parentId, p.text);
+    }
+
+    /// @dev A call must be falsifiable in IMD and use the unique address encoding of an accumulator venue.
+    /// The immutable router authenticates the pool, but also accepts high-byte aliases of v3/v2 addresses.
+    function _checkCallVenue(address x, T.Venue memory v) private view {
+        if (x == address(0) || x == imd || x == v.quote || x.code.length == 0) revert InvalidNote();
+        if ((v.kind == T.VenueKind.UniV3 || v.kind == T.VenueKind.UniV2) && uint256(v.ref) >> 160 != 0) {
+            revert InvalidNote();
+        }
     }
 
     /// @dev A counter argues against another author's live note: a thesis against an open thesis, a call
@@ -509,8 +530,9 @@ contract MarginaliaHook is IUnlockCallback {
     /// @notice Anyone records an observation inside the settlement window: the venue's accumulator (v3 / v2)
     /// or spot (v4), the quote leg's spot, and the author's balance. Series slots are spaced by blocks and
     /// capped, but a slot is never owned: while it is taken, a reading more adverse to the call than the
-    /// latest one replaces it. So a pump-observe-unwind in one block is overwritten by any honest reading in
-    /// the next, and the series must span OBS_MIN_SPAN: a pump has to be held for the whole span.
+    /// latest one replaces it without moving the slot's opening block. The actual reading's timestamp is
+    /// retained for TWAP/span calculations. A favourable pump can be overwritten by an honest reading;
+    /// a hostile adverse reading remains even after the price recovers.
     function observe(bytes32 id) external {
         T.Note storage n = _note(id);
         if (n.status != T.Status.Open) revert NotOpen();
@@ -523,8 +545,16 @@ contract MarginaliaHook is IUnlockCallback {
         T.Observation memory o =
             T.Observation(uint64(block.timestamp), uint64(block.number), xRead, quoteRead, balance);
         uint256 len = obs.length;
-        if (len > 0 && (len >= OBS_MAX || block.number < obs[len - 1].blockNumber + OBS_GAP_BLOCKS)) {
+        // Reserve the final slot until actual readings span an hour. A replacement of the first
+        // reading must not let rapid pushes fill every slot with a permanently too-short series.
+        if (
+            len > 0
+                && (len >= OBS_MAX
+                    || block.number < obs[len - 1].blockNumber + OBS_GAP_BLOCKS
+                    || (len == OBS_MAX - 1 && block.timestamp < uint256(obs[0].timestamp) + OBS_MIN_SPAN))
+        ) {
             if (!_moreAdverse(n, o, obs[len - 1])) revert ObservationTooSoon();
+            o.blockNumber = obs[len - 1].blockNumber; // replacements never postpone the next slot
             obs[len - 1] = o;
         } else {
             obs.push(o);
@@ -586,12 +616,7 @@ contract MarginaliaHook is IUnlockCallback {
             for (uint256 i = 0; i < count; ++i) {
                 if (_broken(n, obs[i].balance)) held = false;
             }
-            // A series the pricer cannot turn into a price (a venue that died, a TWAP out of range) is no data.
-            try pricer().settlePrice(n.venue, n.side == T.Side.Buy, obs) returns (uint256 price) {
-                settlePrice = price;
-            } catch {
-                settlePrice = 0;
-            }
+            settlePrice = _settlementPrice(n, obs);
             if (settlePrice == 0) {
                 outcome = T.Status.VoidNoData;
             } else if (!held) {
@@ -626,6 +651,30 @@ contract MarginaliaHook is IUnlockCallback {
         emit Settled(id, outcome, settlePrice, scoreDelta, msg.sender);
     }
 
+    /// @dev The live pricer takes component-wise extremes on v4. Price each complete observation through
+    /// it separately, then retain the adverse product, so both legs always come from the same reading.
+    /// Accumulator venues still use the full series: first-to-last TWAP times the adverse hub leg.
+    /// Any unpriceable reading/series remains VoidNoData, including multiplication overflow in the pricer.
+    function _settlementPrice(T.Note storage n, T.Observation[] memory obs)
+        private
+        view
+        returns (uint256 price)
+    {
+        bool buy = n.side == T.Side.Buy;
+        bool v4 = n.venue.kind == T.VenueKind.UniV4;
+        T.Observation[] memory sample = v4 ? new T.Observation[](1) : obs;
+        uint256 count = v4 ? obs.length : 1;
+        for (uint256 i; i < count; ++i) {
+            if (v4) sample[0] = obs[i];
+            try pricer().settlePrice(n.venue, buy, sample) returns (uint256 p) {
+                if (p == 0) return 0;
+                if (i == 0 || (buy ? p < price : p > price)) price = p;
+            } catch {
+                return 0;
+            }
+        }
+    }
+
     /// @notice The author withdraws a call before its horizon: the deposit goes to the pot, the reason is public.
     function retract(bytes32 id, string calldata text) external {
         T.Note storage n = _note(id);
@@ -633,7 +682,7 @@ contract MarginaliaHook is IUnlockCallback {
         if (n.status != T.Status.Open) revert NotOpen();
         if (block.timestamp >= horizonEnd(id)) revert TooLate();
         n.status = T.Status.Retracted;
-        // A retracted note never claims its writer refund, so it leaves the day's split (audit finding 559dc581).
+        // Retraction removes an unclaimed refund from the day's split. A refund already paid is not clawed back.
         if (!refundClaimed[id]) notesPerDay[n.day] -= 1;
         int256 scoreDelta = -int256(_difficulty(n) / 2);
         Record storage r = records[n.author];
@@ -761,6 +810,7 @@ contract MarginaliaHook is IUnlockCallback {
     /// else sees only this event. The venue must already have a mature router checkpoint, as for any post.
     /// A seal past SEAL_MAX has lapsed and may be replaced by a fresh one.
     function seal(address x, T.Venue calldata venue, bytes32 hash) external {
+        _checkCallVenue(x, venue);
         bytes32 key = sealKey(msg.sender, hash);
         uint64 at = seals[key].at;
         if ((at != 0 && block.timestamp - at <= SEAL_MAX) || x == address(0) || hash == bytes32(0)) {
@@ -781,9 +831,10 @@ contract MarginaliaHook is IUnlockCallback {
     }
 
     /// @notice The judge draws the oracle's price out of a week's thesis pool. The first draw of a week needs
-    /// the threshold; a retry after an unanswered request only needs the price.
+    /// the threshold and the full child grace after week-end; a retry only needs the price.
     function drawForJudging(uint32 w, uint256 amount, bool retry) external {
         if (msg.sender != address(judge)) revert Unauthorized();
+        if (!retry && block.timestamp < (uint256(w) + 1) * 7 days + THESIS_GRACE) revert TooEarly();
         uint256 need = retry ? amount : JUDGE_THRESHOLD;
         if (thesisPool[w] < need || amount > thesisPool[w]) revert PotTooSmall();
         thesisPool[w] -= amount;

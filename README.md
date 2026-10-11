@@ -1,7 +1,7 @@
 # Marginalia — notes in the margin of every trade
 
-This launch deploys four Marginalia companion implementations on Ethereum mainnet: Router, Judge, Treasury and Pricer, all with no constructor arguments. The token and Uniswap v4 hook belong to a later launch. Buying MARG through the
-router with a note attached posts a falsifiable call on any ERC-20, backed by a flat 0.1 IMD stamp and an
+This launch deploys the fixed-supply Marginalia token and its Uniswap v4 hook on Ethereum mainnet. The hook clones the live launch-1240 Router, Judge and Treasury and calls the live Pricer; none of those implementations is redeployed. Buying MARG through the
+router with a note attached posts a falsifiable call on an ERC-20 other than IMD itself, backed by a flat 0.1 IMD stamp and an
 IMD bond the author sizes between 0.25 and 10 IMD (every note also buys 0.25 IMD of MARG). Calls resolve against a manipulation-resistant settlement price built from permissionless
 on-chain observations (v3/v2 TWAPs, the adverse extreme on v4); right calls get their deposit back,
 everything else feeds the weekly pools, including thesis prizes ranked by the IMD oracle panel.
@@ -20,11 +20,11 @@ No owner, no pause, no upgrade. Spec: `SPEC.md`.
 
 ## How the pot pays
 
-Every IMD accrual (stamps, sell fees, converted forfeits, treasury drips) splits at accrual time:
+Every IMD accrual (stamps, sell fees, forfeits, treasury drips) splits at accrual time:
 
 | Share | Pool | Paid to |
 |---|---|---|
-| 70% | the week's thesis prize | the panel's top three long-form theses, 50/30/20, after `requestJudging(week)` and `payJudged(week)` |
+| 70% | the week's thesis prize | the panel's top three long-form theses, 50/30/20, after the week and its seven-day child grace, through `requestJudging(week)` and `payJudged(week)` |
 | 30% | the day's writer refund | every non-retracted note of the day, equal split, capped at one stamp; `claimRefund(id)` after the day ends |
 
 The score (difficulty-weighted, netted across right, wrong, broken, unproven and retracted calls, on every venue)
@@ -34,8 +34,11 @@ c7331916). With no such pool the number can be inflated but never cashed, and th
 reader and the site to judge. A paid leaderboard, if one is ever run, is a campaign funded from the paying wallet's
 retained MARG with published rules, outside the hook.
 
-Unclaimed pools roll forward after 28 days (`sweep`). Nothing in any pool is paid for a price outcome
-except through the score, which is difficulty-weighted, netted against wrong calls, and capped.
+Unclaimed pools roll forward after 28 days (`sweep`). No pool pays for a price outcome or reputation score.
+A week admits at most 120 theses and at most three per author (the size of the ranked head), including rebuttals.
+A child call must arrive by its parent's seven-day deadline, even if nobody has settled the parent yet.
+Judging can first draw its fee at `(week + 1) * 7 days + 7 days`, so every thesis gets its full grace.
+The per-author cap limits one wallet's occupancy; it is not Sybil resistance.
 
 ## Deployment order
 
@@ -100,7 +103,8 @@ duel's outcome is the pair of `Settled` events (the link is in `NotePosted.paren
 settles a wrong or broken call earns 10% of the forfeited deposit (`KEEPER_BPS`).
 
 Before posting a price call, anyone calls `router.checkpointVenue(noteParams, venueKey)` for its
-canonical venue. Its first checkpoint must be at least one hour old, from an earlier block, and at
+canonical venue. V3/v2 references must be the pool address zero-padded to 32 bytes; the hook refuses
+high-byte aliases on both posts and seals. Its first checkpoint must be at least one hour old, from an earlier block, and at
 most six hours old. Further checkpoints preserve the start and accumulate conservative extremes;
 they cannot erase an honest reading. After expiry, checkpoint again and allow a new hour to elapse.
 Theses (`targetBps == 0`) do not need price history. This warm-up uses on-chain timestamps; tests
@@ -108,11 +112,12 @@ advance the EVM clock and never wait in real time.
 
 For v3/v2, the post baseline is the accumulator TWAP from the checkpoint to posting. For v4 and
 the ETH/IMD hub leg, a BUY baseline uses the maximum of the window's readings and the current
-price, and SELL uses the minimum. Settlement retains the opposite extremes and its existing
-one-hour minimum span. `judge.convertForfeits()` requires the same mature history for the MARG/IMD
-venue and enforces 97% of its conservative maximum as the minimum IMD output. A fall beyond the
-floor defers conversion until a fresh window supports it. Calls and checkpoint reads reject a v4
-venue or hub with no active liquidity.
+price, and SELL uses the minimum. The immutable router/pricer store independent component extrema, so
+a multi-leg baseline is a conservative bound and need not be a price observed at one instant.
+At settlement the hook prices each complete v4 observation through the live pricer and takes the minimum
+product for BUY or maximum product for SELL; it never combines legs from different observations.
+V3/v2 still use the first-to-last accumulator TWAP multiplied by the adverse hub observation.
+The one-hour minimum span is unchanged. Calls and checkpoint reads reject a v4 venue or hub with no active liquidity.
 
 The oracle callback stores only the requested head of three ids, then filters and deduplicates them
 when paid. A signed empty or entirely ineligible head pays no winners and rolls the whole remaining
@@ -143,7 +148,7 @@ answered in `.imd-responses.json` and listed in `ADAPTATION.md`. In short: a pri
 refused everywhere; forfeited MARG converts in tranches (`convertForfeits` sells the largest halving of the
 pot the pool absorbs); a stranger's dust cannot void a SELL call (a tolerance rule, since replaced by no SELL
 hold rule at all: see the third review below); an observation slot is never owned (a more adverse reading replaces the
-latest entry, so a one-block pump is overwritten next block); a note token whose `balanceOf` fails is "not
+latest entry; a favourable pump can be overwritten, while an adverse hostile reading remains); a note token whose `balanceOf` fails is "not
 held" (VoidSold, never a refundable void); an unobserved call scores as wrong though its deposit returns;
 a week holds at most 120 theses and refuses the 121st before taking anything; `abandonRequest` invalidates
 an unanswered judging request after its deadline so a thesis pool is never swept from under a deliverable
@@ -163,10 +168,17 @@ hold rule is unchanged). The advisory `sqrt(2) == 2` is also fixed. See `ADAPTAT
 ## v1 scope and known limits
 
 - Price reads assume 18-decimal assets on both sides. Quotes other than IMD, ETH or WETH are refused.
+  Calls and seals on IMD itself are refused: every price is denominated in IMD, so an IMD/IMD target is
+  not falsifiable. Theses about IMD remain possible because they have no price target.
 - v4 venues have no on-chain accumulator, so their baseline and settlement rely on sampled extremes rather than a TWAP. These require honest permissionless observations; time spacing alone cannot prove an unobserved price was held continuously. A
-  single hostile observation can push a genuine call to WRONG only by moving the pool against it at that
-  block, which costs the mover the same swap fees and arbitrage exposure as a pump.
+  single hostile observation can push a genuine call to WRONG by moving the pool against it, observing,
+  and unwinding in one transaction. Later favourable readings do not remove it. On a thin pool, the
+  swap cost may be below the keeper bounty. Replacements retain the slot's opening block, so they cannot
+  continually postpone another observer's next slot; timestamps still record the actual reading time.
 - Sells of MARG pay 3% through any router, or 1% plus the stamp through `sellWithNote` with a note and deposit attached.
+  These are swap fees: single-sided liquidity that converts MARG into IMD as others buy is untaxed by
+  the hook. Flags `0x20cc` deliberately have no liquidity callbacks. Third-party routers must send empty
+  `hookData`; non-empty data is reserved for the Marginalia router's authenticated note format.
 - Bonds are IMD, held as ERC-6909 claims: a noted buy sends `imdIn`, of which 0.1 is the stamp, 0.25 buys MARG and the
   rest (0.25 to 10 IMD) is the bond; a noted sell bonds the minimum off its IMD output. A right bond comes back as
   exactly that IMD; forfeits accrue to the pools at once (10% to the settling keeper). The hook never holds MARG
@@ -180,9 +192,14 @@ hold rule is unchanged). The advisory `sqrt(2) == 2` is also fixed. See `ADAPTAT
   rehearsal code at those same addresses, the fork tests use the live code.
 - The action fee on follow trades, treasury conversion of ETH/USDC/USDT to IMD, the on-chain ERC-8004 agent
   badge (contract wallets are marked Agent), and attestation re-delivery are specified but not yet built.
-- The judge binds an answer to the Intake request it paid for and to this chain id; it does not recompute
-  the oracle's canonical question hash (the eligible set can change after the request), so the Intake is
-  trusted to deliver each answer under the request it was bought for.
+- The judge binds an answer to the Intake request it paid for and to this chain id. The oracle's canonical
+  question hash includes the resolved relative block window and is not `keccak256(questionBody(week))`;
+  the immutable judge relies on the Intake to route the signed answer under the request it was bought for.
+- Observations pay no reward. Only settling a forfeited bond earns 10%; absent sufficient observations,
+  `VoidNoData` returns the bond and scores it as wrong. Mainnet gas can exceed that bounty.
+- Refund eligibility is checked when claimed after the posting day. Retraction forfeits the entire bond
+  and prevents a future refund claim, but does not claw back a refund already paid. Waiting until a
+  90-day horizon to allow refunds would conflict with the daily refund and 28-day sweep schedule.
 - Venue admission is "any canonical Uniswap pool with liquidity", and an author can be the only LP and trader
   of such a pool. A call priced there is a bonded claim that returns or forfeits the author's own deposit on
   price and moves a reputation score that no pool pays for. The site labels venues where the author is the

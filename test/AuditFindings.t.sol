@@ -62,7 +62,7 @@ contract AuditFindingsTest is Fixture {
         _note(alice, child, 10 ether);
         vm.prank(alice);
         hook.fundPot(20 ether);
-        vm.warp(block.timestamp + 7 days);
+        vm.warp((uint256(w) + 1) * 7 days + hook.THESIS_GRACE());
         reqId = judge.requestJudging(w);
     }
 

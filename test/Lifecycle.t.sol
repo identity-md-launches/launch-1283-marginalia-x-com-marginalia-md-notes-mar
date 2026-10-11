@@ -299,7 +299,7 @@ contract LifecycleTest is Fixture {
         assertEq(hook.thesisPool(w), (20 ether + 4 * hook.STAMP()) * 70 / 100);
         vm.expectRevert();
         judge.requestJudging(w); // week not over
-        vm.warp(block.timestamp + 7 days);
+        vm.warp((uint256(w) + 1) * 7 days + hook.THESIS_GRACE());
         bytes32 reqId = judge.requestJudging(w);
         MockIntake intake = MockIntake(hook.INTAKE());
         assertEq(intake.requests(), 1);
@@ -418,7 +418,7 @@ contract LifecycleTest is Fixture {
         _note(alice, child, 10 ether);
         vm.prank(alice);
         hook.fundPot(20 ether);
-        vm.warp(block.timestamp + 7 days);
+        vm.warp((uint256(w) + 1) * 7 days + hook.THESIS_GRACE());
         judge.requestJudging(w);
         vm.expectRevert(MarginaliaJudge.AlreadyRequested.selector);
         judge.requestJudging(w);

@@ -217,7 +217,12 @@ contract RevisionFindingsTest is Fixture {
         uint32 w = hook.week();
         T.NoteParams memory p = _margNote(T.Side.Buy, 0, 0, "thesis");
         for (uint256 i = 0; i < hook.MAX_WEEK_THESES(); ++i) {
-            _note(bob, p, 1 ether);
+            // Fill the global cap with distinct authors; one author cannot occupy the whole week.
+            address author = makeAddr(string(abi.encodePacked("thesis author", i)));
+            imd.transfer(author, 1 ether);
+            vm.prank(author);
+            imd.approve(address(router), 1 ether);
+            _note(author, p, 1 ether);
         }
         assertEq(hook.thesesOfWeek(w).length, hook.MAX_WEEK_THESES());
         assertEq(hook.MAX_WEEK_THESES(), judge.MAX_JUDGED());
@@ -259,7 +264,7 @@ contract RevisionFindingsTest is Fixture {
         _note(alice, child, 10 ether);
         vm.prank(alice);
         hook.fundPot(20 ether);
-        vm.warp((uint256(w) + 1) * 7 days + 1);
+        vm.warp((uint256(w) + 1) * 7 days + hook.THESIS_GRACE());
         reqId = judge.requestJudging(w);
     }
 
