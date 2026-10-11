@@ -116,13 +116,16 @@ contract MarginaliaHook is IUnlockCallback {
     mapping(address => Record) public records;
 
     /// @dev A commitment to a note: the moment, the venue's BUY and SELL baselines priced then, and the author's
-    /// X balance then, keyed by a hash that binds the author to everything the note will say (sealHash). The
-    /// venue and X are public from the commit; the side, target, horizon and text are not until the reveal.
+    /// X balance then, keyed by the sealer and a hash that binds the author to everything the note will say
+    /// (sealKey(sealer, sealHash)), and recording the X and venue it priced (subject). The venue and X are public
+    /// from the commit; the side, target, horizon and text are not until the reveal. A reveal uses only the
+    /// author's own seal whose subject is the note's X and venue (audit finding f31a482c).
     struct Seal {
         uint64 at;
         uint256 baseBuy;
         uint256 baseSell;
         uint256 balance;
+        bytes32 subject;
     }
 
     mapping(bytes32 => Seal) public seals;
@@ -446,19 +449,24 @@ contract MarginaliaHook is IUnlockCallback {
             bool buy = p.side == T.Side.Buy;
             // The MARG this very swap delivers reaches the author after the callback; count it for a note on MARG.
             n.postBalance = IERC20(p.x).balanceOf(author) + (p.x == token ? margToAuthor : 0);
-            Seal storage s = seals[sealHash(author, p)];
+            bytes32 hash = sealHash(author, p);
+            bytes32 key = sealKey(author, hash);
+            Seal storage s = seals[key];
             uint256 age = s.at == 0 ? 0 : block.timestamp - uint256(s.at);
-            if (s.at != 0 && age < SEAL_MIN) revert TooEarly(); // the head start is the key holders', not the public's
-            if (s.at != 0 && age <= SEAL_MAX) {
+            // Only the author's own seal of this note's X and venue counts; any other is no seal.
+            bool bound = s.at != 0 && s.subject == keccak256(abi.encode(p.x, p.venue));
+            if (bound && age < SEAL_MIN) revert TooEarly(); // the head start is the key holders', not the public's
+            if (bound && age <= SEAL_MAX) {
                 // A sealed note is a claim about a position already held: priced when it was sealed, and the
                 // author's X balance may not have fallen since (SELL calls hold nothing, so nothing to keep).
                 if (buy && n.postBalance < s.balance) revert InvalidNote();
                 n.postPrice = buy ? s.baseBuy : s.baseSell;
-                emit Revealed(id, sealHash(author, p));
-                delete seals[sealHash(author, p)];
+                emit Revealed(id, hash);
             } else {
                 n.postPrice = router.postPrice(p.venue, buy);
             }
+            // A seal is spent by its note, timely or lapsed (audit finding d492eadc).
+            if (s.at != 0) delete seals[key];
             if (n.postPrice == 0) revert InvalidNote(); // the pricer refuses these; never trust a zero baseline
             if (p.parentId != bytes32(0)) {
                 T.Note storage parent = notes[p.parentId];
@@ -472,17 +480,7 @@ contract MarginaliaHook is IUnlockCallback {
             }
         }
         records[author].posted += 1;
-        emit NotePosted(
-            id,
-            author,
-            p.x,
-            class,
-            p.side,
-            p.targetBps,
-            p.horizonDays,
-            p.parentId,
-            p.text
-        );
+        emit NotePosted(id, author, p.x, class, p.side, p.targetBps, p.horizonDays, p.parentId, p.text);
     }
 
     /// @dev A counter argues against another author's live note: a thesis against an open thesis, a call
@@ -635,6 +633,8 @@ contract MarginaliaHook is IUnlockCallback {
         if (n.status != T.Status.Open) revert NotOpen();
         if (block.timestamp >= horizonEnd(id)) revert TooLate();
         n.status = T.Status.Retracted;
+        // A retracted note never claims its writer refund, so it leaves the day's split (audit finding 559dc581).
+        if (!refundClaimed[id]) notesPerDay[n.day] -= 1;
         int256 scoreDelta = -int256(_difficulty(n) / 2);
         Record storage r = records[n.author];
         r.retracted += 1;
@@ -670,7 +670,6 @@ contract MarginaliaHook is IUnlockCallback {
         emit DepositClaimed(id, n.author, amount);
     }
 
-
     function _forfeit(T.Note storage n, address keeper) private {
         uint256 amount = n.deposit;
         n.deposit = 0;
@@ -694,8 +693,13 @@ contract MarginaliaHook is IUnlockCallback {
     /// @dev log2(claimed multiple) x sqrt(30 / horizon) x mcap tier, scaled 1e4 (MarginaliaPricer). The score
     /// is reputation: no pool pays for it, so a call priced on a venue the author provisions alone (review
     /// finding c7331916) can inflate a number but never draw money. Readers see the venue; the site labels it.
+    /// X's totalSupply is read like its balance, by bounded-gas staticcall; a failed read, or a supply whose
+    /// market cap overflows, books tier 1 and never blocks settle or retract (audit finding 43fe5339).
     function _difficulty(T.Note storage n) private view returns (uint256) {
-        uint256 mcap = FullMath.mulDiv(n.postPrice, IERC20(n.x).totalSupply(), 1e18);
+        (bool ok, bytes memory ret) =
+            n.x.staticcall{gas: BALANCE_READ_GAS}(abi.encodeWithSelector(IERC20.totalSupply.selector));
+        uint256 supply = ok && ret.length >= 32 ? abi.decode(ret, (uint256)) : 0;
+        uint256 mcap = supply <= type(uint256).max / n.postPrice ? n.postPrice * supply / 1e18 : 0;
         return pricer().difficulty(n.targetBps, n.side == T.Side.Buy, n.horizonDays, mcap);
     }
 
@@ -722,7 +726,6 @@ contract MarginaliaHook is IUnlockCallback {
         return weekTheses[w];
     }
 
-
     /// @notice Moves ERC-20 IMD from the caller into the pools (the treasury's drip, or anyone's gift).
     function fundPot(uint256 amount) external {
         if (amount == 0) revert PotTooSmall();
@@ -740,7 +743,15 @@ contract MarginaliaHook is IUnlockCallback {
 
     /// @notice What a seal commits to: everything the revealed note will carry, bound to its author.
     function sealHash(address author, T.NoteParams memory p) public pure returns (bytes32) {
-        return keccak256(abi.encode(author, p.x, p.venue, p.side, p.targetBps, p.horizonDays, p.parentId, p.text));
+        return
+            keccak256(
+                abi.encode(author, p.x, p.venue, p.side, p.targetBps, p.horizonDays, p.parentId, p.text)
+            );
+    }
+
+    /// @notice Where a sealer's seal of `hash` is stored in `seals`: no one else can occupy or price it.
+    function sealKey(address sealer, bytes32 hash) public pure returns (bytes32) {
+        return keccak256(abi.encode(sealer, hash));
     }
 
     /// @notice Seal a note before posting it: pays one stamp now (non-refundable, so a seal is never a free
@@ -748,16 +759,26 @@ contract MarginaliaHook is IUnlockCallback {
     /// note itself is posted later through the router, between SEAL_MIN and SEAL_MAX after this, and settles
     /// against these baselines. Between the two, the author's key holders may read what was sealed; everyone
     /// else sees only this event. The venue must already have a mature router checkpoint, as for any post.
+    /// A seal past SEAL_MAX has lapsed and may be replaced by a fresh one.
     function seal(address x, T.Venue calldata venue, bytes32 hash) external {
-        if (seals[hash].at != 0 || x == address(0) || hash == bytes32(0)) revert InvalidNote();
+        bytes32 key = sealKey(msg.sender, hash);
+        uint64 at = seals[key].at;
+        if ((at != 0 && block.timestamp - at <= SEAL_MAX) || x == address(0) || hash == bytes32(0)) {
+            revert InvalidNote();
+        }
         uint256 baseBuy = router.postPrice(venue, true);
         uint256 baseSell = router.postPrice(venue, false);
         if (baseBuy == 0 || baseSell == 0) revert InvalidNote();
         _fund(STAMP);
-        seals[hash] = Seal(uint64(block.timestamp), baseBuy, baseSell, _balanceOf(x, msg.sender));
+        seals[key] = Seal(
+            uint64(block.timestamp),
+            baseBuy,
+            baseSell,
+            _balanceOf(x, msg.sender),
+            keccak256(abi.encode(x, venue))
+        );
         emit Sealed(hash, msg.sender, x, venue.ref);
     }
-
 
     /// @notice The judge draws the oracle's price out of a week's thesis pool. The first draw of a week needs
     /// the threshold; a retry after an unanswered request only needs the price.

@@ -1,4 +1,124 @@
-# Marginalia companion implementations
+# Marginalia hook launch (univ4_hook, Ethereum mainnet): adaptation
+
+This round makes the tree as delivered (commit 8075b3e, v0.8) the hook launch: the `Marginalia` token and
+`MarginaliaHook(IPoolManager, token, factory)`, which clones the live launch #1240 companions. The launch shape
+already held, and nothing about it changed:
+
+- `Marginalia` (`src/Marginalia.sol`): no constructor arguments, 18 decimals, 1,000,000,000 MARG minted once to
+  `msg.sender` (the factory). It has no mint, owner, pause, fee or upgrade path.
+- `MarginaliaHook`: a nonpayable constructor `(IPoolManager $poolManager, address $token, address $factory)`. It
+  validates its permissions (beforeInitialize, beforeSwap, afterSwap, beforeSwapReturnDelta,
+  afterSwapReturnDelta = flags 0x20cc), clones Router/Judge/Treasury from the `src/MarginaliaImpls.sol`
+  constants, and initialises each clone once. The constructor reads no chain state. `beforeInitialize` is
+  callable only by the PoolManager. It requires the factory as sender and fee 12500, binds the first pool and
+  refuses any later one. The hook has no owner, admin, pause, upgrade or setter. Its runtime has no
+  DELEGATECALL, CALLCODE or SELFDESTRUCT and is 22,770 bytes (EIP-170 limit 24,576).
+- The companion sources (`MarginaliaRouter`, `MarginaliaJudge`, `MarginaliaTreasury`, `MarginaliaPricer`,
+  `MarginaliaTypes`) are **unchanged** in this round. The live implementations are what the clones run, and the
+  brief forbids redeploying them.
+
+## Changes, by finding
+
+Each finding in the imported audit was checked against the unchanged tree first.
+
+1. **`f31a482c` (high): `seal()` bound neither the sealer, nor X, nor the venue. Reproduced.** On the
+   unchanged code, `seals` was keyed by `hash` alone, and `_postNote` used whichever seal sat at
+   `sealHash(author, p)`. A stranger could therefore occupy that slot. The victim's note then reverted
+   `TooEarly`, and once it did post, it was priced from the stranger's venue. An author could also seal one
+   venue's baselines and reveal on another. Fix in `src/MarginaliaHook.sol`:
+   - Seals are stored at `sealKey(sealer, hash) = keccak256(abi.encode(sealer, hash))`, a new public pure helper.
+   - `Seal` gains `subject = keccak256(abi.encode(x, venue))`.
+   - A reveal uses only the author's own seal whose subject is the note's own `p.x` and `p.venue`. Any other
+     seal counts as no seal, so it can neither block nor price the note.
+
+   The seal still pays its stamp, prices both baselines and snapshots the sealer's own X balance, as before.
+   Tests in `test/LaunchAuditFindings.t.sol`:
+   - `testAStrangersSealNeitherBlocksNorPricesTheAuthorsNote`
+   - `testAnAuthorsSealOnAnotherVenueDoesNotPriceTheNote`
+
+   The existing seal tests in `test/Lifecycle.t.sol` read the record at its new key.
+2. **`43fe5339` (medium): an unguarded `totalSupply()` could block `settle` and `retract`. Reproduced.**
+   `_difficulty` called `IERC20(x).totalSupply()` with all remaining gas and then `FullMath.mulDiv`. A reverting
+   supply, or one whose market cap overflows, therefore made `settle` and `retract` revert forever. Fix:
+   - The supply is read by staticcall bounded by the existing `BALANCE_READ_GAS`, the same way balances are.
+   - A failed read, or a `postPrice * supply` that would overflow, books market cap 0, which is tier 1. SPEC's
+     rule for an unreadable supply is also tier 1.
+   - The score formula is otherwise unchanged.
+
+   Tests:
+   - `testARevertingTotalSupplyStillSettlesWrongAndPaysTheKeeper`
+   - `testARevertingTotalSupplyDoesNotBlockARetraction`
+   - `testAHugeSupplyBooksTierOneInsteadOfOverflowing`
+3. **`559dc581` (low): the writer refund counted retracted notes. Reproduced.** `retract` left the note in
+   `notesPerDay`, so the day's other notes were underpaid. Fix: `retract` decrements `notesPerDay[n.day]` unless
+   the note already claimed its refund, in which case the claim already decremented it. Tests:
+   - `testARetractedNoteLeavesTheDaysRefundSplit`: the sole non-retracted note takes `min(pool, STAMP)`.
+   - `testARetractionAfterTheRefundClaimDoesNotDoubleCount`
+4. **`d492eadc` (low): a lapsed seal was never cleared. Reproduced.** Fix:
+   - `seal()` refuses only a seal that is still live (`age <= SEAL_MAX`). A lapsed seal may be replaced.
+   - Posting the note now deletes the author's seal whether it was timely or lapsed.
+
+   Tests:
+   - `testALapsedSealCanBeSealedAgain`
+   - `testUnrevealedSealIsNotAFreeOptionAndLapses` (Lifecycle) previously asserted that "the lapsed seal
+     record stays". It now asserts the record is spent, because that rule is the one this finding changed.
+5. **`b88581da` (low): `launch.json` was mixed-case and had no `initialPrice`. Reproduced.** `launch.json` is
+   **removed**. The manifest belongs to the step after this one, and a partial manifest in the tree is checked
+   and rejected. `README.md` now says the manifest step writes it. The launch values the code relies on are
+   unchanged:
+   - constructor args `$poolManager, $token, $factory`
+   - flags 0x20cc
+   - fee 12500 and tick spacing 60
+   - IMD `0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7`
+6. **`cceb58e5` (info): one test asserted a gas measurement that this toolchain no longer gives. Reproduced:**
+   177 passed and 1 failed, out of 178. `test/AuditFindings.t.sol`
+   `testHeadOfThreeFitsIntakeStipendAndAFullRankingIsRetried` asserted that a 120-id answer does *not* fit the
+   200k callback. It now asserts the property itself, on either outcome:
+   - if the answer fits, the week is judged and the head is the thesis;
+   - if it does not, the week stays unjudged and the head-of-three retry fits.
+
+   No contract changed for this finding.
+
+## Findings left alone, and why
+
+- **`e20484511` (low): the judge never compares `a.questionHash` with `questionBody(week)`. Reproduces.** By
+  reading the code, `onOracleResult` has no such check. The existing tests also deliver attestations with
+  `questionHash = keccak256("q")`, and the judge accepts them. **Not fixed:** the check belongs in
+  `MarginaliaJudge`, and the hook runs a clone of the live implementation `0xC934…72b4`. The brief forbids
+  redeploying the companions. Editing the source here would make the tests run code that mainnet does not run,
+  and the hook has no way to see the question hash, because the judge passes it only the head of three. The
+  impact is unchanged from the audit: the Intake must route answers to the right `requestId`, and a misrouted
+  answer most often leaves an empty head, which rolls the week's pool forward. Fixing this needs a new judge
+  implementation, which is a decision for the requester.
+- **`3d919d39` (info): the companions are EIP-1167 clones with initialisers.** The brief mandates this. The
+  hook's own runtime has no DELEGATECALL, which the protected floor checks.
+- **`9e449bc8` (info): `beforeInitialize` does not pin tick spacing 60 or the IMD address.** Left as is. The
+  factory supplies both from the manifest, the brief asks only for the factory and fee 12500, and pinning IMD
+  would make the hook unusable on any test or other manager.
+- **`447e57be` (info): third-party non-empty `hookData` reverts.** This is documented behaviour and unchanged.
+- **`9d389a94` (info): coverage statement.** It needs no action.
+
+## Validation (this round)
+
+- `forge build`: passed, with lint warnings only.
+- `forge test --no-match-path 'test/fork/*'`: **186 passed, 0 failed**. That is the 178 tests as delivered
+  plus 8 new ones in `test/LaunchAuditFindings.t.sol`. The brief's 179 does not match the delivered tree, which
+  had 178.
+- The supplied protected floors (`Hook.protected.t.sol`, `Token.protected.t.sol`) were run unchanged from
+  `test/scratch/` and all **11 passed**. They ran against the built creation code with the manager, token
+  probe and factory probe at their own addresses, IMD as the paired currency, fee 12500, tick spacing 60,
+  sqrtPrice 2^96, flags 0x20cc, expected supply 10^27 and decimals 18. The hook's constructor ran in an EVM
+  where the implementation addresses have no code.
+- **Not run:** the mainnet fork suite `test/fork/MainnetLaunch.t.sol`, because no `MAINNET_RPC_URL` was
+  available on this machine. The imported audit reports 5 fork tests passing against the live companions on
+  the unchanged tree. This round changed only the hook, so the companions' byte-identity it reported is not
+  affected.
+- No dependency, build configuration, submodule or CI file was changed.
+
+---
+
+# Earlier rounds: companion implementations (launch #1240)
+
 
 This is the Ethereum mainnet contracts-only launch. Deploy exactly these existing application
 contracts, each with an empty constructor argument list:

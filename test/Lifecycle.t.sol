@@ -31,8 +31,7 @@ contract LifecycleTest is Fixture {
     }
 
     function _pot() internal view returns (uint256) {
-        return
-            hook.refundPool(hook.today()) + hook.thesisPool(hook.week());
+        return hook.refundPool(hook.today()) + hook.thesisPool(hook.week());
     }
 
     function testFlagsAndBinding() public view {
@@ -522,13 +521,16 @@ contract LifecycleTest is Fixture {
         hook.settle(id);
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.VoidNoData));
     }
+
     /// @dev A rebuttal is a thesis that points at another author's open thesis; it needs its own child call
     /// and then sits in the same judged set, where the panel ranks argument against counter-argument.
     function testCounterThesisEntersTheJudgedSet() public {
         _fundCarol();
         uint32 w = hook.week();
-        (bytes32 tid,) = _note(alice, _margNote(T.Side.Buy, 0, 0, "Privacy re-rates after the next exploit"), 10 ether);
-        T.NoteParams memory rebuttal = _margNote(T.Side.Sell, 0, 0, "Privacy does not re-rate: every exploit so far was a bridge");
+        (bytes32 tid,) =
+            _note(alice, _margNote(T.Side.Buy, 0, 0, "Privacy re-rates after the next exploit"), 10 ether);
+        T.NoteParams memory rebuttal =
+            _margNote(T.Side.Sell, 0, 0, "Privacy does not re-rate: every exploit so far was a bridge");
         rebuttal.parentId = tid;
         // the author cannot rebut themself
         vm.prank(alice);
@@ -538,7 +540,8 @@ contract LifecycleTest is Fixture {
         assertEq(hook.noteOf(rid).parentId, tid);
         // not judged until it stakes a call of its own
         assertEq(judge.eligibleTheses(w).length, 0);
-        T.NoteParams memory proof = _margNote(T.Side.Sell, 9000, 7, "MARG -10% in 7d: the exploit narrative fades");
+        T.NoteParams memory proof =
+            _margNote(T.Side.Sell, 9000, 7, "MARG -10% in 7d: the exploit narrative fades");
         proof.parentId = rid;
         _note(bob, proof, 10 ether);
         bytes32[] memory judged = judge.eligibleTheses(w);
@@ -619,8 +622,10 @@ contract LifecycleTest is Fixture {
         T.NoteParams memory p = _margNote(T.Side.Buy, 11_000, 1, "sealed: +10%, airdrop sells are done #7f3a");
         uint256 imdBefore = _claims(address(hook), address(imd));
         bytes32 hash = _seal(alice, p);
-        assertEq(_claims(address(hook), address(imd)) - imdBefore, hook.STAMP(), "the seal pays one stamp up front");
-        (uint64 at, uint256 baseBuy,, uint256 balance) = hook.seals(hash);
+        assertEq(
+            _claims(address(hook), address(imd)) - imdBefore, hook.STAMP(), "the seal pays one stamp up front"
+        );
+        (uint64 at, uint256 baseBuy,, uint256 balance,) = hook.seals(hook.sealKey(alice, hash));
         assertEq(at, block.timestamp);
         assertEq(balance, token.balanceOf(alice));
         // the public sees only the seal; a reveal before the head start is refused
@@ -635,7 +640,7 @@ contract LifecycleTest is Fixture {
         assertGt(router.postPrice(p.venue, true), baseBuy);
         (bytes32 id,) = _note(alice, p, 10 ether);
         assertEq(hook.noteOf(id).postPrice, baseBuy, "priced at the seal");
-        (at,,,) = hook.seals(hash);
+        (at,,,,) = hook.seals(hook.sealKey(alice, hash));
         assertEq(at, 0, "a seal reveals once");
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.Open));
     }
@@ -653,7 +658,7 @@ contract LifecycleTest is Fixture {
         // a sealed SELL call holds nothing, so it reveals regardless
         T.NoteParams memory q = _margNote(T.Side.Sell, 9000, 1, "sealed: -10% #b2");
         bytes32 hq = _seal(alice, q);
-        (,, uint256 baseSell,) = hook.seals(hq);
+        (,, uint256 baseSell,,) = hook.seals(hook.sealKey(alice, hq));
         _sell(alice, token.balanceOf(alice) / 10);
         vm.warp(block.timestamp + hook.SEAL_MIN());
         (bytes32 id,) = _note(alice, q, 10 ether);
@@ -661,7 +666,8 @@ contract LifecycleTest is Fixture {
     }
 
     /// @dev A seal that is never revealed keeps its stamp in the pools; past SEAL_MAX the note posts as an
-    /// ordinary one at the live baseline, and the same text cannot be sealed twice.
+    /// ordinary one at the live baseline, and the same text cannot be sealed twice while the seal is live.
+    /// Launch audit finding d492eadc: posting the note spends the lapsed seal (it used to stay forever).
     function testUnrevealedSealIsNotAFreeOptionAndLapses() public {
         T.NoteParams memory p = _margNote(T.Side.Buy, 11_000, 1, "sealed: +10% #c3");
         bytes32 hash = _seal(alice, p);
@@ -669,7 +675,7 @@ contract LifecycleTest is Fixture {
         vm.expectRevert(MarginaliaHook.InvalidNote.selector);
         hook.seal(p.x, p.venue, hash);
         uint256 imdAfterSeal = _claims(address(hook), address(imd));
-        (, uint256 sealedBase,,) = hook.seals(hash);
+        (, uint256 sealedBase,,,) = hook.seals(hook.sealKey(alice, hash));
         vm.warp(block.timestamp + hook.SEAL_MAX() + 1);
         _buy(bob, 1_500_000 ether); // the market moved after the seal lapsed
         router.checkpointVenue(p, key);
@@ -679,8 +685,12 @@ contract LifecycleTest is Fixture {
         (bytes32 id,) = _note(alice, p, 10 ether);
         assertApproxEqRel(hook.noteOf(id).postPrice, live, 0.001e18, "a lapsed seal does not price the note");
         assertGt(hook.noteOf(id).postPrice, sealedBase * 11 / 10);
-        (uint64 at,,,) = hook.seals(hash);
-        assertEq(at, block.timestamp - hook.SEAL_MAX() - 1 - 1 hours, "the lapsed seal record stays");
-        assertGe(_claims(address(hook), address(imd)), imdAfterSeal + hook.STAMP(), "the reveal pays its own stamp as well");
+        (uint64 at,,,,) = hook.seals(hook.sealKey(alice, hash));
+        assertEq(at, 0, "the lapsed seal is spent by the note");
+        assertGe(
+            _claims(address(hook), address(imd)),
+            imdAfterSeal + hook.STAMP(),
+            "the reveal pays its own stamp as well"
+        );
     }
 }

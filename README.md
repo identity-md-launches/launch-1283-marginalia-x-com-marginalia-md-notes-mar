@@ -76,9 +76,9 @@ MAINNET_RPC_URL=https://... forge test --match-path test/fork/MainnetLaunch.t.so
 
 ## Launch
 
-The implementations are live (launch #1240, above). `launch.json` is the hook launch: `MarginaliaHook` with
-`$poolManager, $token, $factory`, the `Marginalia` token, and the MARG/IMD pool at LP fee 12500. See
-`ADAPTATION.md` for the implementations' reproduced findings, changes and validation.
+The implementations are live (launch #1240, above). The hook launch deploys `MarginaliaHook` with
+`$poolManager, $token, $factory`, the `Marginalia` token, and the MARG/IMD pool at LP fee 12500; its `launch.json`
+is written by the launch's manifest step. See `ADAPTATION.md` for the reproduced findings, changes and validation.
 
 Sealed notes: `seal(x, venue, hash)` commits to a note before it is posted. The seal pays one stamp up front
 (non-refundable, so a seal is never a free option), prices the venue's BUY and SELL baselines at that moment, and
@@ -87,8 +87,10 @@ and no later than 6 hours after the seal (`SEAL_MIN`, `SEAL_MAX`); it settles ag
 sealed BUY call is refused if the author's X balance fell since the seal (position first, then seal). Between seal
 and reveal, the author's key holders may read what was sealed off-chain; everyone else sees only the `Sealed`
 event (author, X, venue). The hash is `sealHash(author, params)` over the router-derived venue, which is what the
-hook receives (`router.validateVenue` gives it). A seal that lapses leaves its stamp in the pools; the same text can
-only be sealed once.
+hook receives (`router.validateVenue` gives it). A seal is stored per sealer, at `seals(sealKey(sealer, hash))`, and
+records the X and venue it priced: a reveal uses only the author's own seal of the note's own X and venue, so nobody
+else's seal can delay or price a note. A seal that lapses leaves its stamp in the pools and may be replaced by a fresh
+seal of the same note; posting the note spends the seal, timely or lapsed.
 
 Counters and duels: a thesis whose `parentId` is another author's open thesis is a rebuttal; it needs its own child
 call like any thesis and then competes in the same weekly judged set. A call whose `parentId` is another author's
