@@ -10,6 +10,9 @@ import {MarginaliaJudge} from "src/MarginaliaJudge.sol";
 import {OracleAttestation} from "src/OracleAttestation.sol";
 import {MarginaliaTypes as T} from "src/MarginaliaTypes.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
+import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
+import {CustomRevert} from "v4-core/src/libraries/CustomRevert.sol";
+import {Hooks} from "v4-core/src/libraries/Hooks.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {PoolIdLibrary, PoolId} from "v4-core/src/types/PoolId.sol";
 import {Currency} from "v4-core/src/types/Currency.sol";
@@ -53,6 +56,7 @@ contract HookAccountingHandler is Test {
     mapping(uint32 => uint256) public expectedThesis;
     mapping(uint32 => uint256) public expectedRefund;
     mapping(uint32 => uint256) public expectedWriters;
+    mapping(uint32 => mapping(address => uint256)) public expectedAuthorTheses;
     uint32[] public daysSeen;
     uint32[] public weeksSeen;
     mapping(uint32 => bool) internal daySeen;
@@ -73,6 +77,9 @@ contract HookAccountingHandler is Test {
     uint256 public oracleSpent;
     uint256 public prizesPaid;
     uint256 public judgingRequests;
+    uint256 public thesisCapRefusals;
+    uint256 public lateChildRefusals;
+    uint256 public earlyJudgingRefusals;
     mapping(uint32 => bool) public pending;
     mapping(uint32 => bool) public expectedJudged;
     mapping(uint32 => bool) public expectedPaid;
@@ -173,7 +180,30 @@ contract HookAccountingHandler is Test {
             children: 0
         });
         expectedWriters[uint32(_now() / 1 days)]++;
+        if (thesis) expectedAuthorTheses[uint32(_now() / 7 days)][author]++;
         if (parent != bytes32(0)) bonds[parent].children++;
+    }
+
+    /// @dev Invalid posts must fail in the hook afterSwap, with all swap effects rolled back.
+    function _rejectPost(address author, T.NoteParams memory p, uint256 amount) private {
+        uint256 imdBefore = imd.balanceOf(author);
+        uint256 margBefore = marg.balanceOf(author);
+        uint256 claimsBefore = manager.balanceOf(address(hook), uint160(address(imd)));
+        vm.prank(author);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                address(hook),
+                IHooks.afterSwap.selector,
+                abi.encodeWithSelector(MarginaliaHook.InvalidNote.selector),
+                abi.encodeWithSelector(Hooks.HookCallFailed.selector)
+            )
+        );
+        router.note(p, key, amount, 1, _now());
+        assertEq(imd.balanceOf(author), imdBefore, "refused note spent IMD");
+        assertEq(marg.balanceOf(author), margBefore, "refused note delivered MARG");
+        assertEq(manager.balanceOf(address(hook), uint160(address(imd))), claimsBefore);
+        assertEq(hook.noteCount(), created, "refused note consumed an id");
     }
 
     function post(uint256 who, uint256 amount, bool buy, bool thesis) public {
@@ -182,6 +212,11 @@ contract HookAccountingHandler is Test {
         address author = _actor(who);
         uint256 bond = bound(amount, 0.25 ether, 10 ether);
         T.NoteParams memory p = _params(buy, thesis);
+        if (thesis && expectedAuthorTheses[uint32(_now() / 7 days)][author] == 3) {
+            _rejectPost(author, p, bond + 0.35 ether);
+            thesisCapRefusals++;
+            return;
+        }
         if (!thesis) _mature(p);
         uint256 before = imd.balanceOf(author);
         vm.prank(author);
@@ -197,11 +232,15 @@ contract HookAccountingHandler is Test {
         bytes32 parent = _id(seed);
         Bond storage b = bonds[parent];
         if (b.status != T.Status.ThesisOpen) return;
-        // This action represents a timely child. Overdue children have a separate defect proof.
-        if (_now() + 1 hours > b.postedAt + 7 days) return;
         T.NoteParams memory p = _params(true, false);
         p.parentId = parent;
         _mature(p);
+        // Check after checkpoint maturation, which can carry a formerly timely child past its deadline.
+        if (_now() > b.postedAt + 7 days) {
+            _rejectPost(b.author, p, 0.6 ether);
+            lateChildRefusals++;
+            return;
+        }
         vm.prank(b.author);
         router.note(p, key, 0.6 ether, 1, _now());
         _record(b.author, 0.25 ether, false, parent);
@@ -428,6 +467,18 @@ contract HookAccountingHandler is Test {
         bool retry = judge.requestOf(w) != bytes32(0);
         if (expectedThesis[w] < (retry ? 0.5 ether : 2 ether)) return;
         _warp((uint256(w) + 1) * 7 days);
+        if (!retry && _now() < (uint256(w) + 2) * 7 days) {
+            uint256 claimsBefore = manager.balanceOf(address(hook), uint160(address(imd)));
+            vm.expectRevert(MarginaliaHook.TooEarly.selector);
+            judge.requestJudging(w);
+            assertEq(judge.requestOf(w), bytes32(0), "early request consumed a request id");
+            assertEq(judge.requestedAt(w), 0, "early request started the retry clock");
+            assertEq(hook.thesisPool(w), expectedThesis[w], "early judging spent prize funds");
+            assertEq(manager.balanceOf(address(hook), uint160(address(imd))), claimsBefore);
+            assertEq(imd.balanceOf(hook.INTAKE()), oracleSpent, "early judging paid the Intake");
+            earlyJudgingRefusals++;
+            _warp((uint256(w) + 2) * 7 days);
+        }
         if (retry) _warp(uint256(judge.requestedAt(w)) + 3 days);
         judge.requestJudging(w);
         expectedThesis[w] -= 0.5 ether;
@@ -527,6 +578,14 @@ contract HookAccountingHandler is Test {
             assertEq(judge.judgedSet(w), expectedJudged[w]);
             assertEq(judge.paid(w), expectedPaid[w]);
             assertEq(hook.judgedPaid(w), expectedPaid[w]);
+            uint256 thesisCount;
+            for (uint256 j; j < actors.length; ++j) {
+                uint256 count = expectedAuthorTheses[w][actors[j]];
+                assertLe(count, 3, "one author exceeded the weekly thesis limit");
+                assertEq(hook.thesesPerAuthor(w, actors[j]), count, "weekly author count drifted");
+                thesisCount += count;
+            }
+            assertEq(hook.thesesOfWeek(w).length, thesisCount, "weekly thesis set drifted");
             obligations += expectedThesis[w];
         }
         for (uint256 i; i < daysSeen.length; ++i) {
@@ -621,6 +680,67 @@ contract HookAccountingInvariantTest is Fixture {
             + token.balanceOf(address(manager)) + token.balanceOf(alice) + token.balanceOf(bob)
             + token.balanceOf(carol);
         assertEq(balances, token.totalSupply(), "random trading minted, burned or lost MARG");
+    }
+
+    function testAccountingHandlerModelsThesisCapAcrossClosureAndWeekRollover() public {
+        uint32 w = hook.week();
+        handler.post(2, 1 ether, true, true);
+        handler.post(2, 1 ether, true, true);
+        assertEq(handler.expectedAuthorTheses(w, carol), 3);
+        handler.post(2, 1 ether, true, true);
+        assertEq(handler.thesisCapRefusals(), 1);
+        assertEq(handler.created(), 6);
+
+        // Resolving an admitted thesis must not let the same author recycle a slot this week.
+        handler.retract(4);
+        assertEq(uint8(hook.noteOf(bytes32(uint256(3))).status), uint8(T.Status.ThesisClosed));
+        handler.post(2, 1 ether, true, true);
+        assertEq(handler.thesisCapRefusals(), 2);
+        this.invariant_everyImdClaimHasExactlyOneObligation();
+
+        vm.warp((uint256(w) + 1) * 7 days);
+        handler.post(2, 1 ether, true, true);
+        assertEq(handler.created(), 7);
+        assertEq(handler.expectedAuthorTheses(w, carol), 3);
+        assertEq(handler.expectedAuthorTheses(w + 1, carol), 1);
+        this.invariant_everyImdClaimHasExactlyOneObligation();
+    }
+
+    function testAccountingHandlerRefusesChildWhoseCheckpointMaturesAfterGrace() public {
+        handler.post(0, 2 ether, true, true);
+        bytes32 parent = bytes32(uint256(5));
+        uint256 postedAt = vm.getBlockTimestamp();
+        vm.warp(postedAt + 7 days - 30 minutes);
+        handler.child(5);
+        assertEq(vm.getBlockTimestamp(), postedAt + 7 days + 30 minutes);
+        assertEq(handler.lateChildRefusals(), 1);
+        assertEq(handler.created(), 5);
+        assertEq(hook.noteOf(parent).children, 0);
+        assertEq(hook.noteOf(parent).deposit, 2 ether);
+        this.invariant_everyImdClaimHasExactlyOneObligation();
+        handler.settle(5);
+        assertEq(uint8(hook.noteOf(parent).status), uint8(T.Status.ThesisForfeited));
+        assertEq(handler.keeperPaid(), 0.2 ether);
+        this.invariant_everyImdClaimHasExactlyOneObligation();
+    }
+
+    function testAccountingHandlerChecksGraceThenAllowsPaidRetry() public {
+        uint32 w = hook.week();
+        handler.requestJudging(0);
+        assertEq(handler.earlyJudgingRefusals(), 1);
+        assertEq(handler.judgingRequests(), 1);
+        assertEq(judge.requestedAt(w), (uint256(w) + 2) * 7 days);
+        bytes32 first = judge.requestOf(w);
+        handler.abandonJudging(0);
+        handler.requestJudging(0);
+        assertNotEq(judge.requestOf(w), first);
+        assertEq(handler.judgingRequests(), 2);
+        assertEq(handler.oracleSpent(), 1 ether);
+        handler.answerJudging(0, true, false);
+        handler.payJudging(0);
+        assertEq(hook.thesisPool(w), 0);
+        assertEq(handler.prizesPaid(), 0, "empty head must roll forward without paying a writer");
+        this.invariant_everyImdClaimHasExactlyOneObligation();
     }
 
     /// @dev A deterministic path makes handler coverage and its accounting assertions reviewable.

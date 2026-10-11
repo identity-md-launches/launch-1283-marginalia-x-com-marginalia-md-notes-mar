@@ -15,6 +15,8 @@ forfeitures, withdrawals, oracle spending, and prize payments. After every gener
 - Claims also equal cumulative value credited minus cumulative payments; the manager backs them.
 - Each bond equals its outstanding, returned, and forfeited portions, with no duplicate payout.
 - Note states and child counts agree with the modeled transitions; completed notes never reopen.
+- Weekly thesis counts agree with an independent per-author ledger, including closed theses;
+  one author cannot exceed three entries, and the allowance resets in a new week.
 - Retractions and refund claims update the remaining writer count correctly.
 - Keeper rewards are exactly 10% of applicable forfeitures. Refunds are equal remaining shares capped at one stamp.
 - Treasury gifts minus drips equal its actual balance. Oracle requests spend their fixed mock price,
@@ -26,7 +28,14 @@ settlement, retraction, both claims, funding, treasury drips, day/week sweeps, u
 and judging requests, answers, payments, and abandonment. Initial notes and a deterministic handler
 scenario prevent an empty-state campaign from being the only exercised behavior.
 
-## Scope and confirmed defect
+The revised handler also attempts fourth theses, late children, and premature judging requests.
+Each must revert with the specific hook error, without spending the author's funds, creating a
+note, or changing the hook's claims. A first judging request waits until week-end plus the full
+seven-day child grace; retries retain their three-day timeout. Deterministic sequences exercise
+cap refusal before and after thesis closure, next-week admission, late-child refusal followed by
+forfeiture, and early judging refusal followed by a paid retry and empty-head rollover.
+
+## Scope and previous finding
 
 The hook, router, treasury, judge, pricer and PoolManager are the repository implementations.
 Companion code is installed at the pinned addresses using the existing fixture. IMD and the Intake
@@ -34,12 +43,17 @@ are local mocks; the accounting handler uses the fixture's permissive ERC-1271 s
 authenticity is covered by the existing oracle tests, not by this accounting mock. Live deployment
 identity and live mainnet behavior still require the existing `test/fork` suite and `MAINNET_RPC_URL`.
 
-The review reproduced a missing seven-day check when attaching a child to a thesis:
-`src/MarginaliaHook.sol` accepts the first child after eight days while the thesis remains open.
-This prevents its forfeiture and can release its bond. The finding and a self-contained Foundry
-test that fails on the current source are in the requested root `.imd-findings.json` report.
-The passing suite does not assert that late children are valid. Its child handler explicitly
-generates timely children; the exact seven-day boundary is tested separately.
+The previously reported late-child defect is fixed in the supplied implementation revision.
+`HookReview.t.sol` and `HookBoundaries.t.sol` retain their deadline regressions. The accounting
+handler now exercises both timely and overdue attempts against that fix, checking the deadline
+after checkpoint maturation so an hour spent preparing history cannot bypass it. Its conservation
+assertions and fail-on-revert setting remain in place.
 
 Run `forge build` and `forge test`. The offline selection is
 `forge test --no-match-path 'test/fork/*'`.
+
+Revision validation: `forge build` passed; the full `forge test` run reported 249 passing tests,
+zero failures, and the mainnet fork suite skipped without `MAINNET_RPC_URL`. The accounting
+invariant completed 128 runs / 10,240 calls with zero unexpected handler reverts. Before the
+handler revision, both its invariant and its deterministic payout scenario failed on the new
+judging grace with `TooEarly`; all original accounting assertions are retained.
