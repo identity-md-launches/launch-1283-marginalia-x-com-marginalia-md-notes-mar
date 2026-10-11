@@ -137,44 +137,6 @@ contract AuditFindingsTest is Fixture {
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.VoidNoData));
     }
 
-    function testForfeitureConversionRejectsSameBlockDump() public {
-        (bytes32 id,) = _note(alice, _margNote(T.Side.Buy, 11_000, 1, "retract"), 10 ether);
-        vm.prank(alice);
-        hook.retract(id, "retracted");
-        uint256 pot = hook.potMarg();
-        token.transfer(bob, 2_000_000 ether);
-        _sell(bob, 2_000_000 ether);
-        vm.expectRevert(MarginaliaHook.InvalidUnlock.selector);
-        judge.convertForfeits();
-        assertEq(hook.potMarg(), pot);
-    }
-
-    function testConversionAfterARealPriceFallNeedsAFreshMatureWindow() public {
-        (bytes32 id,) = _note(alice, _margNote(T.Side.Buy, 11_000, 1, "retract"), 10 ether);
-        vm.prank(alice);
-        hook.retract(id, "retracted");
-        token.transfer(bob, 2_000_000 ether);
-        _sell(bob, 2_000_000 ether);
-        uint256 nowTs = vm.getBlockTimestamp();
-        uint256 nowBlock = vm.getBlockNumber();
-        vm.warp(nowTs + 6 hours);
-        vm.roll(nowBlock + 1800);
-        vm.expectRevert(MarginaliaPricer.PriceHistoryUnavailable.selector);
-        judge.convertForfeits();
-        T.NoteParams memory p = _margNote(T.Side.Buy, 11_000, 1, "new market level");
-        router.checkpointVenue(p, key);
-        vm.expectRevert(MarginaliaPricer.PriceHistoryUnavailable.selector);
-        judge.convertForfeits();
-        vm.warp(nowTs + 7 hours);
-        vm.roll(nowBlock + 2100);
-        uint256 pot = hook.potMarg();
-        uint256 floor = pot * hook.margPriceInImd() / 1e18 * 97 / 100;
-        uint256 claims = _claims(address(hook), address(imd));
-        uint256 out = judge.convertForfeits();
-        assertGe(out, floor);
-        assertEq(hook.potMarg(), 0);
-        assertEq(_claims(address(hook), address(imd)), claims + out);
-    }
 
     function testExpiredBaselineRejectsPostWithoutTakingFunds() public {
         uint256 nowTs = vm.getBlockTimestamp();

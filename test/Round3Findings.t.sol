@@ -106,12 +106,15 @@ contract Round3FindingsTest is Fixture {
         (bytes32 id,,,) = _selfVenueCall(20_000);
         uint256 deposit = hook.noteOf(id).deposit;
         _observeThree(id); // X never moved: a 2x call is wrong
-        uint256 potBefore = hook.potMarg();
+        uint256 potBefore = hook.thesisPool(hook.week()) + hook.refundPool(hook.today());
         vm.prank(carol);
         hook.settle(id);
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.Wrong));
         assertEq(hook.noteOf(id).deposit, 0);
-        assertEq(hook.potMarg() - potBefore, deposit - deposit * hook.KEEPER_BPS() / 10_000);
+        assertEq(
+            hook.thesisPool(hook.week()) + hook.refundPool(hook.today()) - potBefore,
+            deposit - deposit * hook.KEEPER_BPS() / 10_000
+        );
         assertEq(_rec(attacker).wrong, 1);
         assertLt(_rec(attacker).score, 0);
     }

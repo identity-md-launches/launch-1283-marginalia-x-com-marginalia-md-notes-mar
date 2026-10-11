@@ -358,7 +358,7 @@ contract MainnetLaunchTest is Test {
         p.class = uint8(T.Class.Declared);
         p.text = "IMD 1.5x in 30d: the hackathon launches are IMD-paired and every note here is an IMD buy";
         _checkpoint(p, hubKey);
-        uint256 received = router.note(p, hubKey, 20 ether, 1, block.timestamp + 1);
+        uint256 received = router.note(p, hubKey, 10 ether, 1, block.timestamp + 1);
         vm.stopPrank();
         bytes32 id = bytes32(hook.noteCount());
         T.NoteView memory n = hook.noteOf(id);
@@ -371,8 +371,8 @@ contract MainnetLaunchTest is Test {
             hook.refundPool(hook.today()) + hook.thesisPool(hook.week()),
             hook.STAMP()
         );
-        emit log_named_uint("MARG received for 20 IMD", received);
-        emit log_named_uint("deposit (MARG)", n.deposit);
+        emit log_named_uint("MARG received for 10 IMD (0.25 spent on MARG)", received);
+        emit log_named_uint("bond (IMD)", n.deposit);
         emit log_named_uint("post price of IMD in IMD (1e18)", n.postPrice);
     }
 }

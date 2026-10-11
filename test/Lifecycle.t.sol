@@ -64,13 +64,15 @@ contract LifecycleTest is Fixture {
         assertEq(n.author, alice);
         assertEq(uint8(n.status), uint8(T.Status.Open));
         assertEq(uint8(n.class), uint8(T.Class.Declared));
-        assertApproxEqRel(n.deposit, 0.5 ether, 0.02e18); // ~0.5 IMD of MARG at ~1:1
+        // the author sent 10 IMD: 0.1 stamp, 0.25 bought MARG, the remaining 9.65 is the bond, held as IMD
+        assertEq(n.deposit, 10 ether - hook.STAMP() - hook.MARG_BUY());
         assertApproxEqRel(n.postPrice, 1e18, 0.02e18);
         assertEq(_pot(), hook.STAMP());
-        assertEq(_claims(address(hook), address(imd)), hook.STAMP());
-        assertEq(_claims(address(hook), address(token)), n.deposit);
+        assertEq(_claims(address(hook), address(imd)), hook.STAMP() + n.deposit);
+        assertEq(_claims(address(hook), address(token)), 0);
         assertEq(token.balanceOf(alice) - margBefore, received);
-        assertGt(received, 9 ether);
+        assertGt(received, 0.2 ether);
+        assertLt(received, hook.MARG_BUY());
     }
 
     function testNoteTooSmall() public {
@@ -78,6 +80,23 @@ contract LifecycleTest is Fixture {
         vm.prank(alice);
         vm.expectRevert();
         router.note(p, key, 0.15 ether, 1, block.timestamp + 1);
+        // just under the minimum bond, and just over the maximum (amounts computed first: expectRevert
+        // arms against the very next external call, which must be the note itself)
+        uint256 floor = hook.STAMP() + hook.MARG_BUY() + hook.BOND_MIN();
+        uint256 ceiling = hook.STAMP() + hook.MARG_BUY() + hook.BOND_MAX();
+        uint256 deadline = block.timestamp + 1;
+        vm.prank(alice);
+        vm.expectRevert();
+        router.note(p, key, floor - 1, 1, deadline);
+        vm.prank(alice);
+        vm.expectRevert();
+        router.note(p, key, ceiling + 1, 1, deadline);
+        // the band's edges post
+        (bytes32 lo,) = _note(alice, p, floor);
+        assertEq(hook.noteOf(lo).deposit, hook.BOND_MIN());
+        p.text = "max";
+        (bytes32 hi,) = _note(alice, p, ceiling);
+        assertEq(hook.noteOf(hi).deposit, hook.BOND_MAX());
     }
 
     function testUpOnlyIsRefused() public {
@@ -100,7 +119,7 @@ contract LifecycleTest is Fixture {
         vm.prank(bob);
         token.approve(address(router), type(uint256).max);
         uint256 potBefore = _pot();
-        uint256 claimsBefore = _claims(address(hook), address(token));
+        uint256 claimsBefore = _claims(address(hook), address(imd));
         T.NoteParams memory p = _margNote(T.Side.Sell, 7000, 14, "MARG -30%: airdrop supply still unwinding");
         vm.prank(bob);
         uint256 out = router.sellWithNote(p, key, 100 ether, 1, block.timestamp + 1);
@@ -108,11 +127,11 @@ contract LifecycleTest is Fixture {
         T.NoteView memory n = hook.noteOf(id);
         assertEq(n.author, bob);
         assertEq(uint8(n.side), uint8(T.Side.Sell));
-        assertApproxEqRel(n.deposit, 0.5 ether, 0.02e18);
-        assertEq(_claims(address(hook), address(token)) - claimsBefore, n.deposit);
+        assertEq(n.deposit, hook.BOND_MIN(), "a noted sell bonds the minimum, off its IMD output");
         uint256 taken = _pot() - potBefore;
-        // the pool paid out (out + taken); 1% of that plus the 0.1 stamp went to the pot
-        assertApproxEqRel(taken - hook.STAMP(), (out + taken) * 100 / 10_000, 0.001e18);
+        assertEq(_claims(address(hook), address(imd)) - claimsBefore, taken + n.deposit);
+        // the pool paid out (out + taken + bond); 1% of that plus the 0.1 stamp went to the pools
+        assertApproxEqRel(taken - hook.STAMP(), (out + taken + n.deposit) * 100 / 10_000, 0.001e18);
         // cheaper than the quiet path on the same size
         uint256 potMid = _pot();
         _sell(bob, 100 ether);
@@ -144,11 +163,11 @@ contract LifecycleTest is Fixture {
         MarginaliaHook.Record memory r = _rec(alice);
         assertEq(r.right, 1);
         assertGt(r.score, 0);
-        uint256 margBefore = token.balanceOf(alice);
+        uint256 imdBefore = imd.balanceOf(alice);
         vm.prank(alice);
         hook.claimDeposit(id);
-        assertEq(token.balanceOf(alice) - margBefore, n.deposit, "the deposit comes back as MARG");
-        assertEq(_claims(address(hook), address(token)), 0);
+        assertEq(imd.balanceOf(alice) - imdBefore, n.deposit, "the bond comes back in IMD, exactly");
+        assertEq(_claims(address(hook), address(imd)), hook.STAMP(), "only the stamp remains with the hook");
         assertEq(hook.noteOf(id).deposit, 0);
     }
 
@@ -164,13 +183,14 @@ contract LifecycleTest is Fixture {
             vm.warp(startTs + 30 minutes * (i + 1));
         }
         vm.warp(hook.horizonEnd(id) + hook.SETTLE_WINDOW() + 1);
+        uint256 potBefore = _pot();
         vm.prank(carol);
         hook.settle(id);
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.Wrong));
         uint256 bounty = deposit * hook.KEEPER_BPS() / 10_000;
         assertEq(bounty, deposit / 10);
-        assertEq(token.balanceOf(carol), bounty);
-        assertEq(hook.potMarg(), deposit - bounty);
+        assertEq(imd.balanceOf(carol), bounty, "the keeper is paid in IMD");
+        assertEq(_pot() - potBefore, deposit - bounty, "the forfeit accrues to the pools as IMD");
         assertLt(_rec(alice).score, 0);
         vm.prank(alice);
         vm.expectRevert(MarginaliaHook.NothingToClaim.selector);
@@ -205,10 +225,10 @@ contract LifecycleTest is Fixture {
         // (so posting both sides and observing only the winner nets zero) but its deposit still comes back.
         assertLt(_rec(alice).score, 0);
         assertEq(_rec(alice).wrong, 0);
-        uint256 before = token.balanceOf(alice);
+        uint256 before = imd.balanceOf(alice);
         vm.prank(alice);
         hook.claimDeposit(id);
-        assertEq(token.balanceOf(alice) - before, deposit);
+        assertEq(imd.balanceOf(alice) - before, deposit);
     }
 
     function testRetract() public {
@@ -217,10 +237,11 @@ contract LifecycleTest is Fixture {
         vm.prank(bob);
         vm.expectRevert(MarginaliaHook.Unauthorized.selector);
         hook.retract(id, "not mine");
+        uint256 potBefore = _pot();
         vm.prank(alice);
         hook.retract(id, "thesis dead: the dev sold");
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.Retracted));
-        assertEq(hook.potMarg(), deposit);
+        assertEq(_pot() - potBefore, deposit);
         assertLt(_rec(alice).score, 0);
         assertEq(_rec(alice).retracted, 1);
     }
@@ -246,9 +267,11 @@ contract LifecycleTest is Fixture {
         vm.expectRevert(MarginaliaHook.TooEarly.selector);
         hook.settleThesis(tid);
         vm.warp(block.timestamp + 8 days);
+        uint256 deposit = hook.noteOf(tid).deposit;
+        uint256 potBefore = _pot();
         hook.settleThesis(tid);
         assertEq(uint8(hook.noteOf(tid).status), uint8(T.Status.ThesisForfeited));
-        assertGt(hook.potMarg(), 0);
+        assertEq(_pot() - potBefore, deposit - deposit * hook.KEEPER_BPS() / 10_000);
     }
 
     function testTreasuryDrip() public {
@@ -446,18 +469,17 @@ contract LifecycleTest is Fixture {
         hook.claimRefund(b);
     }
 
-    function testForfeitsConvertToImdForThePot() public {
+    /// @dev Bonds are IMD: a forfeit lands in the pools at once and the deployed judge has nothing to convert.
+    function testForfeitsAreImdAndNeedNoConversion() public {
         (bytes32 id,) = _note(alice, _margNote(T.Side.Buy, 20_000, 7, "2x"), 10 ether);
+        uint256 deposit = hook.noteOf(id).deposit;
+        uint256 potBefore = _pot();
         vm.prank(alice);
         hook.retract(id, "out");
-        uint256 marg = hook.potMarg();
-        assertGt(marg, 0);
-        uint256 potBefore = _pot();
-        uint256 out = judge.convertForfeits();
-        assertGt(out, 0);
+        assertEq(_pot() - potBefore, deposit);
         assertEq(hook.potMarg(), 0);
-        assertEq(_pot() - potBefore, out);
-        assertEq(_claims(address(hook), address(token)), 0);
+        assertEq(judge.convertForfeits(), 0);
+        assertEq(_claims(address(hook), address(token)), 0, "the hook never holds MARG claims");
     }
 
     /// @dev The parked finding: pump, observe one block later, unwind. The adverse rule settles on the honest

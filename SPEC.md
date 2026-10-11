@@ -59,7 +59,11 @@ A note is `{token X, venue/poolId, side (BUY/SELL), targetBps, horizonDays, text
 - Who gets the head start: the author's key holders (§4.10), who receive the plaintext off-chain during the window; the hash on-chain is what makes that trustworthy. The public feed shows "sealed note on $X by …" until the reveal. For a server-free public reveal the plaintext may also be timelock-encrypted to a drand round (tlock); per-holder delivery still needs the site's server, disclosed.
 - Why not hide the trade: a position taken from the same wallet at seal time is a visible swap; the pattern is to pre-position (from an unlinked wallet if wanted), seal, then reveal and consolidate. Protocol-level private trades (Railgun etc.) conflict with the hold rule and the Traded class, which exist to PROVE the position.
 
-### 4.2 Stamp + deposit (the bond is FLAT — never a bet size)
+### 4.2 Stamp + bond (v0.8, 2026-10-11: the bond is IMD, author-sized inside a band)
+- **Supersedes the MARG deposit below.** The bond is IMD, not MARG: a noted buy sends `imdIn`; the hook takes the flat 0.1 IMD stamp, spends a fixed `MARG_BUY` = 0.25 IMD on MARG through the pool (every note is still a real buy), and holds the rest as the author's bond, `BOND_MIN` 0.25 ≤ bond ≤ `BOND_MAX` 10 IMD, as IMD claims. A noted sell (`sellWithNote`) bonds `BOND_MIN` off its IMD output. RIGHT returns exactly the bond in IMD; WRONG / VOID_SOLD / RETRACTED / a thesis with no child forfeit it to the pools (70/30) with 10% to the settling keeper. Why: a MARG-denominated bond made the dominant risk of posting the MARG price, not being wrong (a right call could return 0.1 or 2 IMD), and it needed the pot-sale machinery the audit kept attacking; with IMD bonds there is no pot MARG, no conversion and no slippage floor. Why a band, not a flat size: IMD's own price moves (0.5 IMD was $4 at launch and may be $40), so the author picks the size inside a band; the bond is shown on the card as conviction (key holders want it), the score stays unweighted (a weighted score would let a whale buy a record), and since no pool pays by score a bigger bond buys nothing but risk. The stamp stays flat.
+- The v0.2 text below is kept for history; where it says "deposit"/"bond is MARG", v0.8 applies.
+
+### 4.2-old Stamp + deposit (the bond is FLAT — never a bet size)
 - Every note costs two flat amounts, both IMD-sized at post and paid by the $MARG buy that posts it: a **stamp** of 0.1 IMD-equivalent, non-refundable, straight to the pot (every note funds judging, right or wrong), and a **deposit** of 0.5 IMD-equivalent, refundable, locked for the horizon.
 - The deposit is the same for every note. Conviction is expressed by the TRADE SIZE (shown on the card) and by the claim's difficulty (target × horizon × mcap), both of which the record resolves. A variable "bet" was considered and rejected: a bond that scales with conviction becomes a signal to pile in, which is the fomo dynamic this design exists to avoid.
 - Gambling test: money can only be LOST by the poster, only to a pot that pays writing quality, never won on price, and never sized by the poster. It is a posting deposit, the court-bond / Kleros-juror shape, not a wager., converted to $MARG at our pool's post-time price. A moving $MARG price cannot change what being wrong costs.
@@ -188,7 +192,8 @@ Ask to @imdradar / the IMD team wallet: cash prizes → treasury address (public
 | Name | Value |
 |---|---|
 | Stamp (non-refundable) | 0.1 IMD-equivalent per note |
-| Deposit (refundable, flat) | 0.5 IMD-equivalent per note |
+| Bond (refundable, author-sized) | IMD, 0.25 min – 10 max per note (v0.8); noted sells bond the minimum |
+| MARG buy per note | 0.25 IMD spent on MARG through the pool (v0.8) |
 | Action fee | 0.25% of follow trades, 50% author / 50% treasury |
 | Thesis deposit | 0.5 IMD-equivalent; refunded on first child resolution; forfeited if no child within 7 days |
 | Thesis text | ≤ 8 KB, event-only |
@@ -203,7 +208,7 @@ Ask to @imdradar / the IMD team wallet: cash prizes → treasury address (public
 | Declared-note fee | 0.1 IMD, burned |
 | Keeper reward | 10% of a forfeited deposit (v0.5) |
 | Seal | one stamp up front; reveal ≥ 30 min, ≤ 6 h; sealed BUY must keep its X balance |
-| Deposit return | as MARG (the fee-free IMD conversion was removed for code size, v0.7) |
+| Bond return | exactly the IMD bonded (v0.8) |
 | Self-made (indexer) | own router volume ≥ 20% of X pool volume over the horizon |
 | Text | ≤ 280 chars, event-only |
 

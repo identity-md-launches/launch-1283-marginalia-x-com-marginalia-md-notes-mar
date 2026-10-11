@@ -41,7 +41,11 @@ contract MarginaliaHook is IUnlockCallback {
     // ------------------------------------------------------------------ constants
 
     uint256 public constant STAMP = 0.1 ether; // IMD-equivalent, non-refundable, to the pot
-    uint256 public constant DEPOSIT = 0.5 ether; // IMD-equivalent of MARG, refundable
+    /// @dev Every note spends this much IMD on MARG through the pool; the rest of the IMD sent, after the stamp,
+    /// is the author's bond, held as IMD claims and returned on RIGHT. Noted sells bond BOND_MIN off their output.
+    uint256 public constant MARG_BUY = 0.25 ether;
+    uint256 public constant BOND_MIN = 0.25 ether;
+    uint256 public constant BOND_MAX = 10 ether;
     uint256 public constant SELL_NOTED_BPS = 100;
     uint256 public constant SELL_QUIET_BPS = 300;
     uint32 public constant MIN_TARGET_DELTA_BPS = 1000;
@@ -131,7 +135,9 @@ contract MarginaliaHook is IUnlockCallback {
     mapping(uint32 => uint256) public thesisPool; // by week
     mapping(uint32 => uint256) public refundPool; // by day
     /// @dev Forfeited MARG held as claims, converted to IMD by the judge.
-    uint256 public potMarg;
+    /// @dev Bonds are IMD and forfeits accrue straight to the pools; the deployed judge reads this and finds
+    /// nothing to convert.
+    uint256 public constant potMarg = 0;
     mapping(uint32 => bool) public judgedPaid;
     mapping(uint32 => uint32) public notesPerDay;
     mapping(bytes32 => bool) public refundClaimed;
@@ -140,11 +146,9 @@ contract MarginaliaHook is IUnlockCallback {
     // ------------------------------------------------------------------ transient-ish scratch
 
     bytes32 private unlockHash;
-    uint256 private pendingSellDeposit;
 
     uint8 private constant ACT_PAY = 1; // burn claims, take currency to `to`
     uint8 private constant ACT_FUND = 2; // move ERC-20 IMD into claims
-    uint8 private constant ACT_SELL = 3; // swap MARG claims to IMD (to `to`, or kept as claims)
 
     // ------------------------------------------------------------------ errors and events
 
@@ -193,7 +197,6 @@ contract MarginaliaHook is IUnlockCallback {
     event Revealed(bytes32 indexed id, bytes32 indexed hash);
     event RefundClaimed(bytes32 indexed id, address indexed wallet, uint256 amount);
     event Swept(uint8 kind, uint32 indexed epoch, uint256 amount);
-    event PotMargSold(uint256 marg, uint256 imdOut, uint32 indexed day);
     event JudgedPaid(uint32 indexed day, uint256[3] amounts);
 
     // ------------------------------------------------------------------ construction
@@ -298,19 +301,13 @@ contract MarginaliaHook is IUnlockCallback {
         uint256 specifiedTake = 0;
         if (buy) {
             if (kind == T.DATA_NOTE) {
-                // The stamp comes off the specified IMD input; the deposit comes off the MARG output in afterSwap.
+                // The stamp and the author's bond come off the specified IMD input; MARG_BUY of it buys MARG.
                 if (params.amountSpecified >= 0) revert NoteNeedsExactInput();
-                if (uint256(-params.amountSpecified) <= STAMP * 2) revert NoteTooSmall();
-                specifiedTake = STAMP;
+                specifiedTake = STAMP + _bondOf(uint256(-params.amountSpecified));
             }
         } else if (kind == T.DATA_NOTE) {
-            // A noted sell: the deposit is MARG taken off the specified input; the 1% fee and stamp come
-            // off the IMD output in afterSwap. Exact input only.
+            // A noted sell: the 1% fee, the stamp and a BOND_MIN bond come off the IMD output in afterSwap.
             if (params.amountSpecified >= 0) revert NoteNeedsExactInput();
-            uint256 depositMarg = FullMath.mulDiv(DEPOSIT, 1e18, margPriceInImd());
-            if (uint256(-params.amountSpecified) <= depositMarg * 2) revert NoteTooSmall();
-            pendingSellDeposit = depositMarg;
-            specifiedTake = depositMarg;
         } else if (kind != T.DATA_EXEMPT && params.amountSpecified > 0) {
             revert NoteNeedsExactInput(); // quiet sells are exact-input only
         }
@@ -334,34 +331,29 @@ contract MarginaliaHook is IUnlockCallback {
 
         if (buy) {
             if (kind != T.DATA_NOTE) return (IHooks.afterSwap.selector, 0);
-            uint256 netIn = uint256(-params.amountSpecified) - STAMP;
-            if (poolImd != netIn) revert PartialFill();
+            uint256 bond = _bondOf(uint256(-params.amountSpecified));
+            if (poolImd != MARG_BUY) revert PartialFill();
             uint256 margOut = uint256(uint128(margDelta));
-            uint256 depositMarg = FullMath.mulDiv(DEPOSIT, margOut, netIn);
-            if (margOut <= depositMarg + 1) revert NoteTooSmall();
-            poolManager.mint(address(this), _id(imd), STAMP);
-            poolManager.mint(address(this), _id(token), depositMarg);
+            if (margOut == 0) revert NoteTooSmall();
+            poolManager.mint(address(this), _id(imd), STAMP + bond);
             _accrue(STAMP);
             (T.NoteParams memory p, address author, uint256 xResult) = _decodeNote(data);
-            _postNote(author, p, xResult, depositMarg, margOut - depositMarg);
+            _postNote(author, p, xResult, bond, margOut);
             emit SwapFee(true, author, poolImd, 0, STAMP);
-            return (IHooks.afterSwap.selector, depositMarg.toInt128());
+            return (IHooks.afterSwap.selector, 0);
         }
 
         if (kind == T.DATA_EXEMPT) return (IHooks.afterSwap.selector, 0);
 
         if (kind == T.DATA_NOTE) {
-            uint256 depositMarg = pendingSellDeposit;
-            delete pendingSellDeposit;
             uint256 fee = poolImd * SELL_NOTED_BPS / 10_000 + STAMP;
-            if (poolImd <= fee) revert NoteTooSmall();
-            poolManager.mint(address(this), _id(imd), fee);
-            poolManager.mint(address(this), _id(token), depositMarg);
+            if (poolImd <= fee + BOND_MIN) revert NoteTooSmall();
+            poolManager.mint(address(this), _id(imd), fee + BOND_MIN);
             _accrue(fee);
             (T.NoteParams memory p, address author, uint256 xResult) = _decodeNote(data);
-            _postNote(author, p, xResult, depositMarg, 0);
+            _postNote(author, p, xResult, BOND_MIN, 0);
             emit SwapFee(false, author, poolImd, fee - STAMP, STAMP);
-            return (IHooks.afterSwap.selector, fee.toInt128());
+            return (IHooks.afterSwap.selector, (fee + BOND_MIN).toInt128());
         }
 
         // Quiet sell.
@@ -373,6 +365,13 @@ contract MarginaliaHook is IUnlockCallback {
         }
         emit SwapFee(false, tx.origin, poolImd, quietFee, 0);
         return (IHooks.afterSwap.selector, returned);
+    }
+
+    /// @dev The author's bond is what they sent beyond the stamp and the MARG buy, inside the band.
+    function _bondOf(uint256 imdIn) private pure returns (uint256 bond) {
+        if (imdIn < STAMP + MARG_BUY + BOND_MIN) revert NoteTooSmall();
+        bond = imdIn - STAMP - MARG_BUY;
+        if (bond > BOND_MAX) revert InvalidNote();
     }
 
     /// @dev Splits an IMD accrual into the two pools.
@@ -399,7 +398,7 @@ contract MarginaliaHook is IUnlockCallback {
         address author,
         T.NoteParams memory p,
         uint256 xResult,
-        uint256 depositMarg,
+        uint256 bond,
         uint256 margToAuthor
     ) private {
         bool thesis = p.targetBps == 0;
@@ -436,7 +435,7 @@ contract MarginaliaHook is IUnlockCallback {
         n.class = class;
         n.postedAt = uint64(block.timestamp);
         n.day = _today();
-        n.deposit = depositMarg;
+        n.deposit = bond;
         n.parentId = p.parentId;
         notesPerDay[n.day] += 1;
         if (thesis) {
@@ -657,8 +656,7 @@ contract MarginaliaHook is IUnlockCallback {
         emit ThesisForfeited(id);
     }
 
-    /// @notice A right (or no-data, or released thesis) deposit, returned as MARG. (The fee-free conversion to
-    /// IMD was removed for code size; a noted sell costs 1%.)
+    /// @notice A right (or no-data, or released thesis) bond, returned in IMD.
     function claimDeposit(bytes32 id) external {
         T.Note storage n = _note(id);
         if (msg.sender != n.author) revert Unauthorized();
@@ -668,7 +666,7 @@ contract MarginaliaHook is IUnlockCallback {
         uint256 amount = n.deposit;
         if (amount == 0) revert NothingToClaim();
         n.deposit = 0;
-        _unlock(ACT_PAY, n.author, amount, uint256(uint160(token)));
+        _unlock(ACT_PAY, n.author, amount, uint256(uint160(imd)));
         emit DepositClaimed(id, n.author, amount);
     }
 
@@ -678,8 +676,8 @@ contract MarginaliaHook is IUnlockCallback {
         n.deposit = 0;
         if (amount == 0) return;
         uint256 reward = keeper == address(0) ? 0 : amount * KEEPER_BPS / 10_000;
-        if (reward > 0) _unlock(ACT_PAY, keeper, reward, uint256(uint160(token)));
-        potMarg += amount - reward;
+        if (reward > 0) _unlock(ACT_PAY, keeper, reward, uint256(uint160(imd)));
+        _accrue(amount - reward);
     }
 
     function _resolveChild(T.Note storage n) private {
@@ -760,17 +758,6 @@ contract MarginaliaHook is IUnlockCallback {
         emit Sealed(hash, msg.sender, x, venue.ref);
     }
 
-    /// @notice Converts forfeited MARG using the router's mature price history for the slippage floor.
-    function sellPotMarg(uint256 amount) external returns (uint256 imdOut) {
-        if (msg.sender != address(judge)) revert Unauthorized();
-        if (amount == 0 || amount > potMarg) revert PotTooSmall();
-        potMarg -= amount;
-        T.Venue memory venue = T.Venue(T.VenueKind.UniV4, PoolId.unwrap(poolId), imd, !imdIs0);
-        uint256 minimum = FullMath.mulDiv(amount, router.postPrice(venue, true), 1e18) * 97 / 100;
-        imdOut = _unlock(ACT_SELL, address(0), amount, minimum);
-        _accrue(imdOut);
-        emit PotMargSold(amount, imdOut, _today());
-    }
 
     /// @notice The judge draws the oracle's price out of a week's thesis pool. The first draw of a week needs
     /// the threshold; a retry after an unanswered request only needs the price.
@@ -886,32 +873,6 @@ contract MarginaliaHook is IUnlockCallback {
             poolManager.settle();
             poolManager.mint(address(this), _id(imd), amount);
             return "";
-        }
-        if (action == ACT_SELL) {
-            bool zeroForOne = !imdIs0; // MARG → IMD
-            BalanceDelta delta = poolManager.swap(
-                pool,
-                SwapParams(
-                    zeroForOne,
-                    -int256(amount),
-                    zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
-                ),
-                abi.encode(T.DATA_EXEMPT)
-            );
-            int128 margDelta = imdIs0 ? delta.amount1() : delta.amount0();
-            int128 imdDelta = imdIs0 ? delta.amount0() : delta.amount1();
-            if (margDelta >= 0 || imdDelta <= 0) revert InvalidUnlock();
-            // Whole fill only, and at least `extra` IMD out (the caller's slippage floor), never an orphaned claim.
-            if (uint256(uint128(-margDelta)) != amount) revert InvalidUnlock();
-            poolManager.burn(address(this), _id(token), amount);
-            uint256 imdOut = uint256(uint128(imdDelta));
-            if (imdOut < extra) revert InvalidUnlock();
-            if (to == address(0)) {
-                poolManager.mint(address(this), _id(imd), imdOut);
-            } else {
-                poolManager.take(Currency.wrap(imd), to, imdOut);
-            }
-            return abi.encode(imdOut);
         }
         revert InvalidUnlock();
     }

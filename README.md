@@ -1,8 +1,8 @@
 # Marginalia — notes in the margin of every trade
 
 This launch deploys four Marginalia companion implementations on Ethereum mainnet: Router, Judge, Treasury and Pricer, all with no constructor arguments. The token and Uniswap v4 hook belong to a later launch. Buying MARG through the
-router with a note attached posts a falsifiable call on any ERC-20, backed by a flat stamp and a flat
-refundable deposit. Calls resolve against a manipulation-resistant settlement price built from permissionless
+router with a note attached posts a falsifiable call on any ERC-20, backed by a flat 0.1 IMD stamp and an
+IMD bond the author sizes between 0.25 and 10 IMD (every note also buys 0.25 IMD of MARG). Calls resolve against a manipulation-resistant settlement price built from permissionless
 on-chain observations (v3/v2 TWAPs, the adverse extreme on v4); right calls get their deposit back,
 everything else feeds the weekly pools, including thesis prizes ranked by the IMD oracle panel.
 No owner, no pause, no upgrade. Spec: `SPEC.md`.
@@ -12,7 +12,7 @@ No owner, no pause, no upgrade. Spec: `SPEC.md`.
 | Contract | Role |
 |---|---|
 | `Marginalia` | The launch ERC-20: 1,000,000,000 × 1e18 minted once to its deployer (the launch factory). |
-| `MarginaliaHook` | The hook (flags `0x20cc`): binds the launch pool, takes the stamp and deposit on noted buys and the 1%/3% fee on sells, holds notes, observations, records and the three pools, and pays out. Its constructor clones the three companions (EIP-1167) from the live launch-1240 implementations and initialises each once. Notes can be counters: a thesis may rebut another author's open thesis, a call may take the other side of another author's open call on the same token (`parentId` pointing at that note). |
+| `MarginaliaHook` | The hook (flags `0x20cc`): binds the launch pool, takes the stamp and the IMD bond on noted buys and the 1%/3% fee on sells, holds notes, observations, records and the three pools, and pays out. Its constructor clones the three companions (EIP-1167) from the live launch-1240 implementations and initialises each once. Notes can be counters: a thesis may rebut another author's open thesis, a call may take the other side of another author's open call on the same token (`parentId` pointing at that note). |
 | `MarginaliaRouter` | The only path that can attach a note; optionally trades X on Uniswap v4, v3 or v2 in the same transaction so the position is proven, and refuses a note about a token other than the one traded. Plain MARG buys and sells go through any v4 router. |
 | `MarginaliaJudge` | The oracle consumer: once a week buys the panel's ranking of the week's long-form theses through the IMD Intake, verifies the EIP-712 attestation, tells the hook whom to pay. Short-form calls are never judged. |
 | `MarginaliaTreasury` | Receives prizes and gifts in IMD; drips 2% of its IMD into the pools daily. No withdraw; refuses ETH. |
@@ -165,7 +165,10 @@ hold rule is unchanged). The advisory `sqrt(2) == 2` is also fixed. See `ADAPTAT
   single hostile observation can push a genuine call to WRONG only by moving the pool against it at that
   block, which costs the mover the same swap fees and arbitrage exposure as a pump.
 - Sells of MARG pay 3% through any router, or 1% plus the stamp through `sellWithNote` with a note and deposit attached.
-- A right call's deposit comes back as MARG (`claimDeposit`); the fee-free conversion to IMD was removed for code size.
+- Bonds are IMD, held as ERC-6909 claims: a noted buy sends `imdIn`, of which 0.1 is the stamp, 0.25 buys MARG and the
+  rest (0.25 to 10 IMD) is the bond; a noted sell bonds the minimum off its IMD output. A right bond comes back as
+  exactly that IMD; forfeits accrue to the pools at once (10% to the settling keeper). The hook never holds MARG
+  claims and there is no pot sale: the deployed judge's `convertForfeits` finds `potMarg() == 0` and returns.
 - The X trade leg supports v4 pools (including native-ETH pairs), v3 pools and v2 pairs; exact-input only.
 - Quiet (un-noted) MARG sells are exact-input only: an exact-output sell through any router reverts
   (`NoteNeedsExactInput`). Exact-output buys are unaffected.

@@ -96,7 +96,7 @@ library MarginaliaTypes {
         uint32 day;
         uint256 postPrice;
         uint256 postBalance;
-        /// @dev MARG locked for the horizon. Returned fee-free on RIGHT, forfeited to the pot otherwise.
+        /// @dev The author's IMD bond, held as claims for the horizon. Returned on RIGHT, forfeited to the pools otherwise.
         uint256 deposit;
         bytes32 parentId;
         /// @dev Children a thesis has; the first resolved child releases the thesis deposit.
