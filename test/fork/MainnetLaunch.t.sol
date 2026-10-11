@@ -368,7 +368,7 @@ contract MainnetLaunchTest is Test {
         assertGt(received, 0);
         assertGt(n.deposit, 0);
         assertEq(
-            hook.refundPool(hook.today()) + hook.leaderboardPool(hook.week()) + hook.thesisPool(hook.week()),
+            hook.refundPool(hook.today()) + hook.thesisPool(hook.week()),
             hook.STAMP()
         );
         emit log_named_uint("MARG received for 20 IMD", received);

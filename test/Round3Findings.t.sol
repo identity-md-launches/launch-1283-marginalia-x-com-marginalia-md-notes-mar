@@ -44,7 +44,7 @@ contract Round3FindingsTest is Fixture {
         vm.warp(end + hook.SETTLE_WINDOW() + 1);
     }
 
-    // ---------------------------------------------------------------- c7331916: a self-priced venue earns no score
+    // ---------------------------------------------------------------- c7331916: a self-priced venue can inflate a reputation number but there is no pool to draw
 
     /// @dev The attacker's own hookless X/IMD pool, with the attacker as its only LP; a 100x BUY call on it.
     function _selfVenueCall(uint32 targetBps)
@@ -72,32 +72,37 @@ contract Round3FindingsTest is Fixture {
         assertEq(hook.noteOf(id).postPrice, 1e18);
     }
 
-    function testASelfPricedVenueDrawsNothingFromTheLeaderboard() public {
+    function testASelfPricedVenueBooksReputationOnlyAndNoPoolPaysForIt() public {
         (bytes32 id, PoolKey memory xKey,, bool x0) = _selfVenueCall(1_000_000);
-        uint32 w = hook.week();
         vm.warp(hook.horizonEnd(id));
+        uint32 w = hook.week();
+        uint32 d = hook.today();
         vm.prank(attacker);
         plain.swap(xKey, !x0, 11 ether, attacker); // pump X ~144x; nobody else holds X to sell it back
         _observeThree(id);
+        uint256 thesisBefore = hook.thesisPool(w);
+        uint256 refundBefore = hook.refundPool(d);
         hook.settle(id);
         vm.prank(attacker);
         hook.fundPot(1000 ether);
-        // The call is "right" on its own pool: the deposit comes back, but it scores nothing anywhere.
+        // The call is "right" on its own pool: the deposit comes back and a reputation number moves,
+        // but every accrual went to the thesis prize (panel-judged) and the capped writer refund.
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.Right));
         assertGt(hook.noteOf(id).deposit, 0);
         assertEq(_rec(attacker).right, 1);
-        assertEq(_rec(attacker).score, 0);
-        assertEq(hook.weekScore(w, attacker), 0);
-        assertEq(hook.weekTotal(w), 0);
-        assertGt(hook.leaderboardPool(w), 500 ether);
-        assertEq(hook.leaderboardShare(w, attacker), 0, "self-priced venue pays the leaderboard");
-        vm.warp((uint256(w) + 1) * 7 days + 1);
+        assertGt(_rec(attacker).score, 0);
+        assertEq(hook.thesisPool(w) - thesisBefore, 700 ether);
+        assertEq(hook.refundPool(d) - refundBefore, 300 ether);
+        // the only claim a right call has besides its own deposit is its posting day's refund, capped at one
+        // stamp: that day's only accrual was this note's own stamp, so 30% of it comes back
+        vm.warp((uint256(d) + 1) * 1 days + 1);
+        uint256 before = imd.balanceOf(attacker);
         vm.prank(attacker);
-        vm.expectRevert(MarginaliaHook.NothingToClaim.selector);
-        hook.claimLeaderboard(w);
+        hook.claimRefund(id);
+        assertEq(imd.balanceOf(attacker) - before, hook.STAMP() * 30 / 100);
     }
 
-    function testAWrongCallOnAnotherVenueStillForfeitsButBooksNoScore() public {
+    function testAWrongCallOnAnotherVenueStillForfeitsAndBooksANegativeScore() public {
         (bytes32 id,,,) = _selfVenueCall(20_000);
         uint256 deposit = hook.noteOf(id).deposit;
         _observeThree(id); // X never moved: a 2x call is wrong
@@ -108,28 +113,24 @@ contract Round3FindingsTest is Fixture {
         assertEq(hook.noteOf(id).deposit, 0);
         assertEq(hook.potMarg() - potBefore, deposit - deposit * hook.KEEPER_BPS() / 10_000);
         assertEq(_rec(attacker).wrong, 1);
-        assertEq(_rec(attacker).score, 0);
-        assertEq(hook.weekScore(hook.week(), attacker), 0);
+        assertLt(_rec(attacker).score, 0);
     }
 
-    function testRetractingACallOnAnotherVenueBooksNoScore() public {
+    function testRetractingACallOnAnotherVenueBooksHalfAWrong() public {
         (bytes32 id,,,) = _selfVenueCall(20_000);
         vm.prank(attacker);
         hook.retract(id, "never mind");
         assertEq(_rec(attacker).retracted, 1);
-        assertEq(_rec(attacker).score, 0);
+        assertLt(_rec(attacker).score, 0);
     }
 
-    function testALaunchPoolCallStillScoresAndPaysTheLeaderboard() public {
-        uint32 w = hook.week();
+    function testALaunchPoolCallScoresTheSameWay() public {
         (bytes32 id,) = _note(alice, _margNote(T.Side.Buy, 11_000, 1, "+10%"), 10 ether);
         _buy(bob, 1_500_000 ether);
         _observeThree(id);
         hook.settle(id);
         assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.Right));
         assertEq(_rec(alice).score, 20_538);
-        assertEq(hook.weekScore(w, alice), 20_538);
-        assertGt(hook.leaderboardShare(w, alice), 0);
     }
 
     // ---------------------------------------------------------------- 80c42ce7: a stranger's gift cannot void a SELL call

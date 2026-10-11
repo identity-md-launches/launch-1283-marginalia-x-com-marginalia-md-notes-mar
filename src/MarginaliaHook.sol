@@ -64,9 +64,7 @@ contract MarginaliaHook is IUnlockCallback {
     uint256 public constant BALANCE_READ_GAS = 100_000;
     uint256 public constant JUDGE_THRESHOLD = 2 ether; // IMD, in the week's thesis pot
     uint256 public constant JUDGE_PRICE = 0.5 ether; // IMD, the Intake's oracle.request price
-    uint256 public constant LEADERBOARD_BPS = 5000; // of every accrual: the week's score-weighted pool
-    uint256 public constant THESIS_BPS = 3000; // the week's judged thesis prize
-    uint256 public constant LEADERBOARD_CAP_BPS = 1000; // no wallet takes more than 10% of a week's pool
+    uint256 public constant THESIS_BPS = 7000; // of every accrual: the week's judged thesis prize; the rest is the day's writer refund
     uint256 public constant SWEEP_AFTER = 28 days; // unclaimed pools roll forward after this
     uint256 public constant LP_FEE = 12_500;
 
@@ -112,18 +110,13 @@ contract MarginaliaHook is IUnlockCallback {
     // ------------------------------------------------------------------ pot and judging
 
     /// @dev Every IMD accrual (stamps, fees, forfeits, drips) splits three ways at accrual time, all held
-    /// as ERC-6909 claims: the week's leaderboard pool, the week's thesis prize, the day's writer refund.
-    mapping(uint32 => uint256) public leaderboardPool; // by week
+    /// as ERC-6909 claims: the week's thesis prize and the day's writer refund. Score is reputation only:
+    /// no pool pays for a price outcome, so a venue the author provisions alone has nothing to draw on.
     mapping(uint32 => uint256) public thesisPool; // by week
     mapping(uint32 => uint256) public refundPool; // by day
     /// @dev Forfeited MARG held as claims, converted to IMD by the judge.
     uint256 public potMarg;
     mapping(uint32 => bool) public judgedPaid;
-    /// @dev Score earned per wallet per week, and the week's sum of positive scores (the pro-rata base).
-    mapping(uint32 => mapping(address => int256)) public weekScore;
-    mapping(uint32 => uint256) public weekTotal;
-    mapping(uint32 => mapping(address => bool)) public leaderboardClaimed;
-    mapping(uint32 => uint256) public leaderboardPaid;
     mapping(uint32 => uint32) public notesPerDay;
     mapping(bytes32 => bool) public refundClaimed;
     mapping(uint32 => bytes32[]) private weekTheses;
@@ -180,7 +173,6 @@ contract MarginaliaHook is IUnlockCallback {
     event ThesisForfeited(bytes32 indexed id);
     event PotFunded(uint32 indexed day, uint256 amount, address indexed source);
     event Accrued(uint32 indexed day, uint256 amount);
-    event LeaderboardClaimed(uint32 indexed week, address indexed wallet, uint256 amount);
     event RefundClaimed(bytes32 indexed id, address indexed wallet, uint256 amount);
     event Swept(uint8 kind, uint32 indexed epoch, uint256 amount);
     event PotMargSold(uint256 marg, uint256 imdOut, uint32 indexed day);
@@ -365,15 +357,12 @@ contract MarginaliaHook is IUnlockCallback {
         return (IHooks.afterSwap.selector, returned);
     }
 
-    /// @dev Splits an IMD accrual into the three pools.
+    /// @dev Splits an IMD accrual into the two pools.
     function _accrue(uint256 amount) private {
         uint32 day = _today();
-        uint32 week = _week();
-        uint256 lb = amount * LEADERBOARD_BPS / 10_000;
         uint256 th = amount * THESIS_BPS / 10_000;
-        leaderboardPool[week] += lb;
-        thesisPool[week] += th;
-        refundPool[day] += amount - lb - th;
+        thesisPool[_week()] += th;
+        refundPool[day] += amount - th;
         emit Accrued(day, amount);
     }
 
@@ -605,7 +594,6 @@ contract MarginaliaHook is IUnlockCallback {
             _forfeit(n, msg.sender);
         }
         r.score += scoreDelta;
-        _bookWeekScore(n.author, scoreDelta);
         _resolveChild(n);
         emit Settled(id, outcome, settlePrice, scoreDelta, msg.sender);
     }
@@ -621,7 +609,6 @@ contract MarginaliaHook is IUnlockCallback {
         Record storage r = records[n.author];
         r.retracted += 1;
         r.score += scoreDelta;
-        _bookWeekScore(n.author, scoreDelta);
         _forfeit(n, address(0));
         _resolveChild(n);
         emit Retracted(id, text);
@@ -682,12 +669,10 @@ contract MarginaliaHook is IUnlockCallback {
 
     // ------------------------------------------------------------------ score
 
-    /// @dev log2(claimed multiple) x sqrt(30 / horizon) x mcap tier, scaled 1e4 (MarginaliaPricer). Only a call
-    /// priced on the launch pool scores: on any other canonical venue the author can be the only LP and trader,
-    /// choose the price, the multiple and the supply behind the tier, and draw on the leaderboard pool for a
-    /// stamp (revision finding c7331916). Such calls still return or forfeit their own deposit on price.
+    /// @dev log2(claimed multiple) x sqrt(30 / horizon) x mcap tier, scaled 1e4 (MarginaliaPricer). The score
+    /// is reputation: no pool pays for it, so a call priced on a venue the author provisions alone (review
+    /// finding c7331916) can inflate a number but never draw money. Readers see the venue; the site labels it.
     function _difficulty(T.Note storage n) private view returns (uint256) {
-        if (n.venue.kind != T.VenueKind.UniV4 || n.venue.ref != PoolId.unwrap(poolId)) return 0;
         uint256 mcap = FullMath.mulDiv(n.postPrice, IERC20(n.x).totalSupply(), 1e18);
         return pricer().difficulty(n.targetBps, n.side == T.Side.Buy, n.horizonDays, mcap);
     }
@@ -715,15 +700,6 @@ contract MarginaliaHook is IUnlockCallback {
         return weekTheses[w];
     }
 
-    function _bookWeekScore(address wallet, int256 delta) private {
-        uint32 w = _week();
-        int256 prev = weekScore[w][wallet];
-        int256 next = prev + delta;
-        weekScore[w][wallet] = next;
-        uint256 prevPos = prev > 0 ? uint256(prev) : 0;
-        uint256 nextPos = next > 0 ? uint256(next) : 0;
-        weekTotal[w] = weekTotal[w] + nextPos - prevPos;
-    }
 
     /// @notice Moves ERC-20 IMD from the caller into the pools (the treasury's drip, or anyone's gift).
     function fundPot(uint256 amount) external {
@@ -788,27 +764,6 @@ contract MarginaliaHook is IUnlockCallback {
         emit JudgedPaid(w, paidAmounts);
     }
 
-    /// @notice A wallet's share of a finished week's leaderboard pool: pro-rata by positive score, capped.
-    function leaderboardShare(uint32 w, address wallet) public view returns (uint256) {
-        int256 s = weekScore[w][wallet];
-        if (s <= 0 || weekTotal[w] == 0) return 0;
-        uint256 pool = leaderboardPool[w];
-        uint256 share = FullMath.mulDiv(pool, uint256(s), weekTotal[w]);
-        uint256 cap = pool * LEADERBOARD_CAP_BPS / 10_000;
-        return share > cap ? cap : share;
-    }
-
-    function claimLeaderboard(uint32 w) external {
-        if (w >= _week()) revert TooEarly();
-        if (leaderboardClaimed[w][msg.sender]) revert NothingToClaim();
-        uint256 amount = leaderboardShare(w, msg.sender);
-        if (amount == 0) revert NothingToClaim();
-        leaderboardClaimed[w][msg.sender] = true;
-        leaderboardPaid[w] += amount;
-        _unlock(ACT_PAY, msg.sender, amount, uint256(uint160(imd)));
-        emit LeaderboardClaimed(w, msg.sender, amount);
-    }
-
     /// @notice A writer's refund: the day's pool split equally across its notes, at most one stamp each.
     function claimRefund(bytes32 id) external {
         T.Note storage n = _note(id);
@@ -826,19 +781,15 @@ contract MarginaliaHook is IUnlockCallback {
         emit RefundClaimed(id, msg.sender, amount);
     }
 
-    /// @notice Rolls what an old pool left unclaimed into the current week's leaderboard pool, where it reaches
-    /// writers. kind 0 = a day's refund pool, 1 = a week's leaderboard pool, 2 = a week's thesis pool (only once
-    /// the judge confirms nothing is pending or judged for it). A swept pool is zeroed, so no claim can draw on it.
+    /// @notice Rolls what an old pool left unclaimed into the current week's thesis prize, where it reaches
+    /// writers. kind 0 = a day's refund pool, 1 = a week's thesis pool (only once the judge confirms nothing is
+    /// pending or judged for it). A swept pool is zeroed, so no claim can draw on it.
     function sweep(uint8 kind, uint32 epoch) external {
         uint256 amount;
         if (kind == 0) {
             if (block.timestamp < (uint256(epoch) + 1) * 1 days + SWEEP_AFTER) revert TooEarly();
             amount = refundPool[epoch];
             refundPool[epoch] = 0;
-        } else if (kind == 1) {
-            if (block.timestamp < (uint256(epoch) + 1) * 7 days + SWEEP_AFTER) revert TooEarly();
-            amount = leaderboardPool[epoch] - leaderboardPaid[epoch];
-            leaderboardPool[epoch] = 0;
         } else {
             if (block.timestamp < (uint256(epoch) + 1) * 7 days + SWEEP_AFTER) revert TooEarly();
             if (!judge.weekClosed(epoch)) revert NotOpen();
@@ -846,7 +797,7 @@ contract MarginaliaHook is IUnlockCallback {
             thesisPool[epoch] = 0;
         }
         if (amount == 0) revert NothingToSweep();
-        leaderboardPool[_week()] += amount;
+        thesisPool[_week()] += amount;
         emit Swept(kind, epoch, amount);
     }
 

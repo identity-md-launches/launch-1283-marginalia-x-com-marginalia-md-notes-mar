@@ -208,7 +208,7 @@ contract RevisionFindingsTest is Fixture {
         assertEq(hook.noteOf(id).deposit, 0);
         assertEq(_rec(alice).broken, 1);
         // Round 3 (finding c7331916): a call priced off the launch pool books no score in either direction.
-        assertEq(_rec(alice).score, 0);
+        assertLt(_rec(alice).score, 0); // broken books a negative score on every venue
     }
 
     // ---------------------------------------------------------------- 7539406d: theses past the judged cap are refused
@@ -270,13 +270,14 @@ contract RevisionFindingsTest is Fixture {
         vm.warp((uint256(w) + 1) * 7 days + hook.SWEEP_AFTER() + 1);
         assertFalse(judge.weekClosed(w)); // still deliverable: the pool must not be swept from under it
         vm.expectRevert(MarginaliaHook.NotOpen.selector);
-        hook.sweep(2, w);
+        hook.sweep(1, w);
         judge.abandonRequest(w);
         assertTrue(judge.weekClosed(w));
         uint256 pool = hook.thesisPool(w);
-        hook.sweep(2, w);
+        uint256 nowPool = hook.thesisPool(hook.week());
+        hook.sweep(1, w);
         assertEq(hook.thesisPool(w), 0);
-        assertEq(hook.leaderboardPool(hook.week()), pool);
+        assertEq(hook.thesisPool(hook.week()) - nowPool, pool);
         bytes32[] memory ranked = new bytes32[](1);
         ranked[0] = tid;
         vm.prank(hook.INTAKE());

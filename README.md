@@ -24,9 +24,15 @@ Every IMD accrual (stamps, sell fees, converted forfeits, treasury drips) splits
 
 | Share | Pool | Paid to |
 |---|---|---|
-| 50% | the week's leaderboard | every wallet with a positive net score from calls resolved that week, pro-rata by score, capped at 10% per wallet; `claimLeaderboard(week)` after the week ends. Only calls priced on the launch pool book a score; a call on any other venue returns or forfeits its own deposit and scores nothing |
-| 30% | the week's thesis prize | the panel's top three long-form theses, 50/30/20, after `requestJudging(week)` and `payJudged(week)` |
-| 20% | the day's writer refund | every non-retracted note of the day, equal split, capped at one stamp; `claimRefund(id)` after the day ends |
+| 70% | the week's thesis prize | the panel's top three long-form theses, 50/30/20, after `requestJudging(week)` and `payJudged(week)` |
+| 30% | the day's writer refund | every non-retracted note of the day, equal split, capped at one stamp; `claimRefund(id)` after the day ends |
+
+The score (difficulty-weighted, netted across right, wrong, broken, unproven and retracted calls, on every venue)
+is reputation: no pool pays for it. That is deliberate. On any canonical pool an author can be the only LP and
+trader and manufacture a right call for a stamp; a pool that paid by score would pay them (review finding
+c7331916). With no such pool the number can be inflated but never cashed, and the venue is on every note for the
+reader and the site to judge. A paid leaderboard, if one is ever run, is a campaign funded from the paying wallet's
+retained MARG with published rules, outside the hook.
 
 Unclaimed pools roll forward after 28 days (`sweep`). Nothing in any pool is paid for a price outcome
 except through the score, which is difficulty-weighted, netted against wrong calls, and capped.
@@ -162,10 +168,9 @@ hold rule is unchanged). The advisory `sqrt(2) == 2` is also fixed. See `ADAPTAT
   the oracle's canonical question hash (the eligible set can change after the request), so the Intake is
   trusted to deliver each answer under the request it was bought for.
 - Venue admission is "any canonical Uniswap pool with liquidity", and an author can be the only LP and trader
-  of such a pool. A call priced there therefore books no score and draws nothing from the leaderboard; it is a
-  bonded claim that returns or forfeits the author's own deposit on price. Only calls priced on the launch pool
-  (MARG/IMD under this hook) score. A depth, age or counterparty policy that would let other venues score is a
-  design decision for the requester (there is no owner).
+  of such a pool. A call priced there is a bonded claim that returns or forfeits the author's own deposit on
+  price and moves a reputation score that no pool pays for. The site labels venues where the author is the
+  dominant liquidity; the contract cannot see that and does not pretend to.
 - SELL calls have no hold rule: they settle on price alone. BUY calls must keep their post balance.
 - The hook's constructor reads no chain state (the launcher rehearses constructors in an empty EVM); the pinned
   implementation addresses are exercised by the mainnet-fork rehearsal instead.

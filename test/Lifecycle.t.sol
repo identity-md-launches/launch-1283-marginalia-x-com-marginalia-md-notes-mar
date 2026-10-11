@@ -32,7 +32,7 @@ contract LifecycleTest is Fixture {
 
     function _pot() internal view returns (uint256) {
         return
-            hook.refundPool(hook.today()) + hook.leaderboardPool(hook.week()) + hook.thesisPool(hook.week());
+            hook.refundPool(hook.today()) + hook.thesisPool(hook.week());
     }
 
     function testFlagsAndBinding() public view {
@@ -272,9 +272,9 @@ contract LifecycleTest is Fixture {
         cb.parentId = b1;
         _note(bob, cb, 10 ether);
         vm.prank(alice);
-        hook.fundPot(20 ether); // 30% of this lands in the thesis pool
+        hook.fundPot(20 ether); // 70% of this lands in the thesis pool
         assertEq(hook.thesesOfWeek(w).length, 2);
-        assertEq(hook.thesisPool(w), (20 ether + 4 * hook.STAMP()) * 30 / 100);
+        assertEq(hook.thesisPool(w), (20 ether + 4 * hook.STAMP()) * 70 / 100);
         vm.expectRevert();
         judge.requestJudging(w); // week not over
         vm.warp(block.timestamp + 7 days);
@@ -319,13 +319,18 @@ contract LifecycleTest is Fixture {
         assertEq(hook.thesisPool(hook.week()), pool * 20 / 100);
     }
 
-    function testLeaderboardProRataWithCap() public {
+    /// @dev Score is reputation: it nets across calls and no pool pays for it. Accruals split 70% thesis / 30% refund.
+    function testScoreIsReputationAndAccrualsSplitSeventyThirty() public {
         uint32 w = hook.week();
-        // alice: a right +10% call; bob: a wrong +50% call; carol: nothing
+        uint32 d = hook.today();
         (bytes32 a,) = _note(alice, _margNote(T.Side.Buy, 11_000, 1, "+10%"), 10 ether);
         (bytes32 b,) = _note(bob, _margNote(T.Side.Buy, 15_000, 1, "+50%"), 10 ether);
+        uint256 thesisBefore = hook.thesisPool(w);
+        uint256 refundBefore = hook.refundPool(d);
         vm.prank(alice);
         hook.fundPot(100 ether);
+        assertEq(hook.thesisPool(w) - thesisBefore, 70 ether);
+        assertEq(hook.refundPool(d) - refundBefore, 30 ether);
         _buy(bob, 1_500_000 ether);
         vm.warp(hook.horizonEnd(a));
         uint256 startBlock = block.number;
@@ -339,33 +344,17 @@ contract LifecycleTest is Fixture {
         vm.warp(hook.horizonEnd(a) + hook.SETTLE_WINDOW() + 1);
         hook.settle(a);
         hook.settle(b);
-        assertGt(hook.weekScore(w, alice), 0);
-        assertLt(hook.weekScore(w, bob), 0);
-        assertEq(hook.weekTotal(w), uint256(hook.weekScore(w, alice)));
-        uint256 pool = hook.leaderboardPool(w);
-        assertGt(pool, 0);
-        // alice is the only positive scorer: pro-rata would be 100%, the cap holds her to 10%
-        assertEq(hook.leaderboardShare(w, alice), pool * 10 / 100);
-        assertEq(hook.leaderboardShare(w, bob), 0);
-        vm.prank(alice);
+        assertGt(_rec(alice).score, 0);
+        assertLt(_rec(bob).score, 0);
+        // an old refund pool sweeps into the current thesis prize, never into a score
+        uint256 refundLeft = hook.refundPool(d);
         vm.expectRevert(MarginaliaHook.TooEarly.selector);
-        hook.claimLeaderboard(w);
-        vm.warp((uint256(w) + 1) * 7 days + 1);
-        uint256 before = imd.balanceOf(alice);
-        vm.prank(alice);
-        hook.claimLeaderboard(w);
-        assertEq(imd.balanceOf(alice) - before, pool * 10 / 100);
-        vm.prank(alice);
-        vm.expectRevert(MarginaliaHook.NothingToClaim.selector);
-        hook.claimLeaderboard(w);
-        // the unclaimed 90% rolls forward after the sweep delay, and nothing can be claimed from the swept week
-        vm.expectRevert(MarginaliaHook.TooEarly.selector);
-        hook.sweep(1, w);
-        vm.warp(block.timestamp + hook.SWEEP_AFTER());
-        hook.sweep(1, w);
-        assertEq(hook.leaderboardPool(hook.week()), pool - pool * 10 / 100);
-        assertEq(hook.leaderboardPool(w), 0);
-        assertEq(hook.leaderboardShare(w, alice), 0);
+        hook.sweep(0, d);
+        vm.warp((uint256(d) + 1) * 1 days + hook.SWEEP_AFTER() + 1);
+        uint256 thesisNow = hook.thesisPool(hook.week());
+        hook.sweep(0, d);
+        assertEq(hook.refundPool(d), 0);
+        assertEq(hook.thesisPool(hook.week()) - thesisNow, refundLeft);
     }
 
     function testFakeVenueIsRefused() public {
@@ -425,9 +414,10 @@ contract LifecycleTest is Fixture {
         assertGt(pot, 0);
         vm.warp((uint256(w) + 1) * 7 days + hook.SWEEP_AFTER() + 1);
         assertTrue(judge.weekClosed(w));
-        hook.sweep(2, w);
+        uint256 nowPool = hook.thesisPool(hook.week());
+        hook.sweep(1, w);
         assertEq(hook.thesisPool(w), 0);
-        assertEq(hook.leaderboardPool(hook.week()), pot);
+        assertEq(hook.thesisPool(hook.week()) - nowPool, pot);
     }
 
     function testWriterRefundCappedAtStamp() public {
