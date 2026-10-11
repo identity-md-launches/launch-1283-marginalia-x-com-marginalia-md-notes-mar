@@ -49,6 +49,10 @@ contract MarginaliaHook is IUnlockCallback {
     uint256 public constant TEXT_MAX = 280;
     uint256 public constant THESIS_TEXT_MAX = 8192;
     uint256 public constant THESIS_GRACE = 7 days;
+    /// @dev A sealed note reveals no sooner than this after its commit (the key holders' head start) and no
+    /// later than SEAL_MAX, after which the seal lapses and the note, if posted, is an ordinary one.
+    uint256 public constant SEAL_MIN = 30 minutes;
+    uint256 public constant SEAL_MAX = 6 hours;
     uint256 public constant SETTLE_WINDOW = 6 hours;
     uint256 public constant OBS_MIN = 3;
     uint256 public constant OBS_MAX = 16;
@@ -106,6 +110,18 @@ contract MarginaliaHook is IUnlockCallback {
     }
 
     mapping(address => Record) public records;
+
+    /// @dev A commitment to a note: the moment, the venue's BUY and SELL baselines priced then, and the author's
+    /// X balance then, keyed by a hash that binds the author to everything the note will say (sealHash). The
+    /// venue and X are public from the commit; the side, target, horizon and text are not until the reveal.
+    struct Seal {
+        uint64 at;
+        uint256 baseBuy;
+        uint256 baseSell;
+        uint256 balance;
+    }
+
+    mapping(bytes32 => Seal) public seals;
 
     // ------------------------------------------------------------------ pot and judging
 
@@ -168,11 +184,13 @@ contract MarginaliaHook is IUnlockCallback {
         bytes32 indexed id, T.Status status, uint256 settlePrice, int256 scoreDelta, address keeper
     );
     event Retracted(bytes32 indexed id, string text);
-    event DepositClaimed(bytes32 indexed id, address indexed to, bool asImd, uint256 amount);
+    event DepositClaimed(bytes32 indexed id, address indexed to, uint256 amount);
     event ThesisReleased(bytes32 indexed id);
     event ThesisForfeited(bytes32 indexed id);
     event PotFunded(uint32 indexed day, uint256 amount, address indexed source);
     event Accrued(uint32 indexed day, uint256 amount);
+    event Sealed(bytes32 indexed hash, address indexed author, address indexed x, bytes32 venueRef);
+    event Revealed(bytes32 indexed id, bytes32 indexed hash);
     event RefundClaimed(bytes32 indexed id, address indexed wallet, uint256 amount);
     event Swept(uint8 kind, uint32 indexed epoch, uint256 amount);
     event PotMargSold(uint256 marg, uint256 imdOut, uint32 indexed day);
@@ -426,10 +444,23 @@ contract MarginaliaHook is IUnlockCallback {
             if (weekTheses[_week()].length >= MAX_WEEK_THESES) revert InvalidNote();
             weekTheses[_week()].push(id);
         } else {
-            n.postPrice = router.postPrice(p.venue, p.side == T.Side.Buy);
-            if (n.postPrice == 0) revert InvalidNote(); // the pricer refuses these; never trust a zero baseline
+            bool buy = p.side == T.Side.Buy;
             // The MARG this very swap delivers reaches the author after the callback; count it for a note on MARG.
             n.postBalance = IERC20(p.x).balanceOf(author) + (p.x == token ? margToAuthor : 0);
+            Seal storage s = seals[sealHash(author, p)];
+            uint256 age = s.at == 0 ? 0 : block.timestamp - uint256(s.at);
+            if (s.at != 0 && age < SEAL_MIN) revert TooEarly(); // the head start is the key holders', not the public's
+            if (s.at != 0 && age <= SEAL_MAX) {
+                // A sealed note is a claim about a position already held: priced when it was sealed, and the
+                // author's X balance may not have fallen since (SELL calls hold nothing, so nothing to keep).
+                if (buy && n.postBalance < s.balance) revert InvalidNote();
+                n.postPrice = buy ? s.baseBuy : s.baseSell;
+                emit Revealed(id, sealHash(author, p));
+                delete seals[sealHash(author, p)];
+            } else {
+                n.postPrice = router.postPrice(p.venue, buy);
+            }
+            if (n.postPrice == 0) revert InvalidNote(); // the pricer refuses these; never trust a zero baseline
             if (p.parentId != bytes32(0)) {
                 T.Note storage parent = notes[p.parentId];
                 if (parent.author == author) {
@@ -626,8 +657,9 @@ contract MarginaliaHook is IUnlockCallback {
         emit ThesisForfeited(id);
     }
 
-    /// @notice A right (or no-data, or released thesis) deposit, returned as MARG, or swapped to IMD fee-free.
-    function claimDeposit(bytes32 id, bool asImd) external {
+    /// @notice A right (or no-data, or released thesis) deposit, returned as MARG. (The fee-free conversion to
+    /// IMD was removed for code size; a noted sell costs 1%.)
+    function claimDeposit(bytes32 id) external {
         T.Note storage n = _note(id);
         if (msg.sender != n.author) revert Unauthorized();
         if (
@@ -636,18 +668,10 @@ contract MarginaliaHook is IUnlockCallback {
         uint256 amount = n.deposit;
         if (amount == 0) revert NothingToClaim();
         n.deposit = 0;
-        if (asImd) {
-            _unlock(ACT_SELL, n.author, amount, _minImdOut(amount));
-        } else {
-            _unlock(ACT_PAY, n.author, amount, uint256(uint160(token)));
-        }
-        emit DepositClaimed(id, n.author, asImd, amount);
+        _unlock(ACT_PAY, n.author, amount, uint256(uint160(token)));
+        emit DepositClaimed(id, n.author, amount);
     }
 
-    /// @dev 97% of the pre-swap spot: a bound on what one sale may lose to a sandwich, not a market guarantee.
-    function _minImdOut(uint256 marg) private view returns (uint256) {
-        return FullMath.mulDiv(marg, margPriceInImd(), 1e18) * 97 / 100;
-    }
 
     function _forfeit(T.Note storage n, address keeper) private {
         uint256 amount = n.deposit;
@@ -704,10 +728,36 @@ contract MarginaliaHook is IUnlockCallback {
     /// @notice Moves ERC-20 IMD from the caller into the pools (the treasury's drip, or anyone's gift).
     function fundPot(uint256 amount) external {
         if (amount == 0) revert PotTooSmall();
+        _fund(amount);
+        emit PotFunded(_today(), amount, msg.sender);
+    }
+
+    function _fund(uint256 amount) private {
         IERC20(imd).safeTransferFrom(msg.sender, address(this), amount);
         _unlock(ACT_FUND, address(0), amount, 0);
         _accrue(amount);
-        emit PotFunded(_today(), amount, msg.sender);
+    }
+
+    // ------------------------------------------------------------------ sealed notes
+
+    /// @notice What a seal commits to: everything the revealed note will carry, bound to its author.
+    function sealHash(address author, T.NoteParams memory p) public pure returns (bytes32) {
+        return keccak256(abi.encode(author, p.x, p.venue, p.side, p.targetBps, p.horizonDays, p.parentId, p.text));
+    }
+
+    /// @notice Seal a note before posting it: pays one stamp now (non-refundable, so a seal is never a free
+    /// option), prices the venue's BUY and SELL baselines now, and snapshots the author's X balance now. The
+    /// note itself is posted later through the router, between SEAL_MIN and SEAL_MAX after this, and settles
+    /// against these baselines. Between the two, the author's key holders may read what was sealed; everyone
+    /// else sees only this event. The venue must already have a mature router checkpoint, as for any post.
+    function seal(address x, T.Venue calldata venue, bytes32 hash) external {
+        if (seals[hash].at != 0 || x == address(0) || hash == bytes32(0)) revert InvalidNote();
+        uint256 baseBuy = router.postPrice(venue, true);
+        uint256 baseSell = router.postPrice(venue, false);
+        if (baseBuy == 0 || baseSell == 0) revert InvalidNote();
+        _fund(STAMP);
+        seals[hash] = Seal(uint64(block.timestamp), baseBuy, baseSell, _balanceOf(x, msg.sender));
+        emit Sealed(hash, msg.sender, x, venue.ref);
     }
 
     /// @notice Converts forfeited MARG using the router's mature price history for the slippage floor.

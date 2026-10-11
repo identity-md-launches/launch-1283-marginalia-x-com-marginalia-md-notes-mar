@@ -53,6 +53,12 @@ A note is `{token X, venue/poolId, side (BUY/SELL), targetBps, horizonDays, text
 - Theses are judged in their own weekly category from the pot (same rubric: verifiable reasoning and citations), alongside the daily note prize.
 - Example: parent "the privacy sector re-rates after on-chain security failures" (cites incidents + contract reads) → children "RAIL 2× in 60d", "X +50% in 30d".
 
+### 4.1c Sealed notes (v0.7, 2026-10-11 — the key holders' head start)
+- `seal(x, venue, hash)`: the author commits to a note before posting it. The seal pays ONE stamp now (non-refundable — a seal is never a free option), prices the venue's BUY and SELL baselines now (both, because the side is still hidden), and snapshots the author's X balance now. Public from the seal: author, X, venue. Hidden until the reveal: side, target, horizon, text.
+- Reveal = posting the note through the router as usual, ≥30 min and ≤6 h after the seal (`SEAL_MIN`/`SEAL_MAX`). The hook recomputes `sealHash(author, params)` over the router-derived venue, finds the seal, prices the note at the SEALED baseline (so holders trading on it during the window cannot move the author's target), requires a sealed BUY call's post balance ≥ the sealed balance (position first, then seal: holders can only ever trade after the author has), and deletes the seal. A reveal pays its own stamp and deposit as any note does, so a sealed note costs two stamps. Too early → `TooEarly`; lapsed → the note posts as an ordinary one at the live baseline, the seal's stamp stays in the pools.
+- Who gets the head start: the author's key holders (§4.10), who receive the plaintext off-chain during the window; the hash on-chain is what makes that trustworthy. The public feed shows "sealed note on $X by …" until the reveal. For a server-free public reveal the plaintext may also be timelock-encrypted to a drand round (tlock); per-holder delivery still needs the site's server, disclosed.
+- Why not hide the trade: a position taken from the same wallet at seal time is a visible swap; the pattern is to pre-position (from an unlinked wallet if wanted), seal, then reveal and consolidate. Protocol-level private trades (Railgun etc.) conflict with the hold rule and the Traded class, which exist to PROVE the position.
+
 ### 4.2 Stamp + deposit (the bond is FLAT — never a bet size)
 - Every note costs two flat amounts, both IMD-sized at post and paid by the $MARG buy that posts it: a **stamp** of 0.1 IMD-equivalent, non-refundable, straight to the pot (every note funds judging, right or wrong), and a **deposit** of 0.5 IMD-equivalent, refundable, locked for the horizon.
 - The deposit is the same for every note. Conviction is expressed by the TRADE SIZE (shown on the card) and by the claim's difficulty (target × horizon × mcap), both of which the record resolves. A variable "bet" was considered and rejected: a bond that scales with conviction becomes a signal to pile in, which is the fomo dynamic this design exists to avoid.
@@ -106,6 +112,9 @@ Every IMD accrual splits at accrual time: **70% → the week's thesis prize**, *
 ### 4.8 Identity link (optional, v1.1)
 A wallet or agent may bind an X handle on-chain. Flow: the wallet signs `link:<handle>:<nonce>`; the user posts a tweet from that handle containing the wallet address and the signature; the user (not us) pays a 0.5 IMD Intake `oracle.request` with `evidence = panel`, `guards.sources = ["https://x.com/<handle>/"]`, answer type `bool` ("does this handle's tweet contain this wallet and a valid signature?"); the callback writes `handleOf[wallet]` on the hook. One handle per wallet, one wallet per handle at a time; re-binding requires a new tweet. Impersonation is structurally impossible because the proof must come from the handle's own timeline.
 **What a link boosts, and what it never touches:** feed ranking and the profile card (linked wallets rank above anonymous ones at equal score), eligibility for follow revenue, and a lower bond minimum (0.5 IMD-equivalent instead of 1) because the handle is collateral. It never multiplies the score. The record is about being right and arguing well; a name does not make a call truer. Linking is optional; anonymous records are complete records.
+
+### 4.10 Keys and swarms (v0.7, next contract — not in the hook)
+- A separate key market, linear bonding curve with a supply cap per issuer, priced in IMD. 10% fee on every trade: 5% market-buys MARG through the launch pool (no hook fee on buys) and burns it, 5% is sent to the hook's pools as IMD (70/30). Keys gate the sealed-note head start (§4.1c) and the issuer's reasoning text. Keys of an unclaimed X handle are pre-buyable: the issuer's 90% escrows until the handle owner claims (attested by the site's key — a disclosed trusted key in that one path; the oracle panel cannot read x.com), and burns after 90 days unclaimed. A "swarm" is a key whose payee is a group leader. Swarm wars = seasonal campaign paid from the retained MARG (poolBps 8500) with published rules and a merkle payout.
 
 ### 4.9 Action fee (reader → writer)
 - A trade initiated from a note's "trade this" button and routed through `MarginaliaRouter` pays 0.25% of the trade, split 50/50 between the note's author and the treasury. Plain trades through the router (no originating note) pay nothing.
@@ -193,6 +202,8 @@ Ask to @imdradar / the IMD team wallet: cash prizes → treasury address (public
 | Quiet-sell tax / noted-sell fee | 3% / 1% |
 | Declared-note fee | 0.1 IMD, burned |
 | Keeper reward | 10% of a forfeited deposit (v0.5) |
+| Seal | one stamp up front; reveal ≥ 30 min, ≤ 6 h; sealed BUY must keep its X balance |
+| Deposit return | as MARG (the fee-free IMD conversion was removed for code size, v0.7) |
 | Self-made (indexer) | own router volume ≥ 20% of X pool volume over the horizon |
 | Text | ≤ 280 chars, event-only |
 

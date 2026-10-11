@@ -80,6 +80,16 @@ The implementations are live (launch #1240, above). `launch.json` is the hook la
 `$poolManager, $token, $factory`, the `Marginalia` token, and the MARG/IMD pool at LP fee 12500. See
 `ADAPTATION.md` for the implementations' reproduced findings, changes and validation.
 
+Sealed notes: `seal(x, venue, hash)` commits to a note before it is posted. The seal pays one stamp up front
+(non-refundable, so a seal is never a free option), prices the venue's BUY and SELL baselines at that moment, and
+snapshots the author's X balance. The note is then posted through the router as usual, no sooner than 30 minutes
+and no later than 6 hours after the seal (`SEAL_MIN`, `SEAL_MAX`); it settles against the sealed baseline, and a
+sealed BUY call is refused if the author's X balance fell since the seal (position first, then seal). Between seal
+and reveal, the author's key holders may read what was sealed off-chain; everyone else sees only the `Sealed`
+event (author, X, venue). The hash is `sealHash(author, params)` over the router-derived venue, which is what the
+hook receives (`router.validateVenue` gives it). A seal that lapses leaves its stamp in the pools; the same text can
+only be sealed once.
+
 Counters and duels: a thesis whose `parentId` is another author's open thesis is a rebuttal; it needs its own child
 call like any thesis and then competes in the same weekly judged set. A call whose `parentId` is another author's
 open call on the same token, from the opposite side, is a counter-call. No deposit moves between the two: each
@@ -155,6 +165,7 @@ hold rule is unchanged). The advisory `sqrt(2) == 2` is also fixed. See `ADAPTAT
   single hostile observation can push a genuine call to WRONG only by moving the pool against it at that
   block, which costs the mover the same swap fees and arbitrage exposure as a pump.
 - Sells of MARG pay 3% through any router, or 1% plus the stamp through `sellWithNote` with a note and deposit attached.
+- A right call's deposit comes back as MARG (`claimDeposit`); the fee-free conversion to IMD was removed for code size.
 - The X trade leg supports v4 pools (including native-ETH pairs), v3 pools and v2 pairs; exact-input only.
 - Quiet (un-noted) MARG sells are exact-input only: an exact-output sell through any router reverts
   (`NoteNeedsExactInput`). Exact-output buys are unaffected.

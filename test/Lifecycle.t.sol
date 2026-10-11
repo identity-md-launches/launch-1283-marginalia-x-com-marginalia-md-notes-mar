@@ -120,7 +120,7 @@ contract LifecycleTest is Fixture {
         assertGt(quiet, taken);
     }
 
-    function testRightCallReturnsDepositAsImd() public {
+    function testRightCallReturnsDeposit() public {
         (bytes32 id,) = _note(
             alice, _margNote(T.Side.Buy, 11_000, 1, "+10% in a day: the airdrop sells are done"), 10 ether
         );
@@ -144,10 +144,10 @@ contract LifecycleTest is Fixture {
         MarginaliaHook.Record memory r = _rec(alice);
         assertEq(r.right, 1);
         assertGt(r.score, 0);
-        uint256 imdBefore = imd.balanceOf(alice);
+        uint256 margBefore = token.balanceOf(alice);
         vm.prank(alice);
-        hook.claimDeposit(id, true);
-        assertGt(imd.balanceOf(alice), imdBefore);
+        hook.claimDeposit(id);
+        assertEq(token.balanceOf(alice) - margBefore, n.deposit, "the deposit comes back as MARG");
         assertEq(_claims(address(hook), address(token)), 0);
         assertEq(hook.noteOf(id).deposit, 0);
     }
@@ -174,7 +174,7 @@ contract LifecycleTest is Fixture {
         assertLt(_rec(alice).score, 0);
         vm.prank(alice);
         vm.expectRevert(MarginaliaHook.NothingToClaim.selector);
-        hook.claimDeposit(id, false);
+        hook.claimDeposit(id);
     }
 
     function testSellingEarlyBreaksTheCall() public {
@@ -207,7 +207,7 @@ contract LifecycleTest is Fixture {
         assertEq(_rec(alice).wrong, 0);
         uint256 before = token.balanceOf(alice);
         vm.prank(alice);
-        hook.claimDeposit(id, false);
+        hook.claimDeposit(id);
         assertEq(token.balanceOf(alice) - before, deposit);
     }
 
@@ -238,7 +238,7 @@ contract LifecycleTest is Fixture {
         hook.settle(cid); // no data, but it resolved
         assertEq(uint8(hook.noteOf(tid).status), uint8(T.Status.ThesisClosed));
         vm.prank(alice);
-        hook.claimDeposit(tid, false);
+        hook.claimDeposit(tid);
     }
 
     function testThesisWithoutChildForfeits() public {
@@ -580,4 +580,85 @@ contract LifecycleTest is Fixture {
         router.note(stale, key, 10 ether, 1, block.timestamp + 1);
     }
 
+    // ---------------------------------------------------------------- sealed notes
+
+    /// @dev The router rewrites a priced note's venue (quote, orientation) before the hook sees it, so the seal
+    /// hashes the derived venue; the site does the same through router.validateVenue.
+    function _seal(address who, T.NoteParams memory p) internal returns (bytes32 hash) {
+        p.venue = router.validateVenue(p, key);
+        hash = hook.sealHash(who, p);
+        vm.prank(who);
+        hook.seal(p.x, p.venue, hash);
+    }
+
+    /// @dev A sealed BUY call settles against the baseline priced at the seal, not at the reveal: holders who
+    /// trade on it during the window cannot move the author's own target.
+    function testSealedNoteRevealsAgainstTheSealBaseline() public {
+        T.NoteParams memory p = _margNote(T.Side.Buy, 11_000, 1, "sealed: +10%, airdrop sells are done #7f3a");
+        uint256 imdBefore = _claims(address(hook), address(imd));
+        bytes32 hash = _seal(alice, p);
+        assertEq(_claims(address(hook), address(imd)) - imdBefore, hook.STAMP(), "the seal pays one stamp up front");
+        (uint64 at, uint256 baseBuy,, uint256 balance) = hook.seals(hash);
+        assertEq(at, block.timestamp);
+        assertEq(balance, token.balanceOf(alice));
+        // the public sees only the seal; a reveal before the head start is refused
+        vm.prank(alice);
+        vm.expectRevert();
+        router.note(p, key, 10 ether, 1, block.timestamp + 1);
+        // the key holders trade on it: the live baseline moves well above the sealed one
+        _buy(bob, 1_500_000 ether);
+        router.checkpointVenue(p, key);
+        vm.warp(block.timestamp + hook.SEAL_MIN());
+        vm.roll(block.number + 150);
+        assertGt(router.postPrice(p.venue, true), baseBuy);
+        (bytes32 id,) = _note(alice, p, 10 ether);
+        assertEq(hook.noteOf(id).postPrice, baseBuy, "priced at the seal");
+        (at,,,) = hook.seals(hash);
+        assertEq(at, 0, "a seal reveals once");
+        assertEq(uint8(hook.noteOf(id).status), uint8(T.Status.Open));
+    }
+
+    /// @dev Position, then seal: a sealed BUY call whose author sold any of X between seal and reveal is refused.
+    function testSealedBuyMustKeepItsPositionFromTheSeal() public {
+        T.NoteParams memory p = _margNote(T.Side.Buy, 11_000, 1, "sealed: +10% #a1");
+        _seal(alice, p);
+        _sell(alice, token.balanceOf(alice) / 10);
+        vm.warp(block.timestamp + hook.SEAL_MIN());
+        router.checkpointVenue(p, key);
+        vm.prank(alice);
+        vm.expectRevert();
+        router.note(p, key, 10 ether, 1, block.timestamp + 1);
+        // a sealed SELL call holds nothing, so it reveals regardless
+        T.NoteParams memory q = _margNote(T.Side.Sell, 9000, 1, "sealed: -10% #b2");
+        bytes32 hq = _seal(alice, q);
+        (,, uint256 baseSell,) = hook.seals(hq);
+        _sell(alice, token.balanceOf(alice) / 10);
+        vm.warp(block.timestamp + hook.SEAL_MIN());
+        (bytes32 id,) = _note(alice, q, 10 ether);
+        assertEq(hook.noteOf(id).postPrice, baseSell);
+    }
+
+    /// @dev A seal that is never revealed keeps its stamp in the pools; past SEAL_MAX the note posts as an
+    /// ordinary one at the live baseline, and the same text cannot be sealed twice.
+    function testUnrevealedSealIsNotAFreeOptionAndLapses() public {
+        T.NoteParams memory p = _margNote(T.Side.Buy, 11_000, 1, "sealed: +10% #c3");
+        bytes32 hash = _seal(alice, p);
+        vm.prank(alice);
+        vm.expectRevert(MarginaliaHook.InvalidNote.selector);
+        hook.seal(p.x, p.venue, hash);
+        uint256 imdAfterSeal = _claims(address(hook), address(imd));
+        (, uint256 sealedBase,,) = hook.seals(hash);
+        vm.warp(block.timestamp + hook.SEAL_MAX() + 1);
+        _buy(bob, 1_500_000 ether); // the market moved after the seal lapsed
+        router.checkpointVenue(p, key);
+        vm.warp(block.timestamp + 1 hours);
+        vm.roll(block.number + 300);
+        uint256 live = router.postPrice(p.venue, true);
+        (bytes32 id,) = _note(alice, p, 10 ether);
+        assertApproxEqRel(hook.noteOf(id).postPrice, live, 0.001e18, "a lapsed seal does not price the note");
+        assertGt(hook.noteOf(id).postPrice, sealedBase * 11 / 10);
+        (uint64 at,,,) = hook.seals(hash);
+        assertEq(at, block.timestamp - hook.SEAL_MAX() - 1 - 1 hours, "the lapsed seal record stays");
+        assertGe(_claims(address(hook), address(imd)), imdAfterSeal + hook.STAMP(), "the reveal pays its own stamp as well");
+    }
 }
