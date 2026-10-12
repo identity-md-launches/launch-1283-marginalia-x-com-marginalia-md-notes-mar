@@ -5,7 +5,7 @@ import { zeroAddress, type Address, type Hex } from 'viem';
 import { MarginaliaRouterAbi, erc20Abi, univ2FactoryAbi, univ2PairAbi, univ3FactoryAbi, univ3PoolAbi, stateViewAbi } from './abi';
 import { useApp } from './chain';
 import { UNIV3_FEES } from './config';
-import { addressRef, fmtAmount, Side, utf8Length, validAddress, VenueKind, type NoteParams, type Venue } from './lib';
+import { addressRef, fmtAmount, parseTarget, Side, utf8Length, validAddress, VenueKind, type NoteParams, type Venue } from './lib';
 
 export interface VenueOption {
   key: string;
@@ -125,9 +125,8 @@ export function useDerivedParams(draft: CallDraft, options: VenueOption[]): { pa
   const opt = options.find((o) => o.key === draft.venueKey);
   if (!validAddress(draft.x)) problems.push('Enter the token address.');
   if (!opt) problems.push('Pick a venue.');
-  const pct = Number(draft.pct);
-  if (!(pct >= L.minTargetDeltaBps / 100)) problems.push(`The target must be at least ${L.minTargetDeltaBps / 100}% away.`);
-  if (draft.side === Side.Sell && pct >= 100) problems.push('A SELL target cannot reach −100%.');
+  const target = parseTarget(draft.side, draft.pct, L.minTargetDeltaBps);
+  if (target.error) problems.push(target.error);
   const h = Number(draft.horizonDays);
   if (!(Number.isInteger(h) && h >= 1 && h <= L.maxHorizonDays)) problems.push(`The horizon must be 1 to ${L.maxHorizonDays} whole days.`);
   const len = utf8Length(draft.text);
@@ -166,12 +165,11 @@ export function useDerivedParams(draft: CallDraft, options: VenueOption[]): { pa
 
   let params: NoteParams | null = null;
   if (problems.length === 0 && opt && derived) {
-    const bps = Math.round(pct * 100);
     params = {
       x: draft.x.trim() as Address,
       venue: derived.venue,
       side: draft.side,
-      targetBps: draft.side === Side.Buy ? 10000 + bps : 10000 - bps,
+      targetBps: target.targetBps!,
       horizonDays: h,
       parentId: draft.parentId.trim() ? (`0x${BigInt(draft.parentId.trim()).toString(16).padStart(64, '0')}` as Hex) : ZERO32,
       class: 1,
@@ -186,6 +184,7 @@ export function CallFields({ draft, onChange, finder }: { draft: CallDraft; onCh
   const L = contracts.limits;
   const set = (patch: Partial<CallDraft>) => onChange({ ...draft, ...patch });
   const len = utf8Length(draft.text);
+  const target = parseTarget(draft.side, draft.pct, L.minTargetDeltaBps);
   return (
     <>
       <label htmlFor="x">Token X</label>
@@ -216,23 +215,24 @@ export function CallFields({ draft, onChange, finder }: { draft: CallDraft; onCh
         <legend>Side</legend>
         <div className="radio-row">
           <label>
-            <input type="radio" name="side" checked={draft.side === Side.Buy} onChange={() => set({ side: Side.Buy })} /> BUY · the price goes up
+            <input type="radio" name="side" checked={draft.side === Side.Buy} onChange={() => set({ side: Side.Buy })} /> Upward call
           </label>
           <label>
-            <input type="radio" name="side" checked={draft.side === Side.Sell} onChange={() => set({ side: Side.Sell })} /> SELL · the price goes down
+            <input type="radio" name="side" checked={draft.side === Side.Sell} onChange={() => set({ side: Side.Sell })} /> Downward call
           </label>
         </div>
       </fieldset>
       <label htmlFor="pct">Target move, in percent</label>
-      <span className="hint">
-        At least {L.minTargetDeltaBps / 100}%. {draft.side === Side.Buy ? `BUY ${draft.pct || '…'}% means the price reaches ${(1 + Number(draft.pct || 0) / 100).toFixed(2)}× the post price.` : `SELL ${draft.pct || '…'}% means the price falls to ${(1 - Number(draft.pct || 0) / 100).toFixed(2)}× the post price.`}
+      <span className="hint" id="pct-hint">
+        At least {L.minTargetDeltaBps / 100}%. {target.targetBps !== undefined && `${draft.side === Side.Buy ? 'Upward' : 'Downward'} ${draft.pct}% means a target of ${(target.targetBps / 10000).toFixed(4).replace(/(\.\d{2})0+$/, '$1')}× the post price.`}
       </span>
-      <input id="pct" inputMode="decimal" value={draft.pct} onChange={(e) => set({ pct: e.target.value })} />
+      <input id="pct" inputMode="decimal" value={draft.pct} onChange={(e) => set({ pct: e.target.value })} aria-invalid={!!target.error} aria-describedby={target.error ? 'pct-hint pct-error' : 'pct-hint'} />
+      {target.error && <span className="hint status bad" id="pct-error" role="alert">{target.error}</span>}
       <label htmlFor="horizon">Horizon, in days</label>
       <span className="hint">1 to {L.maxHorizonDays}. Settlement opens when it ends.</span>
       <input id="horizon" inputMode="numeric" value={draft.horizonDays} onChange={(e) => set({ horizonDays: e.target.value })} />
       <label htmlFor="text">Note</label>
-      <span className="hint">
+      <span className="hint" id="text-hint">
         {len} / {L.textMax} bytes. Say why, in plain words.
       </span>
       <textarea id="text" value={draft.text} onChange={(e) => set({ text: e.target.value })} aria-describedby="text-hint" />

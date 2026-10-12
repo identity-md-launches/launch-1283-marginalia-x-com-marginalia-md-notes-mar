@@ -64,6 +64,7 @@ export function makePublicClient(cfg: AppConfig): PublicClient {
   const chain = makeChain(cfg);
   return createPublicClient({
     chain,
+    ccipRead: false,
     transport: fallback(cfg.rpcUrls.map((u) => http(u, { batch: true, retryCount: 2 }))),
     batch: { multicall: false },
   });

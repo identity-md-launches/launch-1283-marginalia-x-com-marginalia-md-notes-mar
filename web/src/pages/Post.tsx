@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { decodeEventLog, type Hex } from 'viem';
+import { decodeEventLog, formatUnits, type Hex } from 'viem';
 import { MarginaliaHookAbi, MarginaliaRouterAbi, erc20Abi } from '../abi';
 import { useApp, useRead } from '../chain';
 import { CallFields, EMPTY_DRAFT, useDerivedParams, useVenueFinder, type CallDraft } from '../form';
-import { fmtAmount, fmtDate, NO_VENUE, parseAmount, sealHash, utf8Length, venueId, type NoteParams } from '../lib';
+import { fmtAmount, fmtDate, NO_VENUE, parseAmount, sealHash, sealKey, sealSubject, utf8Length, type NoteParams } from '../lib';
+import { Checkpoint, useCheckpoint } from '../checkpoint';
 import { Countdown, Notice, TxButton } from '../ui';
 import type { FeedProps } from './Feed';
 
@@ -77,20 +78,26 @@ export function PostPage({ refresh }: FeedProps) {
   const bondOk = bondWei !== null && bondWei >= L.bondMin && bondWei <= L.bondMax;
   const imdIn = bondOk ? L.stamp + L.margBuy + bondWei! : null;
 
-  // checkpoint window (calls only)
-  const vid = params && mode === 'call' ? venueId(params.venue) : null;
-  const win = useRead(
-    vid ? () => pub.readContract({ address: contracts.router, abi: MarginaliaRouterAbi, functionName: 'priceWindows', args: [vid] }) : null,
-    [vid, Math.floor(now / 15)],
-  );
-  const startedAt = win.data ? Number(win.data[0]) : 0;
-  const age = startedAt ? now - startedAt : -1;
-  const windowState: 'none' | 'young' | 'ready' | 'stale' = startedAt === 0 ? 'none' : age < 3600 ? 'young' : age <= 6 * 3600 ? 'ready' : 'stale';
+  const checkpoint = useCheckpoint(mode === 'call' ? params : null);
+  const acct = wallet.account;
+  const formHash = acct && mode === 'call' && params ? sealHash(acct, params) : null;
+  const key = acct && formHash ? sealKey(acct, formHash) : null;
+  const seal = useRead(key ? async () => ({ key, value: await pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'seals', args: [key] }) }) : null,
+    [key, Math.floor(now / 15), posted?.hash]);
+  const liveSeal = seal.data?.key === key && !seal.error ? seal.data?.value : undefined;
+  const bound = !!(params && liveSeal && liveSeal[0] > 0n && liveSeal[4].toLowerCase() === sealSubject(params).toLowerCase());
+  const sealAt = bound ? Number(liveSeal![0]) : 0;
+  const sealAge = now - sealAt;
+  const revealReady = bound && sealAge >= L.sealMin && sealAge <= L.sealMax;
+  const requestedReveal = prefilledFrom !== null;
+  const matchesPrefill = !!formHash && formHash.toLowerCase() === prefilledFrom?.toLowerCase();
+  // An explicit reveal never silently falls back to an ordinary post after expiry or edits.
+  const callReady = requestedReveal ? matchesPrefill && revealReady :
+    !!liveSeal && (bound && sealAge <= L.sealMax ? revealReady : checkpoint.state === 'ready');
 
   // price and allowance
   const price = useRead(() => pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'margPriceInImd' }), [Math.floor(now / 30)]);
   const minMargOut = price.data && price.data > 0n ? ((L.margBuy * 10n ** 18n) / price.data) * 90n / 100n : 0n;
-  const acct = wallet.account;
   const allowance = useRead(
     acct ? () => pub.readContract({ address: contracts.imd, abi: erc20Abi, functionName: 'allowance', args: [acct, contracts.router] }) : null,
     [acct, posted?.hash, Math.floor(now / 15)],
@@ -99,16 +106,24 @@ export function PostPage({ refresh }: FeedProps) {
   const needsApproval = imdIn !== null && allowance.data !== undefined && allowance.data < imdIn;
   const enoughImd = imdIn !== null && balance.data !== undefined && balance.data >= imdIn;
 
-  const sendCheckpoint = async () => {
-    const { request } = await pub.simulateContract({ address: contracts.router, abi: MarginaliaRouterAbi, functionName: 'checkpointVenue', args: [params!, contracts.poolKey], account: acct! });
-    return wallet.client!.writeContract(request);
-  };
   const sendApprove = async () => {
     const { request } = await pub.simulateContract({ address: contracts.imd, abi: erc20Abi, functionName: 'approve', args: [contracts.router, imdIn!], account: acct! });
     return wallet.client!.writeContract(request);
   };
   const sendNote = async () => {
-    const deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60);
+    let deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60);
+    if (requestedReveal || revealReady) {
+      if (!params || !key || !formHash || (requestedReveal && !matchesPrefill)) throw new Error('The form no longer matches the saved seal.');
+      const current = await pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'seals', args: [key] });
+      const block = await pub.getBlock();
+      const age = block.timestamp - current[0];
+      if (!current[0] || current[4].toLowerCase() !== sealSubject(params).toLowerCase() || age < BigInt(L.sealMin) || age > BigInt(L.sealMax)) {
+        throw new Error('This seal is not in its reveal window, or has already been consumed. Refresh its state.');
+      }
+      // The router's deadline also prevents a delayed signature becoming an unsealed post after expiry.
+      const closes = current[0] + BigInt(L.sealMax);
+      if (closes < deadline) deadline = closes;
+    }
     const { request } = await pub.simulateContract({
       address: contracts.router,
       abi: MarginaliaRouterAbi,
@@ -136,7 +151,7 @@ export function PostPage({ refresh }: FeedProps) {
     refresh();
   };
 
-  const readyToPost = !!params && bondOk && imdIn !== null && !needsApproval && enoughImd && (mode === 'thesis' || windowState === 'ready') && minMargOut > 0n;
+  const readyToPost = !!params && bondOk && imdIn !== null && allowance.data !== undefined && !needsApproval && enoughImd && (mode === 'thesis' && !requestedReveal || mode === 'call' && callReady) && minMargOut > 0n;
 
   return (
     <>
@@ -149,10 +164,16 @@ export function PostPage({ refresh }: FeedProps) {
         <Notice>
           <p>
             Revealing seal <span className="mono">{prefilledFrom.slice(0, 14)}…</span>: post these exact parameters, unchanged, between 30 minutes and 6 hours after the seal. The
-            seal hash of the form below is <span className="mono">{acct && derived.params ? sealHash(acct, derived.params).slice(0, 14) : '…'}…</span>
+            seal hash of the form below is <span className="mono">{formHash ? formHash.slice(0, 14) : '…'}…</span>
           </p>
+          {!matchesPrefill && <p role="alert">These parameters or this wallet do not match the saved seal. Restore the original draft to reveal.</p>}
+          <button type="button" className="quiet" onClick={() => setPrefilledFrom(null)}>Leave reveal mode</button>
         </Notice>
       )}
+      {mode === 'call' && (requestedReveal || bound) && <Notice kind={revealReady ? 'ok' : ''}>
+        {bound ? <p>Seal recorded {fmtDate(sealAt)}. {sealAge < L.sealMin ? <>Reveal opens in <Countdown until={sealAt + L.sealMin} />.</> : revealReady ? <>Reveal open; closes in <Countdown until={sealAt + L.sealMax} />. The sealed baseline is used; no new checkpoint is needed.</> : <>This seal has expired. It cannot be revealed; its stamp stays in the pools.</>}</p>
+          : <p>{seal.loading || !formHash ? 'Complete the call and connect its author to check the seal.' : seal.error ? 'Could not check this seal. Posting is disabled until it can be verified.' : 'No matching unconsumed seal was found for this author and these parameters.'}</p>}
+      </Notice>}
       <fieldset>
         <legend>Kind</legend>
         <div className="radio-row">
@@ -186,7 +207,7 @@ export function PostPage({ refresh }: FeedProps) {
         {fmtAmount(L.bondMin)} to {fmtAmount(L.bondMax)} IMD, held for the horizon. It is yours again if the call is right and lost if it is not.
       </span>
       <input id="bond" inputMode="decimal" value={bond} onChange={(e) => setBond(e.target.value)} aria-invalid={!bondOk} />
-      {!bondOk && <span className="hint">Enter a bond between {fmtAmount(L.bondMin)} and {fmtAmount(L.bondMax)} IMD.</span>}
+      {!bondOk && <span className="hint">Enter a bond between {fmtAmount(L.bondMin)} and {fmtAmount(L.bondMax)} IMD, with at most 18 decimal places.</span>}
 
       <h2>What posting pulls from your wallet</h2>
       <dl className="facts">
@@ -198,10 +219,10 @@ export function PostPage({ refresh }: FeedProps) {
           price of {price.data ? fmtAmount(price.data, 18, 10) : '…'} IMD per MARG)
         </dd>
         <dt>Bond</dt>
-        <dd>{bondOk ? fmtAmount(bondWei!) : '…'} IMD · returned when right</dd>
+        <dd>{bondOk ? formatUnits(bondWei!, 18) : '…'} IMD · returned when right</dd>
         <dt>Total</dt>
         <dd>
-          <strong>{imdIn !== null ? fmtAmount(imdIn) : '…'} IMD</strong>, approved to the router only, for exactly this amount
+          <strong>{imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD</strong>, approved to the router only, for exactly this amount
         </dd>
         {acct && (
           <>
@@ -221,40 +242,8 @@ export function PostPage({ refresh }: FeedProps) {
         </ul>
       )}
 
-      {mode === 'call' && params && (
-        <>
-          <h2>1 · Checkpoint the venue</h2>
-          <p className="small">
-            The router records the venue's price now. A call may be posted once the checkpoint is <strong>between 1 and 6 hours old</strong>, so a note
-            cannot be priced on a moment its author just made. The wait is deliberate.
-          </p>
-          {windowState === 'none' && (
-            <TxButton label="Checkpoint venue" busyLabel="Checkpointing…" primary onSend={sendCheckpoint} onDone={() => win.refresh()} explain="No checkpoint exists for this venue yet." />
-          )}
-          {windowState === 'young' && (
-            <Notice>
-              <p>
-                Checkpointed {fmtDate(startedAt)}. Posting opens in <Countdown until={startedAt + 3600} /> and stays open until {fmtDate(startedAt + 6 * 3600)}.
-                Leave this page and come back; the checkpoint lives on chain.
-              </p>
-            </Notice>
-          )}
-          {windowState === 'ready' && (
-            <Notice kind="ok">
-              <p>
-                Checkpoint is {Math.floor(age / 60)} minutes old. Posting is open for <Countdown until={startedAt + 6 * 3600} /> more.
-              </p>
-            </Notice>
-          )}
-          {windowState === 'stale' && (
-            <>
-              <Notice kind="bad">
-                <p>The last checkpoint is older than 6 hours. Checkpoint again and wait one hour.</p>
-              </Notice>
-              <TxButton label="Checkpoint venue again" busyLabel="Checkpointing…" primary onSend={sendCheckpoint} onDone={() => win.refresh()} />
-            </>
-          )}
-        </>
+      {mode === 'call' && params && !requestedReveal && !(bound && sealAge <= L.sealMax) && (
+        <><h2>1 · Checkpoint the venue</h2><Checkpoint params={params} window={checkpoint} /></>
       )}
 
       {params && (
@@ -263,18 +252,18 @@ export function PostPage({ refresh }: FeedProps) {
           {!acct && <p className="small">Connect a wallet above to continue.</p>}
           {acct && !enoughImd && imdIn !== null && balance.data !== undefined && (
             <Notice kind="bad">
-              <p>Your wallet holds {fmtAmount(balance.data)} IMD; posting needs {fmtAmount(imdIn)} IMD.</p>
+              <p>Your wallet holds {fmtAmount(balance.data)} IMD; posting needs {formatUnits(imdIn, 18)} IMD.</p>
             </Notice>
           )}
           {acct && needsApproval && (
             <TxButton
-              label={`Approve ${imdIn ? fmtAmount(imdIn) : ''} IMD to the router`}
+              label={`Approve ${imdIn ? formatUnits(imdIn, 18) : ''} IMD to the router`}
               busyLabel="Approving…"
               primary
               onSend={sendApprove}
               onDone={() => allowance.refresh()}
-              disabled={!bondOk}
-              explain="One ERC-20 approval of exactly the total above, to the router address read from the hook. Nothing else is approved."
+              disabled={!bondOk || requestedReveal && !callReady}
+              explain={`Authorizes exactly ${imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD to the router address read from the hook. Nothing else is approved.`}
             />
           )}
           {acct && !needsApproval && allowance.data !== undefined && (
@@ -285,7 +274,7 @@ export function PostPage({ refresh }: FeedProps) {
               disabled={!readyToPost}
               onSend={sendNote}
               onDone={onPosted}
-              explain={`Calls router.note(params, launch pool key, ${imdIn ? fmtAmount(imdIn) : '…'} IMD, min ${fmtAmount(minMargOut)} MARG, deadline 20 min). The transaction is simulated first and you see the reason if it would fail.`}
+              explain={`Calls router.note(params, launch pool key, ${imdIn ? formatUnits(imdIn, 18) : '…'} IMD, min ${formatUnits(minMargOut, 18)} MARG, deadline ${requestedReveal || revealReady ? 'up to 20 min, capped at seal expiry' : '20 min'}). The transaction is simulated first and you see the reason if it would fail.`}
             />
           )}
           {posted && (

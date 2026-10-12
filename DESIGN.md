@@ -34,8 +34,10 @@ override of the same names. Hex is the canonical format.
 | `--bad` | `#8f2a1c` | `#e3907e` | wrong/forfeited tag, errors |
 
 Status is never colour alone: every tag carries its word (`.tag` text) and errors carry text with `role="alert"`.
-Contrast ratios were not measured in a browser during this assignment (see `web/VALIDATION.md`); the light
-pairs are chosen to be dark-on-light with large margins, the rust-on-paper link pair is the one to re-check.
+Computed rendered pairs in Chromium: light ink/paper 15.40:1, secondary/paper 6.91:1, rust link/paper 4.68:1;
+dark ink/paper 14.79:1, secondary/paper 8.00:1, rust link/paper 3.52:1. The existing requested rust is retained
+in this scoped revision; its dark small-text contrast falls below 4.5:1. See `web/VALIDATION.md` for that limitation.
+These measurements are specific pairs, not a whole-site accessibility certification.
 
 ## Typography
 
@@ -62,6 +64,12 @@ pairs are chosen to be dark-on-light with large margins, the rust-on-paper link 
 - `dl.facts`: two-column definition grid (`max-content 1fr`) that collapses to one column under 420 px.
 - `.filters`: one column, two columns from 560 px.
 - Tables (`table`) are full width within the measure, numeric columns right-aligned (`.num`).
+- Author records use `.record-facts` / `.fact-pair` below 740 px: all seven labels stay beside intact values.
+  At 740 px and above `.record-table` shows the table; extreme values scroll locally instead of splitting.
+- Raw observation evidence uses `.table-scroll` with a keyboard-focusable named region. Values and unit
+  labels stay intact; horizontal scrolling is local to the table, never the document.
+- The Feed heading/lede and disconnected wallet line are deliberately brief so a normal first entry is
+  visible on the first 390×844 screen. Missing-history warnings may add height when needed.
 - Observed in the browser: see `web/VALIDATION.md`; widths not checked there are untested.
 
 ## Elevation & Depth
@@ -95,16 +103,24 @@ Buttons and inputs are 44 px tall minimum (`min-height`), fields full-width up t
 - **CallFields** (`web/src/form.tsx`): the shared call form (token, venue finder radio list, side, target,
   horizon, text with byte count, parent) used by Post and Seal; hints are `.hint` under each label.
 - **Entry** (`web/src/pages/Feed.tsx`): one ledger row for a note; reused on author, note (children) and pools.
+  Its optional children slot holds author claim controls. Compact claims use Up/Down; a retraction has no
+  fabricated zero settlement price.
+- **Checkpoint** (`web/src/checkpoint.tsx`): shared baseline state, absent/young/mature/expired messaging,
+  countdown, retry and router transaction button. Seal uses its disabled variant while new sealing is unavailable.
+- **ClaimControls** (`web/src/claims.tsx`): shared deposit/refund actions using live eligibility and exact IMD
+  amounts. Used on Note and beside the corresponding Pools ledger entry.
+- **Share card** (`web/public/share-card.png`, 1200×630): local paper-and-ink typographic artwork with the
+  manicule. `web/scripts/share-card.mjs` regenerates it without remote assets; OG/Twitter tags reference it.
 
 ## Do's and Don'ts
 
 - Start a new page from `.page` → `Masthead` → `WalletBar` → `main` → `Footer` (see `App.tsx`); add a route in
   `App.tsx` and a nav item in `ui.tsx NAV`.
 - Use `.lede` for the one-paragraph explanation at the top, `h2` for sections, `dl.facts` for key/value state,
-  `.ledger` + `Entry` for lists of notes, `table` only for numeric records.
+  `.ledger` + `Entry` for lists of notes, `table` only when labels and numeric records fit; reuse the mobile `.record-facts` pattern at narrow widths.
 - One `.primary` action per section; every chain write goes through `TxButton`, never a bare `button`.
 - Keep copy plain and literal: a bonded feed, not a perp DEX, not a prediction market; nothing pays for being
-  right; never promise returns; never say "buy" for posting (it is "post", the MARG leg is "a MARG purchase").
+  right; never promise returns; use Upward call/Downward call in forms and Up/Down in the ledger; the MARG leg is "a MARG purchase".
 - Do not add colours outside the token table, gradients, shadows, icons other than the manicule, or charts.
 - Addresses, hashes and ids are the only monospace; everything else is the serif stack.
 - Do not hard-code an address: contracts come from `imd-deployment.json` at runtime, companions from the hook.

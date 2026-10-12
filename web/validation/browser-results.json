@@ -1,0 +1,78 @@
+[
+  {
+    "name": "Feed first screen and copy",
+    "result": "pass"
+  },
+  {
+    "name": "Author mobile values remain whole",
+    "result": "pass"
+  },
+  {
+    "name": "Router approval exactly equals displayed precision",
+    "result": "pass"
+  },
+  {
+    "name": "Target precision and uint32 guards",
+    "result": "pass"
+  },
+  {
+    "name": "Seal router-only restriction and checkpoint prerequisite",
+    "result": "pass"
+  },
+  {
+    "name": "Mature seal reveals with stale checkpoint",
+    "result": "pass"
+  },
+  {
+    "name": "Older daily and closed weekly sweeps",
+    "result": "pass"
+  },
+  {
+    "name": "Pools claims exclude paid notes and refresh after confirmations",
+    "result": "pass"
+  },
+  {
+    "name": "Observation raw integers and token decimals",
+    "result": "pass"
+  },
+  {
+    "name": "Retracted entries omit zero settlement price",
+    "result": "pass"
+  },
+  {
+    "name": "CCIP lookup cannot contact an external host",
+    "result": "pass"
+  },
+  {
+    "name": "Refused log ranges do not fail all pages",
+    "result": "pass"
+  },
+  {
+    "name": "Share artwork metadata and static subpath assets",
+    "result": "pass"
+  },
+  {
+    "name": "Checkpoint countdown and posting prerequisites",
+    "result": "pass"
+  },
+  {
+    "name": "Permissionless keeper actions use exact ABI and note id",
+    "result": "pass"
+  },
+  {
+    "name": "Persistent log cursor survives a page reload",
+    "result": "pass"
+  },
+  {
+    "name": "Wrong network adds Ethereum after unknown-chain rejection",
+    "result": "pass"
+  },
+  {
+    "name": "Seal boundaries, subject and connected author are enforced",
+    "result": "pass"
+  },
+  {
+    "name": "Desktop, dark mode, keyboard focus and overflow",
+    "result": "pass"
+  }
+]

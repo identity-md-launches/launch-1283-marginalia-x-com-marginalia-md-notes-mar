@@ -1,5 +1,7 @@
-import type { Hex } from 'viem';
-import { MarginaliaHookAbi } from '../abi';
+import { formatUnits, maxUint256, type Hex } from 'viem';
+import { useState } from 'react';
+import { ClaimControls, readClaim } from '../claims';
+import { MarginaliaHookAbi, erc20Abi } from '../abi';
 import { useApp, useRead } from '../chain';
 import { CLASS_LABEL, describeTarget, fmtAmount, fmtDate, noteIdFromIndex, short, Status, STATUS_EXPLAIN, STATUS_LABEL } from '../lib';
 import { horizonEndOf, isThesis } from '../notes';
@@ -12,24 +14,18 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
   const { pub, contracts, wallet, now } = useApp();
   const id = rawId.length === 66 ? (rawId.toLowerCase() as Hex) : noteIdFromIndex(BigInt(rawId));
   const n = feed?.byId.get(id) ?? feed?.notes.find((x) => x.id.toLowerCase() === id);
-  const refundClaimed = useRead(
-    n ? () => pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'refundClaimed', args: [n.id] }) : null,
-    [n?.id, feed?.loadedAt],
-  );
-  const dayInfo = useRead(
-    n
-      ? async () => {
-          const day = Math.floor(n.timestamp / 86400);
-          const [pool, count, today] = await Promise.all([
-            pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'refundPool', args: [day] }),
-            pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'notesPerDay', args: [day] }),
-            pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'today' }),
-          ]);
-          return { day, pool, count: Number(count), today: Number(today) };
-        }
-      : null,
-    [n?.id, feed?.loadedAt],
-  );
+  const [paid, setPaid] = useState<Record<string, boolean>>({});
+  const claimRead = useRead(n ? () => readClaim(pub, contracts.hook, n, contracts.limits.stamp) : null, [n?.id, feed?.loadedAt]);
+  const claim = claimRead.data?.id === n?.id ? claimRead.data : undefined;
+  const metadata = useRead(n ? async () => {
+    const [decimals, symbol] = await Promise.all([
+      pub.readContract({ address: n.x, abi: erc20Abi, functionName: 'decimals' }).catch(() => null),
+      pub.readContract({ address: n.x, abi: erc20Abi, functionName: 'symbol' }).catch(() => 'X'),
+    ]);
+    return { x: n.x, decimals, symbol };
+  } : null, [n?.x]);
+  const token = metadata.data?.x === n?.x ? metadata.data : undefined;
+  const balanceText = (v: bigint) => v === maxUint256 ? 'Unavailable (token read failed)' : token?.decimals !== null && token?.decimals !== undefined ? formatUnits(v, token.decimals) : `${v} raw units`;
 
   if (error)
     return (
@@ -38,7 +34,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
       </Notice>
     );
   if (!feed) return <p className="empty">Reading notes from Ethereum…</p>;
-  if (!n) return <p className="empty">No note with id {short(id, 10, 6)} has been posted yet.</p>;
+  if (!n) return <p className="empty">{feed.partial ? 'This note is not in the available history; older events may be missing.' : <>No note with id {short(id, 10, 6)} has been posted yet.</>}</p>;
 
   const thesis = isThesis(n);
   const hEnd = horizonEndOf(n);
@@ -47,14 +43,11 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
   const children = feed.notes.filter((c) => c.parentId.toLowerCase() === n.id.toLowerCase());
   const parent = n.parentId !== ZERO ? feed.byId.get(n.parentId) : undefined;
   const mine = wallet.account?.toLowerCase() === n.author.toLowerCase();
-  const hook = { address: contracts.hook, abi: MarginaliaHookAbi } as const;
-  const send = (fn: 'observe' | 'settle' | 'settleThesis' | 'claimDeposit' | 'claimRefund') => async () => {
+  const hook = { address: contracts.hook, abi: MarginaliaHookAbi, erc20Abi } as const;
+  const send = (fn: 'observe' | 'settle' | 'settleThesis') => async () => {
     const { request } = await pub.simulateContract({ ...hook, functionName: fn, args: [n.id], account: wallet.account! });
     return wallet.client!.writeContract(request);
   };
-  const canClaimDeposit = mine && n.deposit > 0n && (n.status === Status.Right || n.status === Status.VoidNoData || n.status === Status.ThesisClosed);
-  const canClaimRefund =
-    mine && dayInfo.data && dayInfo.data.day < dayInfo.data.today && refundClaimed.data === false && n.status !== Status.Retracted && dayInfo.data.pool > 0n;
 
   return (
     <>
@@ -62,7 +55,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
         Note № {n.index.toString()} <StatusTag status={n.status} />
       </h1>
       <p className="entry-claim">
-        {thesis ? 'Thesis' : <>{n.x.toLowerCase() === contracts.marg.toLowerCase() ? 'MARG' : <Addr a={n.x} />} {n.side === 0 ? 'BUY' : 'SELL'} · {describeTarget(n.side, n.targetBps)} within {n.horizonDays} days</>}
+        {thesis ? 'Thesis' : <>{n.x.toLowerCase() === contracts.marg.toLowerCase() ? 'MARG' : <Addr a={n.x} />} {describeTarget(n.side, n.targetBps)} within {n.horizonDays} days</>}
       </p>
       <p className="entry-text">{n.text}</p>
       <p className="small">{STATUS_EXPLAIN[n.status]}</p>
@@ -113,8 +106,8 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
           <>
             <dt>Outcome</dt>
             <dd>
-              {describeOutcome(n.settlement.status)} · settle price {fmtAmount(n.settlement.settlePrice, 18, 8)} · score {n.settlement.scoreDelta >= 0n ? '+' : ''}
-              {(Number(n.settlement.scoreDelta) / 1e4).toFixed(2)} · settled by <Addr a={n.settlement.keeper} />
+              {describeOutcome(n.settlement.status)}{n.settlement.status !== Status.Retracted && <> · settle price {fmtAmount(n.settlement.settlePrice, 18, 8)}</>} · score {n.settlement.scoreDelta >= 0n ? '+' : ''}
+              {(Number(n.settlement.scoreDelta) / 1e4).toFixed(2)}{n.settlement.status !== Status.Retracted && <> · settled by <Addr a={n.settlement.keeper} /></>}
             </dd>
           </>
         )}
@@ -142,15 +135,16 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
             Inside the 6-hour window after the horizon anyone may record a reading of the venue. At least 3 readings spaced 20 blocks and spanning an
             hour are needed; a more adverse reading replaces a slot. The site shows them; a keeper usually runs them.
           </p>
+          <p className="small">X readings are lossless raw observation integers; their meaning depends on the venue and they are not spot prices. Balances use X’s on-chain decimals when available. “Unavailable” marks a failed token balance read.</p>
           {n.observations.length === 0 ? (
             <p className="empty">No observation recorded yet.</p>
           ) : (
-            <table>
+            <div className="table-scroll" role="region" aria-label="Observation evidence" tabIndex={0}><table className="observations">
               <thead>
                 <tr>
                   <th>Block</th>
-                  <th className="num">X reading</th>
-                  <th className="num">Author balance</th>
+                  <th className="num">X reading (raw integer)</th>
+                  <th className="num">Author balance ({token?.decimals !== null && token?.decimals !== undefined ? token.symbol : 'raw units'})</th>
                   <th>Tx</th>
                 </tr>
               </thead>
@@ -158,15 +152,15 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
                 {n.observations.map((o) => (
                   <tr key={o.tx + o.block.toString()}>
                     <td>{o.block.toString()}</td>
-                    <td className="num">{fmtAmount(o.xRead, 18, 8)}</td>
-                    <td className="num">{fmtAmount(o.balance, 18, 4)}</td>
+                    <td className="num">{o.xRead.toString()}</td>
+                    <td className="num">{balanceText(o.balance)}</td>
                     <td>
                       <TxLink hash={o.tx} label="" />
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
           {n.status === Status.Open && (
             <>
@@ -220,18 +214,11 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
       {mine && (
         <>
           <h2>Your claims</h2>
-          {canClaimDeposit ? (
-            <TxButton label={`Claim deposit (${fmtAmount(n.deposit)} IMD)`} busyLabel="Claiming…" primary onSend={send('claimDeposit')} onDone={refresh} explain="Returns the bond held for this note to your wallet." />
-          ) : (
-            <p className="small">No deposit to claim: a deposit is claimable once the note is right, void for lack of data, or a thesis released by a settled child.</p>
-          )}
-          {dayInfo.data && (
-            <p className="small">
-              Writer refund for day {dayInfo.data.day}: pool {fmtAmount(dayInfo.data.pool)} IMD shared by {dayInfo.data.count} unclaimed note{dayInfo.data.count === 1 ? '' : 's'}, capped at one stamp (0.1 IMD).
-              {refundClaimed.data ? ' Already claimed.' : dayInfo.data.day >= dayInfo.data.today ? ' Opens after the day ends.' : ''}
-            </p>
-          )}
-          {canClaimRefund && <TxButton label="Claim refund" busyLabel="Claiming…" onSend={send('claimRefund')} onDone={refresh} explain="Takes this note’s share of the day’s writer refund pool." />}
+          {claimRead.error && <Notice kind="bad"><p>Could not check claims. Refresh to try again.</p></Notice>}
+          {claim && <>
+            <p className="small">Writer refund for day {claim.day}: {formatUnits(claim.pool, 18)} IMD shared by {claim.count} unclaimed notes, capped at one stamp. {claim.claimed || paid[`${id}:refund`] ? 'Already claimed.' : claim.day >= claim.today ? 'Opens after the day ends.' : claim.refund === 0n ? 'No share remains.' : ''}</p>
+            <ClaimControls claim={{ ...claim, deposit: paid[`${id}:deposit`] ? 0n : claim.deposit, refund: paid[`${id}:refund`] ? 0n : claim.refund }} onDone={kind => { setPaid(p => ({ ...p, [`${id}:${kind}`]: true })); claimRead.refresh(); refresh(); }} />
+          </>}
         </>
       )}
 

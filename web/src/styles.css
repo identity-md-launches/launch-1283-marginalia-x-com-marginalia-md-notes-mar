@@ -141,3 +141,14 @@ td.num, th.num { text-align: right; padding-right: 0; }
 .countdown { font-variant-numeric: tabular-nums; font-weight: 600; }
 .empty { padding: var(--space-6) 0; color: var(--ink-soft); font-style: italic; }
 @media (prefers-reduced-motion: no-preference) { button, a { transition: background-color 120ms ease, text-decoration-thickness 120ms ease; } }
+
+/* A seven-column record needs a wider ledger; keep mobile labels and numbers intact. */
+.record-table { display: none; }
+dl.record-facts { display: block; }
+.fact-pair { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-4); padding: var(--space-2) 0; border-bottom: 1px solid var(--rule); }
+dl.record-facts dt { margin: 0; white-space: nowrap; }
+.record-facts dd { text-align: right; white-space: nowrap; overflow-x: auto; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
+.record-table th, .record-table td { white-space: nowrap; padding-right: var(--space-3); }
+@media (min-width: 740px) { .record-table { display: block; } dl.record-facts { display: none; } }
+.observations th, .observations td { white-space: nowrap; padding-right: var(--space-3); }

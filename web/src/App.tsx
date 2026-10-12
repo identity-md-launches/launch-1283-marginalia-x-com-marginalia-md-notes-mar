@@ -105,7 +105,10 @@ export default function App() {
       <div className="page">
         <Masthead route={route} />
         <WalletBar />
-        <main id="main">{page}</main>
+        <main id="main">
+          {feed && feed.warnings.length > 0 && <Notice><p>{feed.warnings[0]}</p>{feed.warnings.length > 1 && <details><summary>Read coverage details</summary><ul>{feed.warnings.slice(1).map((w, i) => <li key={i}>{w}</li>)}</ul></details>}</Notice>}
+          {page}
+        </main>
         <Footer hook={contracts.hook} marg={contracts.marg} />
       </div>
     </Ctx.Provider>

@@ -82,7 +82,7 @@ export function TxButton({
   onSend: () => Promise<Hex>;
   disabled?: boolean;
   primary?: boolean;
-  onDone?: (hash: Hex) => void;
+  onDone?: (hash: Hex) => void | Promise<void>;
   explain?: string;
 }) {
   const { pub, wallet } = useApp();
@@ -98,7 +98,7 @@ export function TxButton({
       const r = await pub.waitForTransactionReceipt({ hash });
       if (r.status === 'success') {
         setState({ kind: 'ok', hash });
-        onDone?.(hash);
+        await onDone?.(hash);
       } else setState({ kind: 'bad', hash, msg: 'The transaction reverted on chain.' });
     } catch (e) {
       setState({ kind: 'bad', msg: explainError(e) });
@@ -139,8 +139,8 @@ export function WalletBar() {
   return (
     <div className="walletbar">
       <span className="grow">
-        {!wallet.account && !wallet.available && 'No browser wallet detected. You can read everything; posting needs a wallet.'}
-        {!wallet.account && wallet.available && 'Reading Ethereum through public nodes. Connect a wallet to post, seal or claim.'}
+        {!wallet.account && !wallet.available && 'Reading Ethereum. Posting needs a browser wallet.'}
+        {!wallet.account && wallet.available && 'Reading Ethereum. Posting needs a browser wallet.'}
         {wallet.account && wallet.onChain && (
           <>
             Connected as <Addr a={wallet.account} /> on {cfg.network.name}.

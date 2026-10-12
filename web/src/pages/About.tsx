@@ -16,7 +16,7 @@ export function AboutPage() {
       <h2>How a note works</h2>
       <ol className="steps">
         <li>
-          <strong>Call.</strong> Name a token X, a canonical Uniswap venue where it is priced in IMD, WETH or ETH, a side (BUY = up, SELL = down), a
+          <strong>Call.</strong> Name a token X, a canonical Uniswap venue where it is priced in IMD, WETH or ETH, a direction (upward or downward), a
           target at least {L.minTargetDeltaBps / 100}% away and a horizon of 1 to {L.maxHorizonDays} days. Text up to {L.textMax} bytes.
         </li>
         <li>
@@ -29,7 +29,7 @@ export function AboutPage() {
         </li>
         <li>
           <strong>Settle.</strong> For 6 hours after the horizon anyone records observations; after the window anyone settles. Right returns the bond.
-          Wrong, sold-out BUYs and retractions forfeit it; the settler gets 10% of a forfeit.
+          Wrong, upward calls with a broken hold rule and retractions forfeit it; the settler gets 10% of a forfeit.
         </li>
       </ol>
       <h2>Theses, counters and seals</h2>

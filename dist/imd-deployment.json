@@ -36,20 +36,24 @@
       "sha256": "68d887bbb93b1a30cd7525110b1ee9a1f28aa48c47d51971e7926143712199e8"
     },
     {
-      "path": "assets/ccip-CwAPpswA.js",
-      "sha256": "8d6216b764ace4d4766b49bab52d8cc188f829041807617fa2168d4c3b6c64ac"
+      "path": "assets/ccip-bK243nkF.js",
+      "sha256": "48bfdbfda4380e4ba96408db0a8238f2c62bf9c5bd1ef9148790ff568924c7f6"
     },
     {
-      "path": "assets/index-BM2WQRFO.css",
-      "sha256": "84c777f209af1e4a5e410e6f77c8622af5accab9a46756418918e636fd8927f0"
+      "path": "assets/index-CE92uzLS.js",
+      "sha256": "7d25e215609141762ce4b2cbb41c163860efe14efcfa65d0557fbec518326bad"
     },
     {
-      "path": "assets/index-B_ZHHBJ5.js",
-      "sha256": "85cf2691ddf92214eabcddd6bdd6b5abed5c631366dec03e7f86a3c05817d5d3"
+      "path": "assets/index-COpEflJl.css",
+      "sha256": "83731ed57f6a56c9ab38273088dff2c220642b124ffa50db08b69b2800251d9c"
     },
     {
       "path": "index.html",
-      "sha256": "0c7fc62dc6ccc0457c26b35a411a34180bb8f823172f04fb062397f7a17c7912"
+      "sha256": "85179241a7d7138af9162c84d1b9ff61d250b08373c289ca1ac06d62411f3c6e"
+    },
+    {
+      "path": "share-card.png",
+      "sha256": "ea7c3b3efa4873d9d0d795b7245c92be21f5d0f641194a7bfa1438c38c78c757"
     }
   ],
   "network": {

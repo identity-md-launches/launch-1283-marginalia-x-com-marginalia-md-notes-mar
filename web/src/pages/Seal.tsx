@@ -1,23 +1,22 @@
 import { useState } from 'react';
-import type { Hex } from 'viem';
-import { MarginaliaHookAbi, erc20Abi } from '../abi';
-import { useApp, useRead } from '../chain';
+import { useApp } from '../chain';
+import { Checkpoint, useCheckpoint } from '../checkpoint';
 import { CallFields, EMPTY_DRAFT, useDerivedParams, useVenueFinder, type CallDraft } from '../form';
 import { fmtAmount, fmtDate, sealHash, short } from '../lib';
-import { Addr, Countdown, Notice, TxButton, TxLink } from '../ui';
+import { Addr, Countdown, Notice, TxLink } from '../ui';
 import type { FeedProps } from './Feed';
 
 const SEALS_KEY = 'marginalia.seals';
 
 export function SealPage({ feed }: FeedProps) {
-  const { pub, contracts, wallet, now } = useApp();
+  const { contracts, wallet, now } = useApp();
   const L = contracts.limits;
   const [draft, setDraft] = useState<CallDraft>(EMPTY_DRAFT);
   const finder = useVenueFinder(draft.x);
   const derived = useDerivedParams(draft, finder.options);
   const acct = wallet.account;
   const hash = acct && derived.params ? sealHash(acct, derived.params) : null;
-  const [sealedHash, setSealedHash] = useState<Hex | null>(null);
+  const checkpoint = useCheckpoint(derived.params);
 
   const stored: Record<string, CallDraft> = (() => {
     try {
@@ -27,31 +26,6 @@ export function SealPage({ feed }: FeedProps) {
     }
   })();
 
-  // The seal's stamp is pulled by the hook itself (safeTransferFrom in _fund), so the hook needs an IMD
-  // allowance of exactly one stamp. This is the only approval on the site that does not target the router.
-  const allowance = useRead(
-    acct ? () => pub.readContract({ address: contracts.imd, abi: erc20Abi, functionName: 'allowance', args: [acct, contracts.hook] }) : null,
-    [acct, sealedHash, Math.floor(now / 15)],
-  );
-  const needsApproval = allowance.data !== undefined && allowance.data < L.stamp;
-  const sendApprove = async () => {
-    const { request } = await pub.simulateContract({ address: contracts.imd, abi: erc20Abi, functionName: 'approve', args: [contracts.hook, L.stamp], account: acct! });
-    return wallet.client!.writeContract(request);
-  };
-  const sendSeal = async () => {
-    const p = derived.params!;
-    const { request } = await pub.simulateContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'seal', args: [p.x, p.venue, hash!], account: acct! });
-    return wallet.client!.writeContract(request);
-  };
-  const onSealed = () => {
-    try {
-      stored[hash!] = draft;
-      localStorage.setItem(SEALS_KEY, JSON.stringify(stored));
-    } catch {
-      /* ignore */
-    }
-    setSealedHash(hash);
-  };
   const reveal = (h: string) => {
     const d = stored[h];
     if (!d) return;
@@ -78,6 +52,7 @@ export function SealPage({ feed }: FeedProps) {
           sealed notes to key holders arrives with the key market in a later iteration.
         </p>
       </Notice>
+      <Notice kind="bad"><p><strong>New sealing is unavailable on this site.</strong> The live hook requires an IMD allowance to the hook, while this site's policy allows approvals only to the router. The requester must resolve this conflict before sealing can be enabled. Existing seals can still be revealed.</p></Notice>
       <h2>1 · Write the call</h2>
       <CallFields draft={draft} onChange={setDraft} finder={finder} />
       {derived.problems.length > 0 && (
@@ -87,53 +62,28 @@ export function SealPage({ feed }: FeedProps) {
           ))}
         </ul>
       )}
-      <h2>2 · Seal</h2>
+      {derived.params && <><h2>2 · Checkpoint the venue</h2><Checkpoint params={derived.params} window={checkpoint} purpose="Sealing" disabled /></>}
+      <h2>3 · Seal</h2>
       <dl className="facts">
         <dt>Seal hash</dt>
         <dd className="mono">{hash ?? (acct ? '… complete the form' : '… connect a wallet; the hash includes your address')}</dd>
         <dt>Stamp</dt>
         <dd>
           {fmtAmount(L.stamp)} IMD, pulled from your wallet by the hook itself; it needs an IMD allowance of exactly that amount
-          {acct && allowance.data !== undefined && <> (current hook allowance {fmtAmount(allowance.data)} IMD)</>}
         </dd>
         <dt>Reveal window</dt>
         <dd>from 30 minutes to 6 hours after the seal is mined</dd>
       </dl>
       <p className="small">
         The hash is keccak256 of (your address, X, the derived venue, side, target, horizon, parent, text). Changing one character of the text changes it, so
-        keep this browser's copy: it is saved here when the seal confirms.
+        keep your original parameters. Existing saved drafts in this browser can be opened below.
       </p>
-      {acct && needsApproval ? (
-        <TxButton
-          label={`Approve ${fmtAmount(L.stamp)} IMD to the hook`}
-          busyLabel="Approving…"
-          primary
-          onSend={sendApprove}
-          onDone={() => allowance.refresh()}
-          explain="One ERC-20 approval of exactly one stamp, to the hook address from the deployment file. The seal pulls it when it is mined."
-        />
-      ) : (
-        <TxButton
-          label="Seal"
-          busyLabel="Sealing…"
-          primary
-          disabled={!hash || !derived.params || allowance.data === undefined}
-          onSend={sendSeal}
-          onDone={onSealed}
-          explain="Calls hook.seal(x, venue, hash). The venue is the one derived by the router, exactly as posting will see it."
-        />
-      )}
-      {sealedHash && (
-        <Notice kind="ok">
-          <p>
-            Sealed as <span className="mono">{short(sealedHash, 12, 8)}</span>. Come back in 30 minutes to reveal; the parameters are kept in this browser.
-          </p>
-        </Notice>
-      )}
+      <button type="button" disabled aria-describedby="seal-unavailable">Seal unavailable</button>
+      <p className="small" id="seal-unavailable">No hook approval or seal transaction can be requested here. A mature checkpoint does not resolve the approval restriction.</p>
 
       <h2>Your seals</h2>
       {!acct && <p className="small">Connect a wallet to list your seals.</p>}
-      {acct && mySeals.length === 0 && <p className="empty">No seal from this wallet on chain yet.</p>}
+      {acct && mySeals.length === 0 && <p className="empty">No seal from this wallet in the available history.</p>}
       {mySeals.length > 0 && (
         <ul className="ledger">
           {mySeals.map((s) => {

@@ -67,7 +67,7 @@ export const STATUS_EXPLAIN: Record<number, string> = {
   0: 'The horizon has not been settled yet. Anyone may observe inside the settlement window and settle after it.',
   1: 'The call reached its target. The bond is returned to the author; nothing else is paid for being right.',
   2: 'The call missed its target. The bond is forfeited to the pools; the settler received 10% of it.',
-  3: 'A BUY call whose author sold the position before the horizon ended. The bond is forfeited.',
+  3: 'An upward call whose author sold the position before the horizon ended. The bond is forfeited.',
   4: 'The settlement window produced no usable observations. The bond is returned, but the record counts it as wrong.',
   5: 'The author withdrew the note before settlement. The bond is forfeited and the record counts a retraction.',
   6: 'A thesis that still waits for the author to hang a call off it within 7 days.',
@@ -128,6 +128,10 @@ export function sealHash(author: Address, p: NoteParams): Hex {
 export function sealKey(sealer: Address, hash: Hex): Hex {
   return keccak256(encodeAbiParameters([{ type: 'address' }, { type: 'bytes32' }], [sealer, hash]));
 }
+/** The subject bound by the live seal (X and the entire derived venue). */
+export function sealSubject(p: NoteParams): Hex {
+  return keccak256(encodeAbiParameters([{ type: 'address' }, VENUE_TUPLE], [p.x, p.venue]));
+}
 /** A v3 pool or v2 pair address left-padded to bytes32, as Venue.ref expects. */
 export function addressRef(a: Address): Hex {
   return pad(a, { size: 32 });
@@ -145,14 +149,27 @@ export function noteIndex(id: Hex): bigint {
 
 /** targetBps from a percentage move: BUY 10000 + pct*100, SELL 10000 - pct*100. */
 export function targetBpsFor(side: number, pct: number): number {
-  const bps = Math.round(pct * 100);
-  return side === Side.Buy ? 10000 + bps : 10000 - bps;
+  const result = parseTarget(side, String(pct));
+  if (result.error) throw new Error(result.error);
+  return result.targetBps!;
+}
+/** Percentages encode exact hundredths; never round a call into a thesis or outside uint32. */
+export function parseTarget(side: number, text: string, minDeltaBps = 1000): { targetBps?: number; error?: string } {
+  if (side !== Side.Buy && side !== Side.Sell) return { error: 'Choose an upward or downward call.' };
+  if (!/^\d+(\.\d{1,2})?$/.test(text.trim())) return { error: 'Enter a finite percentage with at most two decimal places.' };
+  const [whole, fraction = ''] = text.trim().split('.');
+  const delta = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'));
+  const target = side === Side.Buy ? 10000n + delta : 10000n - delta;
+  if (delta < BigInt(minDeltaBps)) return { error: `The target must be at least ${minDeltaBps / 100}% away.` };
+  if (side === Side.Sell && (target < 1n || target > 9000n)) return { error: 'A downward target must be between 10% and 99.99%.' };
+  if (side === Side.Buy && (target < 11000n || target > 4294967295n)) return { error: 'An upward target must be between 10% and 42949572.95%.' };
+  return { targetBps: Number(target) };
 }
 export function describeTarget(side: number, targetBps: number): string {
   if (targetBps === 0) return 'thesis';
   const pct = (targetBps - 10000) / 100;
   const sign = pct > 0 ? '+' : '';
-  return `${side === Side.Buy ? 'up' : 'down'} ${sign}${pct.toFixed(pct % 1 === 0 ? 0 : 2)}%`;
+  return `${side === Side.Buy ? 'Up' : 'Down'} ${sign}${pct.toFixed(pct % 1 === 0 ? 0 : 2)}%`;
 }
 
 // ------------------------------------------------------------------ formatting
@@ -177,6 +194,7 @@ export function parseAmount(s: string, decimals = 18): bigint | null {
   try {
     const t = s.trim();
     if (!/^\d*\.?\d*$/.test(t) || t === '' || t === '.') return null;
+    if ((t.split('.')[1]?.length ?? 0) > decimals) return null;
     return parseUnits(t, decimals);
   } catch {
     return null;
@@ -223,6 +241,7 @@ export function explainError(e: unknown): string {
   if (code === 4001) return 'You rejected the request in your wallet.';
   const msg = String(any?.shortMessage || any?.message || e || 'Unknown error');
   const known: [RegExp, string][] = [
+    [/PriceHistoryUnavailable|0xc3651e6d/i, 'Checkpoint this venue, then wait one hour. The checkpoint must be between 1 and 6 hours old.'],
     [/InvalidNote/, 'The contract refused the note (InvalidNote): check the target, horizon, text length, X token or venue.'],
     [/BadVenue/, 'The contract refused the venue (BadVenue): the pool must be canonical, hold liquidity, contain X and be quoted in IMD, WETH or ETH.'],
     [/TooEarly/, 'Too early: the contract says this action is not open yet.'],

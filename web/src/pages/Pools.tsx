@@ -1,6 +1,9 @@
+import { useState } from 'react';
+import { formatUnits } from 'viem';
+import { ClaimControls, readClaim } from '../claims';
 import { MarginaliaHookAbi, MarginaliaJudgeAbi } from '../abi';
 import { useApp, useRead } from '../chain';
-import { fmtAmount, fmtDate, Status } from '../lib';
+import { fmtAmount, fmtDate } from '../lib';
 import { Notice, TxButton } from '../ui';
 import { Entry, type FeedProps } from './Feed';
 
@@ -8,6 +11,9 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
   const { pub, contracts, wallet, now } = useApp();
   const hook = { address: contracts.hook, abi: MarginaliaHookAbi } as const;
   const judge = { address: contracts.judge, abi: MarginaliaJudgeAbi } as const;
+  const [sweepKind, setSweepKind] = useState<0 | 1>(0);
+  const [epochInput, setEpochInput] = useState('');
+  const [paid, setPaid] = useState<Record<string, boolean>>({});
   const state = useRead(async () => {
     const [today, week] = await Promise.all([pub.readContract({ ...hook, functionName: 'today' }), pub.readContract({ ...hook, functionName: 'week' })]);
     const days = [today, today - 1, today - 2];
@@ -24,13 +30,38 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
   }, [feed?.loadedAt]);
   const s = state.data;
   const mine = wallet.account ? feed?.notes.filter((n) => n.author.toLowerCase() === wallet.account!.toLowerCase()) ?? [] : [];
-  const claimable = mine.filter((n) => n.deposit > 0n && (n.status === Status.Right || n.status === Status.VoidNoData || n.status === Status.ThesisClosed));
-  const refundable = mine.filter((n) => n.status !== Status.Retracted && s && Math.floor(n.timestamp / 86400) < s.today);
+  const claims = useRead(wallet.account && feed ? async () => {
+    const rows = await Promise.all(mine.map(async n => ({ note: n, claim: await readClaim(pub, contracts.hook, n, contracts.limits.stamp) })));
+    return { account: wallet.account, rows };
+  } : null, [wallet.account, feed?.loadedAt, s?.today]);
+  const rows = claims.data?.account === wallet.account ? claims.data.rows.map(row => ({ ...row, claim: {
+    ...row.claim,
+    deposit: paid[`${row.note.id}:deposit`] ? 0n : row.claim.deposit,
+    refund: paid[`${row.note.id}:refund`] ? 0n : row.claim.refund,
+  } })) : [];
+  const claimable = rows.filter(r => r.claim.deposit > 0n);
+  const refundable = rows.filter(r => r.claim.refund > 0n);
+  const afterClaim = (id: string) => (kind: 'deposit' | 'refund') => {
+    setPaid(p => ({ ...p, [`${id}:${kind}`]: true }));
+    claims.refresh(); state.refresh(); sweepRead.refresh(); refresh();
+  };
+  // Preselect an epoch old enough to inspect, and allow any earlier day or week.
+  const span = sweepKind === 0 ? 86400 : 7 * 86400;
+  const defaultEpoch = Math.max(0, Math.floor((now - contracts.limits.sweepAfter) / span) - 1);
+  const epochText = epochInput || String(defaultEpoch);
+  const epoch = /^\d+$/.test(epochText) && Number(epochText) <= 4294967295 ? Number(epochText) : null;
+  const sweepRead = useRead(epoch !== null ? async () => ({
+    epoch, kind: sweepKind,
+    balance: await pub.readContract({ ...hook, functionName: sweepKind === 0 ? 'refundPool' : 'thesisPool', args: [epoch] }),
+    closed: sweepKind === 0 || await pub.readContract({ ...judge, functionName: 'weekClosed', args: [epoch] }),
+  }) : null, [epoch, sweepKind, feed?.loadedAt]);
+  const sweep = sweepRead.data?.epoch === epoch && sweepRead.data?.kind === sweepKind && !sweepRead.error ? sweepRead.data : undefined;
+  const sweepAt = epoch !== null ? (epoch + 1) * span + contracts.limits.sweepAfter : 0;
+  const canSweep = !!sweep && now >= sweepAt && sweep.closed && sweep.balance > 0n && !sweepRead.loading;
   const sendSweep = (kind: number, epoch: number) => async () => {
     const { request } = await pub.simulateContract({ ...hook, functionName: 'sweep', args: [kind, epoch], account: wallet.account! });
     return wallet.client!.writeContract(request);
   };
-  const sweepableDay = s ? s.days.find((d, i) => s.refunds[i] > 0n && now >= (d + 1) * 86400 + contracts.limits.sweepAfter) : undefined;
 
   return (
     <>
@@ -119,30 +150,37 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
         A pool left unclaimed for 28 days after its period rolls forward into the current week's thesis prize. Anyone may sweep; it pays nothing. A
         week's pool can be swept only once the judge confirms the week is closed.
       </p>
-      {sweepableDay !== undefined ? (
-        <TxButton label={`Sweep day ${sweepableDay}`} busyLabel="Sweeping…" onSend={sendSweep(0, sweepableDay)} onDone={() => state.refresh()} />
-      ) : (
-        <p className="small">No recent day pool is old enough to sweep. Older epochs can be swept from a wallet directly with sweep(kind, epoch).</p>
-      )}
+      <label htmlFor="sweep-kind">Pool to inspect</label>
+      <select id="sweep-kind" value={sweepKind} onChange={e => { setSweepKind(Number(e.target.value) as 0 | 1); setEpochInput(''); }}>
+        <option value={0}>Day · writer refund</option><option value={1}>Week · thesis prize</option>
+      </select>
+      <label htmlFor="sweep-epoch">{sweepKind === 0 ? 'Day' : 'Week'} number</label>
+      <input id="sweep-epoch" inputMode="numeric" value={epochText} onChange={e => setEpochInput(e.target.value)} aria-invalid={epoch === null} />
+      {epoch === null && <p role="alert" className="status bad">Enter a whole epoch number from 0 to 4294967295.</p>}
+      {sweepRead.error && <Notice kind="bad"><p>Could not read this pool. Refresh to try again.</p></Notice>}
+      {sweep && <dl className="facts">
+        <dt>Remaining</dt><dd>{formatUnits(sweep.balance, 18)} IMD</dd>
+        <dt>Sweep opens</dt><dd>{fmtDate(sweepAt)} · {now >= sweepAt ? '28-day wait complete' : 'too early'}</dd>
+        {sweepKind === 1 && <><dt>Judge closure</dt><dd>{sweep.closed ? 'Week closed' : 'Week is not closed; cannot sweep'}</dd></>}
+      </dl>}
+      <TxButton key={`${sweepKind}:${epoch}`} label={`Sweep ${sweepKind === 0 ? 'day' : 'week'} ${epoch ?? '…'}`} busyLabel="Sweeping…" disabled={!canSweep} onSend={sendSweep(sweepKind, epoch!)} onDone={() => { sweepRead.refresh(); state.refresh(); claims.refresh(); }} explain={sweep?.balance === 0n ? 'This pool is empty; nothing can be swept.' : 'Rolls this eligible pool into the current week. No reward is paid to the caller.'} />
 
       <h2>Your claims</h2>
       {!wallet.account && <p className="small">Connect a wallet to see deposits and refunds you can claim.</p>}
       {wallet.account && (
         <>
-          <p className="small">
-            Deposits ({claimable.length}) are claimed per note; refunds are available for {refundable.length} of your notes from past days, subject to the
-            pool of that day. Open a note to claim.
-          </p>
+          {claims.error && <Notice kind="bad"><p>Could not check claim eligibility. Refresh to try again.</p></Notice>}
+          {!claims.data && !claims.error ? <p className="small">Checking your claims…</p> : <p className="small">Deposits available: {claimable.length}. Writer refunds available: {refundable.length}. {feed?.partial && 'These counts cover only the available note history.'}</p>}
           <ul className="ledger">
-            {[...claimable, ...refundable.filter((n) => !claimable.includes(n))].map((n) => (
-              <Entry key={n.id} n={n} />
+            {rows.filter(r => r.claim.deposit > 0n || r.claim.refund > 0n).map(({ note, claim }) => (
+              <Entry key={note.id} n={note}><ClaimControls claim={claim} onDone={afterClaim(note.id)} /></Entry>
             ))}
           </ul>
-          {claimable.length + refundable.length === 0 && <p className="empty">Nothing to claim right now.</p>}
+          {claims.data && claimable.length + refundable.length === 0 && <p className="empty">Nothing to claim among the loaded notes.</p>}
         </>
       )}
       <p className="small">
-        <button type="button" className="quiet" onClick={() => { state.refresh(); refresh(); }}>
+        <button type="button" className="quiet" onClick={() => { state.refresh(); sweepRead.refresh(); claims.refresh(); refresh(); }}>
           Refresh from chain
         </button>
       </p>

@@ -1,0 +1,43 @@
+{
+  "firstNote": {
+    "viewport": 390,
+    "x": 17,
+    "y": 693.203125,
+    "width": 356,
+    "height": 51
+  },
+  "authorScore320": {
+    "text": "1234567.89",
+    "x": 72.71875,
+    "y": 491.90625,
+    "width": 230.28125,
+    "height": 25.5
+  },
+  "authorScore390": {
+    "text": "1234567.89",
+    "x": 72.71875,
+    "y": 467.671875,
+    "width": 300.28125,
+    "height": 25.5
+  },
+  "dark": {
+    "paper": "rgb(21, 19, 15)",
+    "ink": "rgb(236, 229, 214)",
+    "soft": "rgb(180, 169, 149)",
+    "link": "rgb(185, 71, 31)",
+    "inkContrast": 14.79,
+    "softContrast": 8,
+    "linkContrast": 3.52,
+    "focusOutline": "solid"
+  },
+  "light": {
+    "paper": "rgb(246, 241, 231)",
+    "ink": "rgb(29, 26, 22)",
+    "soft": "rgb(90, 81, 70)",
+    "link": "rgb(185, 71, 31)",
+    "inkContrast": 15.4,
+    "softContrast": 6.91,
+    "linkContrast": 4.68,
+    "focusOutline": "solid"
+  }
+}

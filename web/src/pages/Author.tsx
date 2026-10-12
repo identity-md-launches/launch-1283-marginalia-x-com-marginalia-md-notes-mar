@@ -31,7 +31,7 @@ export function AuthorPage({ address, feed, error }: FeedProps & { address: Addr
           <p>Could not read the record: {rec.error}</p>
         </Notice>
       )}
-      <table>
+      <div className="record-table table-scroll"><table>
         <thead>
           <tr>
             <th>Score</th>
@@ -54,7 +54,10 @@ export function AuthorPage({ address, feed, error }: FeedProps & { address: Addr
             <td className="num">{r ? r[6] : '…'}</td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
+      <dl className="facts record-facts">
+        {['Score', 'Posted', 'Right', 'Wrong', 'Broken', 'Retracted', 'Judged wins'].map((label, i) => <div className="fact-pair" key={label}><dt>{label}</dt><dd>{i === 0 ? fmtScore(r?.[0]) : r ? r[i].toString() : '…'}</dd></div>)}
+      </dl>
       <h2>Notes</h2>
       {error && (
         <Notice kind="bad">
@@ -66,10 +69,10 @@ export function AuthorPage({ address, feed, error }: FeedProps & { address: Addr
           <Entry key={n.id} n={n} />
         ))}
       </ul>
-      {feed && notes.length === 0 && <p className="empty">This author has not posted a note yet.</p>}
+      {feed && notes.length === 0 && <p className="empty">{feed.partial ? 'No notes from this author in the available history; older notes may be missing.' : 'This author has not posted a note yet.'}</p>}
       {mine && (
         <p className="small">
-          Deposits and refunds are claimed from each note's own page. Open a note above to claim.
+          Claim deposits and refunds from <a href="#/pools">Pools</a> or from a note above.
         </p>
       )}
     </>
