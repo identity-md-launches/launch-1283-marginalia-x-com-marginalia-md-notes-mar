@@ -69,7 +69,9 @@ These measurements are specific pairs, not a whole-site accessibility certificat
 - Raw observation evidence uses `.table-scroll` with a keyboard-focusable named region. Values and unit
   labels stay intact; horizontal scrolling is local to the table, never the document.
 - The Feed heading/lede and disconnected wallet line are deliberately brief so a normal first entry is
-  visible on the first 390×844 screen. Missing-history warnings may add height when needed.
+  visible on the first 390×844 screen even when history is incomplete. The count and concise warning share
+  one native summary below the filters; detailed coverage stays collapsed until requested. In this revision,
+  partial-history note text ends at y=757.28 in Chromium and y=808.48 in WebKit at 390×844.
 - Observed in the browser: see `web/VALIDATION.md`; widths not checked there are untested.
 
 ## Elevation & Depth
@@ -96,6 +98,12 @@ Buttons and inputs are 44 px tall minimum (`min-height`), fields full-width up t
   `walletAddChain`.
 - **Addr**: short address in monospace linking to the explorer, with a `copy` button labelled for screen readers.
 - **StatusTag**: `.tag` plus a status class (`open`, `right`, `wrong`, `forfeited`, …) from `lib.ts STATUS_CLASS`.
+- **HistoryStatus** (`web/src/history.tsx`): a native `details` / `summary` disclosure, 44 px minimum
+  summary height, in secondary serif text. The summary shows the loaded-note count plus **History incomplete**
+  or **Read warning** when applicable, with status conveyed in words. Expanded details show the read block,
+  full warnings and a **Load more history** (or **Refresh history**) button, disabled while reading. Reuses
+  the existing keyboard focus rule; no new palette or animation. On Feed it sits immediately above the ledger;
+  other pages show it when coverage needs attention.
 - **Notice**: `.notice` with optional `ok` / `bad`; `bad` has `role="alert"`.
 - **Countdown**: tabular `fmtDuration` countdown driven by the shared one-second clock in `chain.ts useNow`.
 - **Masthead / Footer**: brand with manicule, section nav with `aria-current`, footer with the canonical links,

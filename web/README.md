@@ -50,13 +50,20 @@ Re-run `manifest.mjs` after any change to `dist/`; the asset hashes must match t
 
 ## History and sealing limits
 
-The approved public nodes refuse old log ranges. The feed caches public events and successful block coverage
-in this browser, reads a 64-block overlap, and scans at most the latest 8,000 blocks in four 2,000-block ranges
-per refresh (RPC fallback/retries can add attempts). It refreshes `noteOf` on chain. Missing ranges produce
-an explicit incomplete-history notice instead of taking down all pages. A new browser or one returning after
-an extended absence may lack older notes, seal events and observations; author/claim lists cover the available
-history only. Clearing browser storage also removes this history and any saved seal drafts. There is no
-backend or archive API added to fill these gaps.
+The feed reads recent events first, then backfills from deployment block **26169583**. Each refresh makes
+at most four recent and four historical log queries, each covering at most 2,000 blocks (approved RPC
+fallback/retries may add transport attempts). It persists successful ranges, events, the recent cursor and
+an independent historical cursor after each request. Historical batches skip successful ranges, advance
+past refusals, and cycle back to retry missing ranges. Existing browser caches migrate without discarding
+their logs. A 64-block overlap and block-hash anchor are retained; `noteOf` is always refreshed on chain.
+
+The count beside the ledger says **History incomplete** until coverage is complete. Expand that row to see
+the read block, coverage explanation and any refused block ranges, then use **Load more history** to advance
+another batch. **Refresh** and page reloads also continue the saved scan. The same coverage control appears
+on other pages while history is incomplete. Public nodes can still refuse historical data: author records'
+note lists, evidence, seals and claims cover the events successfully read so far, without claiming unavailable
+history is empty. Clearing browser storage resets history and removes saved seal drafts. No backend, archive
+API or additional RPC endpoint was added.
 
 New sealing is disabled because the immutable hook pulls its stamp itself, requiring a hook allowance that
 the site's router-only approval policy forbids. Its checkpoint status and hash preview remain readable.
@@ -80,12 +87,19 @@ No real transaction is needed for these tests. With frontend dependencies instal
 ```sh
 npx --no-install esbuild tests/revision-unit.ts --bundle --platform=node --format=esm --outfile=../test/scratch/revision-unit.mjs
 node ../test/scratch/revision-unit.mjs
+npx --no-install esbuild tests/history-unit.ts --bundle --platform=node --format=esm --outfile=../test/scratch/history-unit.mjs
+node ../test/scratch/history-unit.mjs
 
 # Independent browser tooling; does not change this project's dependency manifest or lockfile.
 npm install --prefix /tmp/marginalia-browser playwright@1.64.0 --cache /tmp/marginalia-npm-cache
 PLAYWRIGHT_BROWSERS_PATH=/tmp/marginalia-browsers /tmp/marginalia-browser/node_modules/.bin/playwright install chromium
 PLAYWRIGHT_BROWSERS_PATH=/tmp/marginalia-browsers PLAYWRIGHT_MODULE=/tmp/marginalia-browser/node_modules/playwright/index.mjs EVIDENCE_DIR=../test/scratch/browser-evidence node tests/revision-browser.mjs
 ```
+
+For the new history cases, run the same browser command with `HISTORY_ONLY=1`; add `BROWSER=webkit` to
+use an installed WebKit. `HISTORY_BEFORE=1 HISTORY_ONLY=1 SITE_DIR=/path/to/previous/dist` reproduces the
+three reopened defects on the prior accepted export. Dependencies can be installed in an isolated copy of
+`web/` under `/tmp` to leave repository manifests, lockfiles and dependency paths unchanged.
 
 The browser runner owns and closes its local static preview under `/preview/`, blocks outside requests, and
 mocks both RPC and the wallet. `MODE=before SITE_DIR=/path/to/original/dist` reproduces the reported defects

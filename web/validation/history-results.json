@@ -1,0 +1,247 @@
+{
+  "before": {
+    "chromium": [
+      {
+        "name": "Fresh browser backfills note 1 and exposes it on Note, Author and Pools",
+        "result": "pass"
+      },
+      {
+        "name": "Returning browser retrieves a served 9,000-block gap across reload",
+        "result": "pass"
+      },
+      {
+        "name": "Partial history keeps ledger text on the first 390\u00d7844 screen",
+        "result": "pass"
+      }
+    ],
+    "webkit": [
+      {
+        "name": "Fresh browser backfills note 1 and exposes it on Note, Author and Pools",
+        "result": "pass"
+      },
+      {
+        "name": "Returning browser retrieves a served 9,000-block gap across reload",
+        "result": "pass"
+      },
+      {
+        "name": "Partial history keeps ledger text on the first 390\u00d7844 screen",
+        "result": "pass"
+      }
+    ]
+  },
+  "after": {
+    "chromium": [
+      {
+        "name": "Fresh browser backfills note 1 and exposes it on Note, Author and Pools",
+        "result": "pass"
+      },
+      {
+        "name": "Returning browser retrieves a served 9,000-block gap across reload",
+        "result": "pass"
+      },
+      {
+        "name": "Partial history keeps ledger text on the first 390\u00d7844 screen",
+        "result": "pass"
+      },
+      {
+        "name": "Historical requests fall back to the other approved RPC",
+        "result": "pass"
+      },
+      {
+        "name": "Backfill cursor survives reload and detail control advances another batch",
+        "result": "pass"
+      }
+    ],
+    "webkit": [
+      {
+        "name": "Fresh browser backfills note 1 and exposes it on Note, Author and Pools",
+        "result": "pass"
+      },
+      {
+        "name": "Returning browser retrieves a served 9,000-block gap across reload",
+        "result": "pass"
+      },
+      {
+        "name": "Partial history keeps ledger text on the first 390\u00d7844 screen",
+        "result": "pass"
+      },
+      {
+        "name": "Historical requests fall back to the other approved RPC",
+        "result": "pass"
+      },
+      {
+        "name": "Backfill cursor survives reload and detail control advances another batch",
+        "result": "pass"
+      }
+    ]
+  },
+  "regression": [
+    {
+      "name": "Feed first screen and copy",
+      "result": "pass"
+    },
+    {
+      "name": "Author mobile values remain whole",
+      "result": "pass"
+    },
+    {
+      "name": "Router approval exactly equals displayed precision",
+      "result": "pass"
+    },
+    {
+      "name": "Target precision and uint32 guards",
+      "result": "pass"
+    },
+    {
+      "name": "Seal router-only restriction and checkpoint prerequisite",
+      "result": "pass"
+    },
+    {
+      "name": "Mature seal reveals with stale checkpoint",
+      "result": "pass"
+    },
+    {
+      "name": "Older daily and closed weekly sweeps",
+      "result": "pass"
+    },
+    {
+      "name": "Pools claims exclude paid notes and refresh after confirmations",
+      "result": "pass"
+    },
+    {
+      "name": "Observation raw integers and token decimals",
+      "result": "pass"
+    },
+    {
+      "name": "Retracted entries omit zero settlement price",
+      "result": "pass"
+    },
+    {
+      "name": "CCIP lookup cannot contact an external host",
+      "result": "pass"
+    },
+    {
+      "name": "Refused log ranges do not fail all pages",
+      "result": "pass"
+    },
+    {
+      "name": "Share artwork metadata and static subpath assets",
+      "result": "pass"
+    },
+    {
+      "name": "Checkpoint countdown and posting prerequisites",
+      "result": "pass"
+    },
+    {
+      "name": "Permissionless keeper actions use exact ABI and note id",
+      "result": "pass"
+    },
+    {
+      "name": "Persistent log cursor survives a page reload",
+      "result": "pass"
+    },
+    {
+      "name": "Wrong network adds Ethereum after unknown-chain rejection",
+      "result": "pass"
+    },
+    {
+      "name": "Seal boundaries, subject and connected author are enforced",
+      "result": "pass"
+    },
+    {
+      "name": "Desktop, dark mode, keyboard focus and overflow",
+      "result": "pass"
+    }
+  ],
+  "metrics": {
+    "chromiumBefore": {
+      "partialFirstNote": {
+        "x": 17,
+        "y": 846.203125,
+        "width": 356,
+        "height": 51
+      }
+    },
+    "webkitBefore": {
+      "partialFirstNote": {
+        "x": 17,
+        "y": 922.90625,
+        "width": 356,
+        "height": 51
+      }
+    },
+    "chromiumAfter": {
+      "partialFirstNote": {
+        "x": 17,
+        "y": 706.28125,
+        "width": 356,
+        "height": 51
+      },
+      "historySummary": {
+        "color": "rgb(180, 169, 149)",
+        "paper": "rgb(21, 19, 15)",
+        "font": "14.96px",
+        "height": 44,
+        "outline": "solid"
+      }
+    },
+    "webkitAfter": {
+      "partialFirstNote": {
+        "x": 17,
+        "y": 757.484375,
+        "width": 356,
+        "height": 51
+      },
+      "historySummary": {
+        "color": "rgb(180, 169, 149)",
+        "paper": "rgb(21, 19, 15)",
+        "font": "14.96px",
+        "height": 44,
+        "outline": "solid"
+      }
+    },
+    "regression": {
+      "firstNote": {
+        "viewport": 390,
+        "x": 17,
+        "y": 706.28125,
+        "width": 356,
+        "height": 51
+      },
+      "authorScore320": {
+        "text": "1234567.89",
+        "x": 72.71875,
+        "y": 491.90625,
+        "width": 230.28125,
+        "height": 25.5
+      },
+      "authorScore390": {
+        "text": "1234567.89",
+        "x": 72.71875,
+        "y": 467.671875,
+        "width": 300.28125,
+        "height": 25.5
+      },
+      "dark": {
+        "paper": "rgb(21, 19, 15)",
+        "ink": "rgb(236, 229, 214)",
+        "soft": "rgb(180, 169, 149)",
+        "link": "rgb(185, 71, 31)",
+        "inkContrast": 14.79,
+        "softContrast": 8,
+        "linkContrast": 3.52,
+        "focusOutline": "solid"
+      },
+      "light": {
+        "paper": "rgb(246, 241, 231)",
+        "ink": "rgb(29, 26, 22)",
+        "soft": "rgb(90, 81, 70)",
+        "link": "rgb(185, 71, 31)",
+        "inkContrast": 15.4,
+        "softContrast": 6.91,
+        "linkContrast": 4.68,
+        "focusOutline": "solid"
+      }
+    }
+  }
+}

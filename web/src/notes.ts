@@ -2,7 +2,7 @@
 // live `noteOf` state. The venue is not in NotePosted nor noteOf; it stays with the author (see Post).
 import { parseAbiItem, type Address, type Hex, type PublicClient } from 'viem';
 import { MarginaliaHookAbi } from './abi';
-import { DEPLOY_BLOCK, LOG_CHUNK, LOG_TAIL, LOG_REORG_OVERLAP } from './config';
+import { DEPLOY_BLOCK, LOG_CHUNK, LOG_TAIL, LOG_HISTORY_CHUNKS, LOG_REORG_OVERLAP } from './config';
 
 export interface Settlement {
   status: number;
@@ -76,10 +76,19 @@ const fetchLogs = (pub: PublicClient, hook: Address, fromBlock: bigint, toBlock:
   pub.getLogs({ address: hook, events: Object.values(ev), strict: true, fromBlock, toBlock });
 type EventLog = Awaited<ReturnType<typeof fetchLogs>>[number];
 type Range = [bigint, bigint];
-interface LogCache { version: 1; logs: EventLog[]; ranges: Range[]; cursor: bigint; anchor?: { block: bigint; hash: Hex } }
+interface LogCache {
+  version: 1;
+  logs: EventLog[];
+  ranges: Range[];
+  cursor: bigint;
+  // Next historical block to try. Optional so existing v1 caches retain their logs and coverage.
+  historyCursor?: bigint;
+  anchor?: { block: bigint; hash: Hex };
+}
 const memory = new Map<string, LogCache>();
 const pending = new WeakMap<PublicClient, Map<string, Promise<FeedData>>>();
 const max = (a: bigint, b: bigint) => a > b ? a : b;
+const min = (a: bigint, b: bigint) => a < b ? a : b;
 function mergeRanges(ranges: Range[]): Range[] {
   const out: Range[] = [];
   for (const [a, b] of ranges.sort((a, b) => a[0] < b[0] ? -1 : 1)) {
@@ -89,13 +98,30 @@ function mergeRanges(ranges: Range[]): Range[] {
   }
   return out;
 }
+function missingRanges(ranges: Range[], from: bigint, to: bigint): Range[] {
+  const gaps: Range[] = [];
+  for (const [a, b] of ranges) {
+    if (b < from) continue;
+    if (a > to) break;
+    if (a > from) gaps.push([from, a - 1n]);
+    from = max(from, b + 1n);
+  }
+  if (from <= to) gaps.push([from, to]);
+  return gaps;
+}
+function* chunks(ranges: Range[]): Generator<Range> {
+  for (const [from, to] of ranges) {
+    for (let a = from; a <= to; a += LOG_CHUNK) yield [a, min(a + LOG_CHUNK - 1n, to)];
+  }
+}
 function readCache(key: string): LogCache | undefined {
   if (memory.has(key)) return memory.get(key);
   try {
     const c = JSON.parse(localStorage.getItem(key) || 'null', (_, value) =>
       value && typeof value === 'object' && typeof value.bigint === 'string' && /^-?\d+$/.test(value.bigint) ? BigInt(value.bigint) : value) as LogCache | null;
     if (c?.version === 1 && typeof c.cursor === 'bigint' && Array.isArray(c.logs) && Array.isArray(c.ranges)
-      && c.ranges.every(r => r.length === 2 && r.every(v => typeof v === 'bigint'))
+      && c.ranges.every(r => r.length === 2 && r.every(v => typeof v === 'bigint') && r[0] >= DEPLOY_BLOCK && r[0] <= r[1])
+      && (c.historyCursor === undefined || typeof c.historyCursor === 'bigint')
       && c.logs.every(l => typeof l.blockNumber === 'bigint' && l.args && l.eventName in ev)) return c;
   } catch { /* inaccessible, obsolete or corrupted local storage: read the recent chain tail */ }
 }
@@ -145,41 +171,65 @@ async function scanFeed(pub: PublicClient, hook: Address): Promise<FeedData> {
     } catch { warnings.push('The cached history anchor could not be verified by the node.'); }
   }
   const tailStart = max(DEPLOY_BLOCK, toBlock - LOG_TAIL + 1n);
-  // At most four 2,000-block requests per refresh, regardless of time since launch.
-  let from = cache ? max(tailStart, cache.cursor - LOG_REORG_OVERLAP + 1n) : tailStart;
-  // Retry holes that are still within the recent tail, without rescanning known older history.
-  let coveredUntil = tailStart;
-  for (const [a, b] of cache?.ranges ?? []) {
-    if (a > coveredUntil) break;
-    if (b >= coveredUntil) coveredUntil = b + 1n;
-  }
-  if (coveredUntil < from) from = coveredUntil;
-  let logs = [...(cache?.logs ?? [])];
-  const ranges = (cache?.ranges ?? []).flatMap(([a, b]): Range[] => a < from ? [[a, b < from ? b : from - 1n]] : []);
-  for (const block of tsCache.keys()) if (block >= from) tsCache.delete(block);
-  for (let a = from; a <= toBlock; a += LOG_CHUNK) {
-    const b = a + LOG_CHUNK - 1n > toBlock ? toBlock : a + LOG_CHUNK - 1n;
+  const from = cache ? max(tailStart, cache.cursor - LOG_REORG_OVERLAP + 1n) : tailStart;
+  const saved: LogCache = {
+    version: 1, logs: [...(cache?.logs ?? [])], ranges: mergeRanges(cache?.ranges ?? []),
+    cursor: toBlock, historyCursor: cache?.historyCursor ?? DEPLOY_BLOCK, anchor: cache?.anchor,
+  };
+  const persist = () => {
+    memory.set(key, saved);
+    try { localStorage.setItem(key, JSON.stringify(saved, (_, v) => typeof v === 'bigint' ? { bigint: v.toString() } : v)); }
+    catch {
+      const warning = 'Browser storage is unavailable or full. Events are kept only for this visit.';
+      if (!warnings.includes(warning)) warnings.push(warning);
+    }
+  };
+  const scanRange = async ([a, b]: Range) => {
     try {
       const chunk = await fetchLogs(pub, hook, a, b);
-      logs = logs.filter(l => l.blockNumber < a || l.blockNumber > b).concat(chunk);
-      ranges.push([a, b]);
+      saved.logs = saved.logs.filter(l => l.blockNumber < a || l.blockNumber > b).concat(chunk);
+      saved.ranges = mergeRanges([...saved.ranges, [a, b]]);
+      for (const block of tsCache.keys()) if (block >= a && block <= b) tsCache.delete(block);
     } catch {
       warnings.push(`The public nodes did not serve blocks ${a}–${b}. Other available entries are still shown.`);
     }
+    // Save each completed request so a reload mid-batch keeps successful ranges, including empty ones.
+    persist();
+  };
+  // Prioritize current events and the reorg overlap, retaining coverage if a rescan is refused.
+  const recent = [[from, toBlock] as Range, ...missingRanges(saved.ranges, tailStart, from - 1n)];
+  let recentAttempts = 0;
+  for (const range of chunks(recent)) {
+    if (recentAttempts++ === Number(LOG_TAIL / LOG_CHUNK)) break;
+    await scanRange(range);
   }
+
+  // Sweep forward from deployment, skipping successful ranges. Wrap after reaching the tail so
+  // refused holes are retried on later batches without starving later, potentially readable history.
+  const historyEnd = tailStart - 1n;
+  const start = saved.historyCursor! < DEPLOY_BLOCK || saved.historyCursor! > historyEnd ? DEPLOY_BLOCK : saved.historyCursor!;
+  const history = [
+    ...missingRanges(saved.ranges, start, historyEnd),
+    ...missingRanges(saved.ranges, DEPLOY_BLOCK, start - 1n),
+  ];
+  let attempted = 0;
+  for (const range of chunks(history)) {
+    if (attempted++ === LOG_HISTORY_CHUNKS) break;
+    await scanRange(range);
+    saved.historyCursor = range[1] >= historyEnd ? DEPLOY_BLOCK : range[1] + 1n;
+    persist();
+  }
+  const logs = saved.logs;
   logs.sort((a, b) => a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1);
-  const coverage = mergeRanges(ranges);
+  const coverage = saved.ranges;
   const partial = coverage.length !== 1 || coverage[0][0] > DEPLOY_BLOCK || coverage[0][1] < toBlock;
-  if (partial) warnings.unshift('History is incomplete. This browser keeps previously read events and scans only the latest 8,000 blocks. Missing older notes, seals or observations may not appear.');
-  const saved: LogCache = { version: 1, logs, ranges: coverage, cursor: toBlock };
+  if (partial) warnings.unshift(`History is incomplete. Each refresh reads recent events and continues a bounded history scan from deployment block ${DEPLOY_BLOCK}. Successful ranges stay in this browser; missing ranges are retried on later batches. Notes, seals, observations and claims may be missing until coverage is complete.`);
   const anchorBlock = toBlock - LOG_REORG_OVERLAP;
   if (anchorBlock >= DEPLOY_BLOCK) {
     try { const anchor = await pub.getBlock({ blockNumber: anchorBlock }); if (anchor.hash) saved.anchor = { block: anchorBlock, hash: anchor.hash }; }
     catch { /* overlap is still re-read even if an anchor cannot be saved */ }
   }
-  memory.set(key, saved);
-  try { localStorage.setItem(key, JSON.stringify(saved, (_, v) => typeof v === 'bigint' ? { bigint: v.toString() } : v)); }
-  catch { warnings.push('Browser storage is unavailable or full. Events are kept only for this visit.'); }
+  persist();
   const posted = logs.filter(l => l.eventName === 'NotePosted');
   const settled = logs.filter(l => l.eventName === 'Settled');
   const observed = logs.filter(l => l.eventName === 'Observed');

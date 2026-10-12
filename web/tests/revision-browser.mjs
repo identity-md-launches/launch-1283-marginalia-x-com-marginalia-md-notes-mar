@@ -6,10 +6,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { decodeFunctionData, encodeFunctionResult, encodeAbiParameters, encodeEventTopics, keccak256, toHex, parseAbi, zeroAddress, zeroHash, maxUint256 } from 'viem';
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { chromium, webkit } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(process.env.SITE_DIR || path.join(here, '../../dist'));
 const before = process.env.MODE === 'before';
+const historyOnly = process.env.HISTORY_ONLY === '1';
+const historyBefore = process.env.HISTORY_BEFORE === '1';
 const evidence = process.env.EVIDENCE_DIR;
 if (evidence) fs.mkdirSync(evidence, { recursive: true });
 const manifest = JSON.parse(fs.readFileSync(path.join(dist, 'imd-deployment.json')));
@@ -50,7 +52,8 @@ function event(name, values, block, logIndex = 0) {
 function logs() {
   const out = [];
   if (f.notes) {
-    out.push(event('NotePosted', {id, author, x: f.token, class:1, side:0, targetBps:f.thesis ? 0 : 12000, horizonDays:f.thesis ? 0 : 30, parentId:zeroHash, text:'A review note: the evidence matters more than the result.'}, f.head - 2500n));
+    out.push(event('NotePosted', {id, author, x: f.token, class:1, side:0, targetBps:f.thesis ? 0 : 12000, horizonDays:f.thesis ? 0 : 30, parentId:zeroHash, text:'A review note: the evidence matters more than the result.'}, f.noteBlock ?? f.head - 2500n));
+    if (f.extraNoteBlock) out.push(event('NotePosted', {id:toHex(2,{size:32}), author, x:f.token, class:1, side:0, targetBps:12000, horizonDays:30, parentId:zeroHash, text:'A note posted while the author was away.'}, f.extraNoteBlock));
     if (f.observe) out.push(event('Observed', {id,xRead:123456n,balance:f.sentinel ? maxUint256 : 5000000n}, f.head-100n, 1));
     if (f.status === 5) out.push(event('Settled', {id,status:5,settlePrice:0n,scoreDelta:-5000n,keeper:zeroAddress}, f.head-90n, 2));
   }
@@ -59,7 +62,7 @@ function logs() {
 }
 function block(number) {
   const n = number === 'latest' ? f.head : number === 'finalized' ? f.head-64n : BigInt(number);
-  const time = n === f.head-2500n ? f.now - (f.noteAge ?? 90000) : n === f.head-1200n ? f.now-(f.sealAge || 14400) : f.now - Number(f.head-n)*12;
+  const time = n === (f.noteBlock ?? f.head-2500n) ? f.now - (f.noteAge ?? 90000) : n === f.head-1200n ? f.now-(f.sealAge || 14400) : f.now - Number(f.head-n)*12;
   return { number:toHex(n), hash:toHex(n,{size:32}), parentHash:toHex(n-1n,{size:32}), timestamp:toHex(time), nonce:'0x0000000000000000', difficulty:'0x0', totalDifficulty:'0x0', gasLimit:'0x1c9c380', gasUsed:'0x0', miner:zeroAddress, extraData:'0x', baseFeePerGas:'0x1', size:'0x1', transactions:[], uncles:[], logsBloom:`0x${'0'.repeat(512)}`, receiptsRoot:zeroHash, stateRoot:zeroHash, transactionsRoot:zeroHash, sha3Uncles:zeroHash, mixHash:zeroHash };
 }
 function value(fn, args, address) {
@@ -96,7 +99,7 @@ function rpc(r) {
     else if (r.method === 'eth_getBlockByNumber') result = block(r.params[0]);
     else if (r.method === 'eth_getLogs') {
       const q = r.params[0];
-      if (f.failLogs && BigInt(q.fromBlock) < f.head-2000n) return {jsonrpc:'2.0',id:r.id,error:{code:-32602,message:'Archive requests require a personal token'}};
+      if ((f.failLogs && BigInt(q.fromBlock) < f.head-2000n) || (f.refuseBefore && BigInt(q.fromBlock) < f.refuseBefore)) return {jsonrpc:'2.0',id:r.id,error:{code:-32602,message:'Archive requests require a personal token'}};
       result = logs().filter(l => BigInt(l.blockNumber) >= BigInt(q.fromBlock) && BigInt(l.blockNumber) <= BigInt(q.toBlock) && (!q.topics?.[0] || (Array.isArray(q.topics[0]) ? q.topics[0].includes(l.topics[0]) : q.topics[0] === l.topics[0])));
     } else if (r.method === 'eth_call') {
       const call = r.params[0]; const {functionName,args=[]} = decodeFunctionData({abi,data:call.data});
@@ -118,7 +121,7 @@ const server = createServer((req,res) => {
 });
 await new Promise(r => server.listen(0,'127.0.0.1',r));
 const url = `http://127.0.0.1:${server.address().port}/preview/`;
-const browser = await chromium.launch({headless:true});
+const browser = await (process.env.BROWSER === 'webkit' ? webkit : chromium).launch({headless:true});
 const reports=[];
 const metrics={};
 let context,page,errors,external;
@@ -141,7 +144,16 @@ async function open(route='/',patch={}) {
   await context.route('**/*',async route=>{
     const u=route.request().url();
     if(manifest.network.rpcUrls.some(r=>u===r||u===r+'/')) {
-      const req=JSON.parse(route.request().postData()); const out=Array.isArray(req)?req.map(rpc):rpc(req);
+      const req=JSON.parse(route.request().postData());
+      const respond = r => {
+        if(f.primaryRefusesHistory && u.startsWith(manifest.network.rpcUrls[0]) && r.method==='eth_getLogs' && BigInt(r.params[0].fromBlock)<f.head-7999n) {
+          f.rpc.push(r);f.primaryFailures=(f.primaryFailures||0)+1;
+          return {jsonrpc:'2.0',id:r.id,error:{code:-32602,message:'Archive requests require a personal token'}};
+        }
+        if(u.startsWith(manifest.network.rpcUrls[1]) && r.method==='eth_getLogs')f.secondaryReads=(f.secondaryReads||0)+1;
+        return rpc(r);
+      };
+      const out=Array.isArray(req)?req.map(respond):respond(req);
       await route.fulfill({contentType:'application/json',body:JSON.stringify(out)});
     } else if(u.endsWith('/__wallet')) {
       const t=JSON.parse(route.request().postData());f.requests.push(t);
@@ -167,6 +179,100 @@ async function callForm() {
 async function sent(fn){const all=await page.evaluate(()=>window.__sent);const entry=all.map(t=>({...t,...decodeFunctionData({abi,data:t.data})})).find(t=>t.functionName===fn);assert(entry,`No ${fn} wallet request`);return entry;}
 async function check(name,fn){try{await fn(); reports.push({name,result:'pass'});console.log('PASS',name);}catch(e){reports.push({name,result:'FAIL',error:e.stack});console.error('FAIL',name,e.message);if(!before)process.exitCode=1;}}
 try {
+  if (historyOnly) {
+    await check('Fresh browser backfills note 1 and exposes it on Note, Author and Pools', async()=>{
+      await open('/',{head:deploy+12000n,noteBlock:deploy+1000n});
+      await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();
+      if(historyBefore) {
+        assert.match(await text(),/0 notes loaded/);
+        await page.getByRole('button',{name:'Refresh',exact:true}).click();
+        await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();
+        assert.equal(await page.locator('.entry-text').count(),0);
+        assert(f.rpc.filter(r=>r.method==='eth_getLogs').every(r=>BigInt(r.params[0].fromBlock)>deploy+1000n));
+      } else {
+        await page.locator('.entry-text').waitFor();
+        assert(f.rpc.some(r=>r.method==='eth_getLogs' && BigInt(r.params[0].fromBlock)===deploy));
+        assert(!(await text()).includes('History incomplete'));
+      }
+      await page.evaluate(()=>location.hash='#/note/0x1');
+      if(historyBefore) await page.getByText('This note is not in the available history; older events may be missing.').waitFor();
+      else {
+        await page.getByRole('heading',{name:/Note № 1/}).waitFor();
+        await page.evaluate(a=>location.hash='#/author/'+a,author);await page.locator('.entry-text').waitFor();
+        await page.getByRole('navigation',{name:'Sections'}).getByRole('link',{name:'Pools',exact:true}).click();
+        await page.getByRole('button',{name:/^Claim deposit/}).waitFor();
+        await page.getByRole('button',{name:/^Claim refund/}).waitFor();
+      }
+    });
+    await check('Returning browser retrieves a served 9,000-block gap across reload', async()=>{
+      await open('/',{noteBlock:deploy+100n});await page.locator('.entry-text').waitFor();
+      f.head=deploy+12500n;f.extraNoteBlock=deploy+4000n;f.refuseBefore=f.head-10000n;f.rpc=[];
+      await page.reload();await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();
+      if(historyBefore) {
+        assert.equal(await page.locator('.entry-text').count(),1);
+        f.head+=10n;await page.getByRole('button',{name:'Refresh',exact:true}).click();
+        await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();assert.equal(await page.locator('.entry-text').count(),1);
+      } else {
+        assert.equal(await page.locator('.entry-text').count(),2);
+        assert(!(await text()).includes('History incomplete'));
+      }
+    });
+    await check('Partial history keeps ledger text on the first 390×844 screen', async()=>{
+      await open('/',{wallet:false,head:deploy+12000n,noteBlock:deploy+9500n,...(historyBefore?{}:{refuseBefore:deploy+4001n})});
+      await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();await page.locator('.entry-text').waitFor();
+      await shot(historyBefore?'history-before-fold':'history-after-fold');
+      const box=await page.locator('.entry-text').first().boundingBox();metrics.partialFirstNote=box;
+      if(historyBefore) assert(box.y>844,JSON.stringify(box));
+      else {
+        assert(box.y+box.height<844,JSON.stringify(box));
+        const summary=page.locator('.history summary');assert.match(await summary.innerText(),/1 note loaded.*History incomplete/);
+        await summary.focus();await page.keyboard.press('Enter');
+        assert(await page.locator('.history').getAttribute('open')!==null);
+        assert.match(await text(),/did not serve blocks/);
+        assert.match(await text(),/26169583/);
+        f.refuseBefore=null;
+        await page.getByRole('button',{name:'Load more history',exact:true}).click();
+        await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();
+        assert(!(await summary.innerText()).includes('History incomplete'));
+        await summary.press('Enter');
+        assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+        assert.equal(errors.length,0);assert.deepEqual(external,[]);
+      }
+      await shot(historyBefore?'history-before-390':'history-after-390');
+    });
+    if(!historyBefore) await check('Historical requests fall back to the other approved RPC', async()=>{
+      await open('/',{head:deploy+12000n,noteBlock:deploy+1000n,primaryRefusesHistory:true});
+      await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();await page.locator('.entry-text').waitFor();
+      assert(f.primaryFailures>0);assert(f.secondaryReads>0);assert(!(await text()).includes('History incomplete'));assert.deepEqual(external,[]);
+    });
+    if(!historyBefore) await check('Backfill cursor survives reload and detail control advances another batch', async()=>{
+      await open('/',{wallet:false,head:deploy+50000n,noteBlock:deploy+16000n});
+      await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();
+      const cursor=()=>page.evaluate(()=>JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('marginalia.logs.')))).historyCursor.bigint);
+      const first=BigInt(await cursor());assert(first>deploy);
+      await page.reload();await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();assert(BigInt(await cursor())>first);
+      await page.locator('.history summary').click();
+      await page.getByRole('button',{name:'Load more history',exact:true}).click();
+      await page.getByRole('button',{name:'Refresh',exact:true}).waitFor();await page.locator('.entry-text').waitFor();
+      assert.equal(await page.locator('.entry-text').count(),1);
+      await page.locator('.history summary').click();
+      for(const width of [320,390,768,1440]) {
+        await page.setViewportSize({width,height:width===1440?1000:844});
+        assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+        if(width===390){const b=await page.locator('.entry-text').first().boundingBox();assert(b.y+b.height<844);}
+        await shot('history-partial-'+width);
+      }
+      await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
+      await page.locator('.history summary').focus();await page.keyboard.press('Tab');await page.keyboard.press('Shift+Tab');await shot('history-dark-focus');
+      metrics.historySummary=await page.locator('.history summary').evaluate(el=>({color:getComputedStyle(el).color,paper:getComputedStyle(document.body).backgroundColor,font:getComputedStyle(el).fontSize,height:el.getBoundingClientRect().height,outline:getComputedStyle(el).outlineStyle}));
+      assert.equal(metrics.historySummary.outline,'solid');
+      await page.keyboard.press('Enter');assert(await page.locator('.history').getAttribute('open')!==null);
+      await shot('history-details-390');
+      await page.setViewportSize({width:320,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      await page.evaluate(()=>document.documentElement.style.fontSize='34px');
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    });
+  } else {
   await check('Feed first screen and copy',async()=>{
     await open('/',{wallet:false});await page.locator('.entry-text').waitFor();
     const bounds=await page.locator('.entry-text').first().boundingBox();metrics.firstNote={viewport:390,...bounds};
@@ -238,8 +344,8 @@ try {
   });
   await check('Refused log ranges do not fail all pages',async()=>{
     await open('/',{head:deploy+650000n,failLogs:true,sealAge:14400});await page.waitForTimeout(before?7500:4000);
-    if(before)assert.match(await text(),/Could not read the feed/);else{assert.match(await text(),/History is incomplete/);assert(!(await text()).includes('Could not read the feed'));
-      const calls=f.rpc.filter(r=>r.method==='eth_getLogs');const ranges=new Set(calls.map(r=>r.params[0].fromBlock+'-'+r.params[0].toBlock));assert(ranges.size<=4);assert(calls.every(r=>BigInt(r.params[0].toBlock)-BigInt(r.params[0].fromBlock)<2000n));
+    if(before)assert.match(await text(),/Could not read the feed/);else{assert.match(await text(),/History incomplete/);assert(!(await text()).includes('Could not read the feed'));
+      const calls=f.rpc.filter(r=>r.method==='eth_getLogs');const ranges=new Set(calls.map(r=>r.params[0].fromBlock+'-'+r.params[0].toBlock));assert(ranges.size<=8);assert(calls.every(r=>BigInt(r.params[0].toBlock)-BigInt(r.params[0].fromBlock)<2000n));
       await page.getByRole('link',{name:'Seal',exact:true}).click();await page.getByRole('heading',{name:'Your seals',exact:true}).waitFor();assert.match(await text(),/Your seals/);assert.match(await text(),/reveal open/i);}
   });
   await check('Share artwork metadata and static subpath assets',async()=>{
@@ -288,6 +394,7 @@ try {
       metrics.dark=await colors();
       await page.emulateMedia({colorScheme:'light'});await page.setViewportSize({width:1440,height:1000});await shot('feed-1440');metrics.light=await colors();
     });
+  }
   }
 } finally {
   if(evidence){fs.writeFileSync(path.join(evidence,before?'before.json':'after.json'),JSON.stringify(reports,null,2));fs.writeFileSync(path.join(evidence,'metrics.json'),JSON.stringify(metrics,null,2));}

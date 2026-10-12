@@ -3,6 +3,7 @@ import type { PublicClient } from 'viem';
 import { Ctx, loadContracts, makePublicClient, useNow, useWallet, type Contracts } from './chain';
 import { loadDeployment, type AppConfig } from './config';
 import { loadFeed, type FeedData } from './notes';
+import { HistoryStatus } from './history';
 import { AboutPage } from './pages/About';
 import { AuthorPage } from './pages/Author';
 import { FeedPage } from './pages/Feed';
@@ -90,6 +91,7 @@ export default function App() {
 
   const feedState = { feed, error: feedError, loading: feedLoading, refresh: refreshFeed };
   let page;
+  let isFeedPage = false;
   const m = (re: RegExp) => route.match(re);
   let seg;
   if ((seg = m(/^\/author\/(0x[0-9a-fA-F]{40})$/))) page = <AuthorPage address={seg[1] as `0x${string}`} {...feedState} />;
@@ -98,7 +100,7 @@ export default function App() {
   else if (route.startsWith('/seal')) page = <SealPage {...feedState} />;
   else if (route.startsWith('/pools')) page = <PoolsPage {...feedState} />;
   else if (route.startsWith('/about')) page = <AboutPage />;
-  else page = <FeedPage {...feedState} />;
+  else { page = <FeedPage {...feedState} />; isFeedPage = true; }
 
   return (
     <Ctx.Provider value={{ cfg, pub, contracts, wallet, now }}>
@@ -106,7 +108,7 @@ export default function App() {
         <Masthead route={route} />
         <WalletBar />
         <main id="main">
-          {feed && feed.warnings.length > 0 && <Notice><p>{feed.warnings[0]}</p>{feed.warnings.length > 1 && <details><summary>Read coverage details</summary><ul>{feed.warnings.slice(1).map((w, i) => <li key={i}>{w}</li>)}</ul></details>}</Notice>}
+          {!isFeedPage && feed && (feed.partial || feed.warnings.length > 0) && <HistoryStatus {...feedState} />}
           {page}
         </main>
         <Footer hook={contracts.hook} marg={contracts.marg} />

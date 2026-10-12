@@ -16,8 +16,9 @@ export const CHAIN_ID = 1 as const;
 export const DEPLOY_BLOCK = 26169583n;
 /** Public nodes limit eth_getLogs ranges; this chunk size is served by the configured public RPCs. */
 export const LOG_CHUNK = 2000n;
-/** Bound each automatic scan to recent blocks supported by the public nodes. */
+/** Read the recent tail first, then continue historical coverage in a separate bounded batch. */
 export const LOG_TAIL = 8000n;
+export const LOG_HISTORY_CHUNKS = 4;
 export const LOG_REORG_OVERLAP = 64n;
 
 /** Canonical Uniswap factories and WETH on Ethereum mainnet, as named by the brief. The router exposes the

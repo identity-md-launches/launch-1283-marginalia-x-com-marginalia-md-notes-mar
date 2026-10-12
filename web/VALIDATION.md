@@ -1,4 +1,118 @@
-# Marginalia frontend revision — validation record
+# Marginalia history revision — validation record
+
+2026-10-12. Worker checks, not independent certification. This section describes the final history
+revision; the prior accepted revision record below is retained as history. Its four-query/tail-only scan
+and large history notice are superseded by this change. No transaction was broadcast.
+
+## Scope and disposition
+
+Reproduced and fixed both high findings and the returning-visitor advisory. Every one of the five finding
+IDs has a response in root `.imd-responses.json`. The app's transaction builders, ABIs, contract sources,
+addresses, dependency manifests/lockfiles, build configuration and unrelated helper are unchanged.
+
+- **96414d1b… (high)** — `src/notes.ts:173`: new browsers used to miss a readable note at block
+  26170583 with head 26181583. The recent scan now has a separate persisted historical cursor starting
+  at 26169583. Each load attempts at most four recent plus four historical ranges, each at most 2,000
+  blocks. Successful event/coverage writes persist per request. Batches skip covered ranges, advance
+  past refused ones, then cycle back to retry holes through the existing approved RPC fallback. Old
+  v1 caches migrate without discarding events. There is no extra endpoint or backend.
+- **4787d5c9… (low)** — same correction: the 9,000-block absence fixture reproduced a missing second
+  note despite the node serving its block. The gap between cached history and the new tail is now
+  retrieved. Both notes survive reload; coverage becomes complete. Failed overlap rescans retain
+  successful coverage, and successful rescans replace only their own block interval.
+- **339983db… (high)** — `src/App.tsx:111`, `src/pages/Feed.tsx:113`, `src/history.tsx:4`,
+  `src/styles.css:143`: the large notice above the heading reproduced the reported first-screen issue.
+  The note count and concise **History incomplete** warning now share a 44px native summary above
+  the ledger. Coverage details, read height, refused ranges and **Load more history** are expandable.
+  Refresh and reload also advance the historical cursor. Navigation, filters, wallet strip and footer
+  disclaimer remain. Other pages retain a compact coverage/recovery control when needed.
+- **983d7aaf… (medium)** — confirmed requirement conflict, disputed as an actionable code defect.
+  `MarginaliaHook.seal` calls `_fund(STAMP)`, pulling from the author into the hook; the router has no
+  seal entry point. New sealing remains disabled under the explicit router-only approval rule.
+  History, hashing, windows and router-based reveal stay available. No new approval exception was inferred.
+- **6335b155… (info)** — positive prior verification, no defect to change. Rechecked the previously
+  repaired controls, exact router approval, missing-chain flow, claims, keeper calls, reveal constraints,
+  CCIP isolation, ABI bindings and runtime manifest. The new source changes are limited to history/UI.
+
+## Reproduction and checks
+
+Before changing app source, bundled and ran `tests/history-unit.ts` against a copy of the accepted source:
+its new expectations failed, including both reported missing-note cases. `HISTORY_ONLY=1 HISTORY_BEFORE=1`
+ran the three reopened reproduction cases on the untouched accepted `dist/`: all three reproduced in
+Chromium 156.0.8078.4 and WebKit 27.2. At 390×844, first-note text began at **y=846.20** in Chromium and
+**y=922.91** in WebKit, wholly below the viewport.
+
+Checks against the final export:
+
+- Installed the unchanged lockfile with `npm ci --prefix /tmp/marginalia-history-revision/web --cache
+  /tmp/marginalia-history-npm-cache --no-audit --no-fund`. Dependencies stayed outside the repository.
+- `npm run typecheck --prefix /tmp/marginalia-history-revision/web`: passed.
+- `npm run build --prefix /tmp/marginalia-history-revision/web`: passed. Vite's existing >500kB chunk
+  warning remains; the export is about 699kB. Relative-base production files were copied into root `dist/`.
+- `node /tmp/marginalia-history-revision/web/scripts/manifest.mjs <pinned deployment> <pinned network>`
+  and `scripts/check.mjs` with the same inputs: passed, 2 bound contracts and all 9 assets. The runtime
+  handoff/network, ABI Keccaks and SHA-256 inventory match. ABIs and all transaction builders are unchanged.
+- Bundled with the installed esbuild (`--bundle --platform=node --format=esm`) and ran with Node:
+  `tests/history-unit.ts`: **7 scenarios passed**; `tests/revision-unit.ts`: **9 scenarios passed**.
+  Cases cover deployment-to-head recovery, returning gaps, persisted cursor, legacy cache migration,
+  bounded requests, all six lifecycle events, refused-hole retry without starvation, preserving successful
+  coverage, incremental reads, changed-anchor invalidation, amount precision and existing contract rules.
+- Playwright 1.64.0, production `/preview/` subpath, fully intercepted RPC and wallet:
+  **5 history scenarios passed in Chromium and 5 in WebKit**. These exercise Feed/Author/Note/Pools
+  recovery, a reload after 9,000 blocks, history cursor continuation across reloads, the details recovery
+  button, a historical refusal from the first approved RPC followed by success from the second, and
+  partial-history mobile layout. **All 19 existing browser regression scenarios passed in Chromium**.
+- Read-only `tests/live-read.ts`, bundled with esbuild, against contributor relay
+  `http://127.0.0.1:43101/rpc/1`: passed at block **26173451**. Confirmed chain 1, nonempty contract and
+  canonical-factory code, router/judge/treasury, venue, seal hash/key and ABI subsets/hashes. Live noteCount
+  was 0 and the launch checkpoint uninitialized; populated history and transactions were tested with mocks.
+  The relay is worker-only and was not added to the delivered site's configuration.
+
+The browser harness owns and closes its static server and browser. Exact invocation/configuration options
+are in `README.md`. The provided MCP browser returned `Transport closed`, so the local Playwright runner
+performed the rendered checks. Chromium and WebKit were installed under `/tmp`; WebKit's missing runtime
+libraries were extracted there from Ubuntu packages. No project dependency or machine-wide install changed.
+
+Results/metrics: [history-results.json](validation/history-results.json). Visual evidence:
+[Chromium partial history](validation/history-partial-390.png),
+[WebKit partial history](validation/history-partial-webkit-390.png),
+[dark keyboard focus](validation/history-dark-focus.png),
+[expanded coverage](validation/history-details-390.png).
+The first-note text now spans **y=706.28–757.28 in Chromium** and **y=757.48–808.48 in WebKit** at 390×844
+with history incomplete. Both fit fully above the fold. The fresh all-readable fixture reaches complete
+coverage and finds the old note without user intervention; larger windows advance in later batches.
+
+## Better Interface review of the changed surface
+
+Applied the pinned Better Interface and eth-frontend-ux references. Preserved the existing paper/ink
+palette, system serif stack, one-column ledger and transaction policy. `DESIGN.md` reflects the final source.
+
+| Domain | Coverage and result |
+| --- | --- |
+| Accessibility | Checked native details/summary accessible name and keyboard Enter toggle, focus return on Tab/Shift+Tab, visible 2px focus ring, 44px summary target, disabled reading control and retained wallet/transaction gates. Screen-reader and physical-device sessions not performed. |
+| Layout | Checked incomplete and complete history at 390×844; overflow checks at 320, 390, 768 and 1440 widths in both engines. The first note text fits with the collapsed warning. Expanded details and doubled root text at 320px have no document overflow. Browser-native 200% zoom not tested. |
+| Writing | Checked concise count/warning and explicit recovery action; full coverage limitations and refused ranges remain available. No claim that unavailable historical events are absent. Existing informational/bond-loss disclaimer retained. |
+| Typography | Checked existing serif body, 17px base, 14.96px summary and wrapping of warning/details/ledger text. No remote font, new type scale or clipped warning added. System font availability differs by browser/host. |
+| Colors | Reused secondary ink on paper for the new summary; computed dark colors rgb(180,169,149) on rgb(21,19,15), 8.00:1. Existing light secondary pair 6.91:1. No new colors. The prior rust-on-dark small-link limitation (3.52:1) is unchanged and outside these targeted findings. |
+| UI | Checked complete/partial/empty/reading/refused/recovered states; disclosure stays native, recovery disables while reading, and recent data remains available after a refused range. Dark/reduced-motion media tested. No new animation or overlay. |
+
+## Completion and limits
+
+**Complete for the requested revision scope.** Permanently unavailable archive ranges cannot be invented:
+the warning persists and batches keep retrying on subsequent Refresh / Load more history / reload actions.
+Backfill is bounded and user-driven between loads; there is no continuous background scan. Browser-storage
+quota failures retain events for the visit and show the existing storage warning. Coverage is based on the
+configured node's returned events, not an independent chain-history proof.
+
+The sealing requirement conflict remains explicit. No signature, approval, observation, settlement, claim,
+seal, post, or other mainnet transaction was sent. Mock receipts/ABI checks do not certify live execution.
+No hosting/publication check, screen-reader session, real-wallet extension, physical device, native zoom,
+RTL/localization review or social unfurl was performed. Existing unrelated findings are not reclassified
+as fixed by this revision. The source bundle remains below the 8 MiB limit; no ignore file was changed.
+
+---
+
+## Prior accepted revision — historical record
 
 2026-10-12. Worker observations, not independent certification. This record supersedes the previous
 frontend validation, including its unsupported exception for hook approvals. The existing app was repaired;

@@ -140,6 +140,9 @@ td.num, th.num { text-align: right; padding-right: 0; }
 .copy { font-size: 0.8rem; min-height: 32px; padding: 0.1rem 0.5rem; border-color: var(--rule); }
 .countdown { font-variant-numeric: tabular-nums; font-weight: 600; }
 .empty { padding: var(--space-6) 0; color: var(--ink-soft); font-style: italic; }
+.history { margin: 0 0 var(--space-2); max-width: var(--measure); }
+.history summary { min-height: 44px; padding-block: var(--space-2); cursor: pointer; }
+.history[open] { padding-bottom: var(--space-2); }
 @media (prefers-reduced-motion: no-preference) { button, a { transition: background-color 120ms ease, text-decoration-thickness 120ms ease; } }
 
 /* A seven-column record needs a wider ledger; keep mobile labels and numbers intact. */

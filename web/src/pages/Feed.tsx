@@ -3,6 +3,7 @@ import { useApp } from '../chain';
 import { CLASS_LABEL, describeTarget, fmtAmount, fmtDate, short, Status, validAddress } from '../lib';
 import { isThesis, type FeedData, type Note } from '../notes';
 import { Notice, StatusTag } from '../ui';
+import { HistoryStatus } from '../history';
 
 export interface FeedProps {
   feed: FeedData | null;
@@ -109,11 +110,7 @@ export function FeedPage({ feed, error, loading, refresh }: FeedProps) {
           <p>Could not read the feed from the public nodes: {error}</p>
         </Notice>
       )}
-      {feed && (
-        <p className="small">
-          {feed.notes.length} note{feed.notes.length === 1 ? '' : 's'} loaded, read up to block {feed.toBlock.toString()}.
-        </p>
-      )}
+      <HistoryStatus feed={feed} loading={loading} refresh={refresh} />
       <ul className="ledger" aria-live="polite">
         {shown.map((n) => (
           <Entry key={n.id} n={n} />

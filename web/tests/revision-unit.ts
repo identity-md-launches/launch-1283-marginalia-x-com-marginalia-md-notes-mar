@@ -66,12 +66,12 @@ console.log('PASS refresh reads only overlap and tail, retains historical note')
 // New client instance (as on reload) and far-future head: no unbounded 90-day backfill.
 calls.length=0;head+=650000n;refuse=true;
 feed=await loadFeed({...client} as PublicClient,hook);
-assert.equal(calls.length,4);assert(calls.every(([a,b])=>a>=head-LOG_TAIL+1n&&b-a<2000n));assert.equal(feed.notes.length,1);assert(feed.partial);assert(feed.warnings.some(w=>w.includes('did not serve')));checks++;
-console.log('PASS old cached note survives refused ranges, 90-day scan bounded to four chunks');
-// Failed ranges inside the tail are retried, but older gaps stay honestly disclosed.
+assert.equal(calls.length,8);assert(calls.every(([a,b])=>b-a<2000n));assert(calls.slice(0,4).every(([a])=>a>=head-LOG_TAIL+1n));assert.equal(feed.notes.length,1);assert(feed.partial);assert(feed.warnings.some(w=>w.includes('did not serve')));checks++;
+console.log('PASS old cached note survives refused ranges, 90-day scan bounded to four recent plus four historical chunks');
+// Failed recent ranges are retried while the independent historical cursor continues.
 refuse=false;calls.length=0;
 feed=await loadFeed(client,hook);
-assert.equal(calls.length,4);assert(feed.partial);assert(!feed.warnings.some(w=>w.includes('did not serve')));checks++;
+assert.equal(calls.length,8);assert(feed.partial);assert(!feed.warnings.some(w=>w.includes('did not serve')));checks++;
 console.log('PASS recent failed ranges recover without losing historical-gap disclosure');
 reorg=true;prune=true;calls.length=0;
 feed=await loadFeed(client,hook);
