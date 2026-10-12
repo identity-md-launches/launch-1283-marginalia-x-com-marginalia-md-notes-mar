@@ -22,6 +22,11 @@ const handoff = JSON.parse(fs.readFileSync(deploymentPath, 'utf8'));
 const net = fs.existsSync(networkPath) ? JSON.parse(fs.readFileSync(networkPath, 'utf8')) : null;
 if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error('dist/index.html missing: run vite build first');
 
+// Agent documents are exact repository bytes, included in the final asset inventory.
+for (const [source, target] of [['llms.txt', 'llms.txt'], ['AGENTS.md', 'agents.md']]) {
+  fs.copyFileSync(path.join(root, source), path.join(dist, target));
+}
+
 // ABIs: the app ships every contract it talks to; the manifest binds the handoff's contracts to theirs.
 fs.mkdirSync(path.join(dist, 'abi'), { recursive: true });
 for (const name of ['Marginalia', 'MarginaliaHook', 'MarginaliaRouter', 'MarginaliaJudge']) {

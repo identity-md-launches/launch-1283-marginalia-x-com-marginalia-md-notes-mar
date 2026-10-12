@@ -23,7 +23,7 @@ export interface CallDraft {
   text: string;
   parentId: string;
 }
-export const EMPTY_DRAFT: CallDraft = { x: '', venueKey: '', side: Side.Buy, pct: '20', horizonDays: '30', text: '', parentId: '' };
+export const EMPTY_DRAFT: CallDraft = { x: '', venueKey: '', side: Side.Buy, pct: '25', horizonDays: '30', text: '', parentId: '' };
 
 const ZERO32 = '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex;
 
@@ -179,7 +179,7 @@ export function useDerivedParams(draft: CallDraft, options: VenueOption[]): { pa
   return { params, problems, deriving };
 }
 
-export function CallFields({ draft, onChange, finder }: { draft: CallDraft; onChange: (d: CallDraft) => void; finder: ReturnType<typeof useVenueFinder> }) {
+export function CallFields({ draft, onChange, finder, step }: { draft: CallDraft; onChange: (d: CallDraft) => void; finder: ReturnType<typeof useVenueFinder>; step?: number }) {
   const { contracts } = useApp();
   const L = contracts.limits;
   const set = (patch: Partial<CallDraft>) => onChange({ ...draft, ...patch });
@@ -187,6 +187,7 @@ export function CallFields({ draft, onChange, finder }: { draft: CallDraft; onCh
   const target = parseTarget(draft.side, draft.pct, L.minTargetDeltaBps);
   return (
     <>
+      {(!step || step === 1) && <>
       <label htmlFor="x">Token X</label>
       <span className="hint">The ERC-20 the note is about. Paste its address; the venues it trades on are looked up for you.</span>
       <input id="x" className="mono" value={draft.x} onChange={(e) => set({ x: e.target.value.trim(), venueKey: '' })} placeholder="0x…" autoComplete="off" spellCheck={false} />
@@ -211,6 +212,12 @@ export function CallFields({ draft, onChange, finder }: { draft: CallDraft; onCh
           ))}
         </fieldset>
       )}
+      </>}
+      {(!step || step === 2) && <>
+      <fieldset>
+        <legend>Target presets</legend>
+        <div className="presets">{[{ label: '+25%', side: Side.Buy, pct: '25' }, { label: '+50%', side: Side.Buy, pct: '50' }, { label: '2x', side: Side.Buy, pct: '100' }, { label: '-25%', side: Side.Sell, pct: '25' }].map(p => <button type="button" key={p.label} aria-pressed={draft.side === p.side && draft.pct === p.pct} onClick={() => set({ side: p.side, pct: p.pct })}>{p.label}</button>)}</div>
+      </fieldset>
       <fieldset>
         <legend>Side</legend>
         <div className="radio-row">
@@ -231,14 +238,17 @@ export function CallFields({ draft, onChange, finder }: { draft: CallDraft; onCh
       <label htmlFor="horizon">Horizon, in days</label>
       <span className="hint">1 to {L.maxHorizonDays}. Settlement opens when it ends.</span>
       <input id="horizon" inputMode="numeric" value={draft.horizonDays} onChange={(e) => set({ horizonDays: e.target.value })} />
-      <label htmlFor="text">Note</label>
+      </>}
+      {(!step || step === 3) && <>
+      <label htmlFor="text">Say why in one line</label>
       <span className="hint" id="text-hint">
-        {len} / {L.textMax} bytes. Say why, in plain words.
+        {len} / {L.textMax} bytes. Start with an X status URL to cite a public call.
       </span>
       <textarea id="text" value={draft.text} onChange={(e) => set({ text: e.target.value })} aria-describedby="text-hint" />
       <label htmlFor="parent">Parent note (optional)</label>
       <span className="hint">Your own open thesis to hang this call off, or another author's open call on the same token from the other side to counter it.</span>
       <input id="parent" className="mono" value={draft.parentId} onChange={(e) => set({ parentId: e.target.value })} placeholder="0x… note id, or empty" autoComplete="off" />
+      </>}
     </>
   );
 }

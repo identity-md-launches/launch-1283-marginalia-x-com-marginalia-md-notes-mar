@@ -8,7 +8,8 @@
 // exposed by the router as UNIV3_FACTORY / UNIV2_FACTORY / WETH and cross-checked at runtime), and links.
 // No private credentials: every RPC URL is public.
 
-import type { Address, Hex } from 'viem';
+import { keccak256, toBytes, type Address, type Hex } from 'viem';
+import type { PoolKey } from './lib';
 
 export const CHAIN_ID = 1 as const;
 
@@ -75,6 +76,7 @@ export interface Deployment {
   assets: { path: string; sha256: string }[];
   network: NetworkBlock;
   walletAddChain?: WalletAddChain;
+  poolKey?: PoolKey;
 }
 
 /** Resolved runtime configuration: the handoff plus the two addresses the app needs by role. */
@@ -103,6 +105,14 @@ export function loadDeployment(): Promise<AppConfig> {
       const marg = d.contracts.find((c) => c.name === 'Marginalia');
       if (!hook || !marg) throw new Error('imd-deployment.json lacks MarginaliaHook or Marginalia');
       if (d.chainId !== CHAIN_ID || d.network.chainId !== CHAIN_ID) throw new Error(`unexpected chain ${d.chainId}`);
+      const canonical = (v: unknown): string => v === null ? 'null' : Array.isArray(v) ? `[${v.map(canonical).join(',')}]` : typeof v === 'object' ? `{${Object.keys(v!).sort().map(k => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(',')}}` : JSON.stringify(v);
+      await Promise.all(d.contracts.map(async contract => {
+        if (!/^abi\/[A-Za-z0-9_-]+\.json$/.test(contract.abiPath)) throw new Error('Invalid deployment ABI path.');
+        const response = await fetch(new URL(contract.abiPath, document.baseURI));
+        if (!response.ok) throw new Error(`Could not load ${contract.name} ABI.`);
+        const abi: unknown = await response.json();
+        if (!Array.isArray(abi) || keccak256(toBytes(canonical(abi))).slice(2) !== contract.abiHash) throw new Error(`${contract.name} ABI does not match the deployment.`);
+      }));
       return {
         deployment: d,
         chainId: d.chainId,

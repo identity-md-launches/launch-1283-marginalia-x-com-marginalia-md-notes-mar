@@ -1,3 +1,6 @@
+import { Citation } from '../receipts';
+import { noteColumn, Share } from '../share';
+import { findDuels } from '../scoreboard';
 import { formatUnits, maxUint256, type Hex } from 'viem';
 import { useState } from 'react';
 import { ClaimControls, readClaim } from '../claims';
@@ -57,8 +60,14 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
       <p className="entry-claim">
         {thesis ? 'Thesis' : <>{n.x.toLowerCase() === contracts.marg.toLowerCase() ? 'MARG' : <Addr a={n.x} />} {describeTarget(n.side, n.targetBps)} within {n.horizonDays} days</>}
       </p>
+      <Citation text={n.text} />
       <p className="entry-text">{n.text}</p>
       <p className="small">{STATUS_EXPLAIN[n.status]}</p>
+      <div className="actions">
+        {!thesis && n.status === Status.Open && !mine && <a className="button" href={`#/post?counter=${n.id}`}>Counter this call</a>}
+        {findDuels(feed.notes).filter(d => d.counter.id === n.id || d.target.id === n.id).map(d => <a className="button" key={d.counter.id} href={`#/duel/${d.counter.id}`}>View duel № {d.counter.index.toString()}</a>)}
+      </div>
+      <Share card={{ kind: 'Note', title: thesis ? 'A thesis on the record' : `${token?.symbol ?? short(n.x)} · ${describeTarget(n.side, n.targetBps)}`, columns: [noteColumn(n, token?.symbol ?? short(n.x))], line: `Marginalia note № ${n.index} by ${short(n.author)}: ${thesis ? 'thesis' : describeTarget(n.side, n.targetBps)}. ${STATUS_LABEL[n.status]}.`, filename: `marginalia-note-${n.index}` }} />
       <dl className="facts">
         <dt>Author</dt>
         <dd>

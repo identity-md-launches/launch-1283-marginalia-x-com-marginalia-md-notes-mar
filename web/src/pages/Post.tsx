@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { HOLD_RULE } from '../scoreboard';
+import { UsdContext } from '../price';
+import { useEffect, useRef, useState } from 'react';
 import { decodeEventLog, formatUnits, type Hex } from 'viem';
 import { MarginaliaHookAbi, MarginaliaRouterAbi, erc20Abi } from '../abi';
 import { useApp, useRead } from '../chain';
 import { CallFields, EMPTY_DRAFT, useDerivedParams, useVenueFinder, type CallDraft } from '../form';
-import { fmtAmount, fmtDate, NO_VENUE, parseAmount, sealHash, sealKey, sealSubject, utf8Length, type NoteParams } from '../lib';
+import { fmtAmount, fmtDate, NO_VENUE, parseAmount, sealHash, sealKey, sealSubject, utf8Length, parseTarget, validAddress, Status, type NoteParams } from '../lib';
 import { Checkpoint, useCheckpoint } from '../checkpoint';
 import { Countdown, Notice, TxButton } from '../ui';
 import type { FeedProps } from './Feed';
@@ -22,10 +24,15 @@ export function rememberVenue(id: Hex, params: NoteParams) {
   }
 }
 
-export function PostPage({ refresh }: FeedProps) {
+export function PostPage({ feed, refresh }: FeedProps) {
   const { pub, contracts, wallet, now } = useApp();
   const L = contracts.limits;
-  const [mode, setMode] = useState<'call' | 'thesis'>('call');
+  const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const counterId = query.get('counter');
+  const counter = feed?.notes.find(n => n.id.toLowerCase() === counterId?.toLowerCase());
+  const [mode, setMode] = useState<'call' | 'thesis'>(query.get('kind') === 'thesis' ? 'thesis' : 'call');
+  const [step, setStep] = useState(1);
+  const appliedCounter = useRef('');
   const [draft, setDraft] = useState<CallDraft>(EMPTY_DRAFT);
   const [thesisText, setThesisText] = useState('');
   const [thesisParent, setThesisParent] = useState('');
@@ -48,6 +55,17 @@ export function PostPage({ refresh }: FeedProps) {
     }
   }, []);
 
+  useEffect(() => {
+    if (counter && appliedCounter.current !== counter.id) {
+      appliedCounter.current = counter.id;
+      setDraft({ ...EMPTY_DRAFT, x: counter.x, side: counter.side === 0 ? 1 : 0, parentId: counter.id, horizonDays: String(counter.horizonDays) });
+      setMode('call');
+    }
+  }, [counter]);
+
+  const record = useRead(wallet.account ? () => pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'records', args: [wallet.account!] }) : null, [wallet.account, feed?.loadedAt]);
+  const guided = mode === 'call' && !prefilledFrom && (!wallet.account || !record.data || record.data[1] === 0);
+  const reviewVisible = !guided || step === 3;
   const finder = useVenueFinder(mode === 'call' ? draft.x : '');
   const derived = useDerivedParams(draft, finder.options);
 
@@ -83,7 +101,7 @@ export function PostPage({ refresh }: FeedProps) {
   const formHash = acct && mode === 'call' && params ? sealHash(acct, params) : null;
   const key = acct && formHash ? sealKey(acct, formHash) : null;
   const seal = useRead(key ? async () => ({ key, value: await pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'seals', args: [key] }) }) : null,
-    [key, Math.floor(now / 15), posted?.hash]);
+    [key, Math.floor(now / 15), posted?.hash], [key]);
   const liveSeal = seal.data?.key === key && !seal.error ? seal.data?.value : undefined;
   const bound = !!(params && liveSeal && liveSeal[0] > 0n && liveSeal[4].toLowerCase() === sealSubject(params).toLowerCase());
   const sealAt = bound ? Number(liveSeal![0]) : 0;
@@ -96,13 +114,13 @@ export function PostPage({ refresh }: FeedProps) {
     !!liveSeal && (bound && sealAge <= L.sealMax ? revealReady : checkpoint.state === 'ready');
 
   // price and allowance
-  const price = useRead(() => pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'margPriceInImd' }), [Math.floor(now / 30)]);
+  const price = useRead(() => pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'margPriceInImd' }), [Math.floor(now / 30)], [contracts.hook]);
   const minMargOut = price.data && price.data > 0n ? ((L.margBuy * 10n ** 18n) / price.data) * 90n / 100n : 0n;
   const allowance = useRead(
     acct ? () => pub.readContract({ address: contracts.imd, abi: erc20Abi, functionName: 'allowance', args: [acct, contracts.router] }) : null,
-    [acct, posted?.hash, Math.floor(now / 15)],
+    [acct, posted?.hash, Math.floor(now / 15)], [acct],
   );
-  const balance = useRead(acct ? () => pub.readContract({ address: contracts.imd, abi: erc20Abi, functionName: 'balanceOf', args: [acct] }) : null, [acct, posted?.hash, Math.floor(now / 15)]);
+  const balance = useRead(acct ? () => pub.readContract({ address: contracts.imd, abi: erc20Abi, functionName: 'balanceOf', args: [acct] }) : null, [acct, posted?.hash, Math.floor(now / 15)], [acct]);
   const needsApproval = imdIn !== null && allowance.data !== undefined && allowance.data < imdIn;
   const enoughImd = imdIn !== null && balance.data !== undefined && balance.data >= imdIn;
 
@@ -111,6 +129,7 @@ export function PostPage({ refresh }: FeedProps) {
     return wallet.client!.writeContract(request);
   };
   const sendNote = async () => {
+    if (!counterOk) throw new Error('The counter must target an open call by another wallet on the same token from the opposite side.');
     let deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60);
     if (requestedReveal || revealReady) {
       if (!params || !key || !formHash || (requestedReveal && !matchesPrefill)) throw new Error('The form no longer matches the saved seal.');
@@ -151,15 +170,17 @@ export function PostPage({ refresh }: FeedProps) {
     refresh();
   };
 
-  const readyToPost = !!params && bondOk && imdIn !== null && allowance.data !== undefined && !needsApproval && enoughImd && (mode === 'thesis' && !requestedReveal || mode === 'call' && callReady) && minMargOut > 0n;
+  const counterOk = !counterId || !!counter && counter.status === Status.Open && counter.targetBps !== 0 && counter.author.toLowerCase() !== acct?.toLowerCase() && params?.parentId.toLowerCase() === counter.id.toLowerCase() && params?.x.toLowerCase() === counter.x.toLowerCase() && params?.side !== counter.side;
+  const readyToPost = counterOk && !!params && bondOk && imdIn !== null && allowance.data !== undefined && !needsApproval && enoughImd && (mode === 'thesis' && !requestedReveal || mode === 'call' && callReady) && minMargOut > 0n;
 
   return (
     <>
       <h1>Post a note</h1>
-      <p className="lede">
-        A note is a bonded claim. Posting costs a stamp and a small MARG purchase, and locks a bond you choose. Right returns the bond; wrong forfeits
-        it. Nothing pays for being right. This is informational, not advice.
-      </p>
+      <p className="lede">Put a target on the record. The chain keeps the result.</p>
+      <p className="hold-rule">{HOLD_RULE}.</p>
+      <p className="small">Right returns your bond; wrong forfeits it. Informational, not advice. Bonds can be lost.</p>
+      {counterId && <Notice><p>{counter ? <>Counter to <a href={`#/note/${counter.id}`}>note № {counter.index.toString()}</a>: token, opposite side and parent are prefilled.</> : 'Reading the target call…'}</p>{counter && (counter.status !== Status.Open || counter.author.toLowerCase() === acct?.toLowerCase()) && <p className="small">Use another wallet and the same token, opposite side and original parent; the target must still be open.</p>}</Notice>}
+      <div className="cost-summary"><span>Posting cost</span><strong>{imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD</strong><UsdContext /></div>
       {prefilledFrom && (
         <Notice>
           <p>
@@ -186,8 +207,9 @@ export function PostPage({ refresh }: FeedProps) {
         </div>
       </fieldset>
 
+      {guided && <ol className="post-steps" aria-label="First note steps">{['Pick a token', 'Set your target', 'Say why'].map((label, i) => <li key={label} aria-current={step === i + 1 ? 'step' : undefined}><span>{i + 1}</span>{label}</li>)}</ol>}
       {mode === 'call' ? (
-        <CallFields draft={draft} onChange={setDraft} finder={finder} />
+        <CallFields draft={draft} onChange={setDraft} finder={finder} step={guided ? step : undefined} />
       ) : (
         <>
           <label htmlFor="thesis">Thesis</label>
@@ -202,6 +224,11 @@ export function PostPage({ refresh }: FeedProps) {
         </>
       )}
 
+      {guided && <div className="actions">
+        {step > 1 && <button type="button" className="quiet" onClick={() => setStep(s => s - 1)}>Back</button>}
+        {step < 3 && <button type="button" className="primary" disabled={step === 1 ? !validAddress(draft.x) || !finder.options.some(o => o.key === draft.venueKey) : !!parseTarget(draft.side, draft.pct).error || !/^\d+$/.test(draft.horizonDays) || Number(draft.horizonDays) < 1 || Number(draft.horizonDays) > L.maxHorizonDays} onClick={() => setStep(s => s + 1)}>Continue</button>}
+      </div>}
+      {reviewVisible && <>
       <label htmlFor="bond">Bond, in IMD</label>
       <span className="hint">
         {fmtAmount(L.bondMin)} to {fmtAmount(L.bondMax)} IMD, held for the horizon. It is yours again if the call is right and lost if it is not.
@@ -213,7 +240,7 @@ export function PostPage({ refresh }: FeedProps) {
       <dl className="facts">
         <dt>Stamp</dt>
         <dd>{fmtAmount(L.stamp)} IMD · non-refundable, to the pools (70% thesis prize, 30% writer refunds)</dd>
-        <dt>MARG purchase</dt>
+        <dt>MARG allocation</dt>
         <dd>
           {fmtAmount(L.margBuy)} IMD · spent on MARG in the launch pool; the MARG goes to you. At least {fmtAmount(minMargOut)} MARG (10% below the current
           price of {price.data ? fmtAmount(price.data, 18, 10) : '…'} IMD per MARG)
@@ -222,7 +249,7 @@ export function PostPage({ refresh }: FeedProps) {
         <dd>{bondOk ? formatUnits(bondWei!, 18) : '…'} IMD · returned when right</dd>
         <dt>Total</dt>
         <dd>
-          <strong>{imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD</strong>, approved to the router only, for exactly this amount
+          <strong>{imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD</strong> · <UsdContext /> · approved to the router only, for exactly this amount
         </dd>
         {acct && (
           <>
@@ -262,7 +289,7 @@ export function PostPage({ refresh }: FeedProps) {
               primary
               onSend={sendApprove}
               onDone={() => allowance.refresh()}
-              disabled={!bondOk || requestedReveal && !callReady}
+              disabled={!bondOk || !counterOk || requestedReveal && !callReady}
               explain={`Authorizes exactly ${imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD to the router address read from the hook. Nothing else is approved.`}
             />
           )}
@@ -274,7 +301,7 @@ export function PostPage({ refresh }: FeedProps) {
               disabled={!readyToPost}
               onSend={sendNote}
               onDone={onPosted}
-              explain={`Calls router.note(params, launch pool key, ${imdIn ? formatUnits(imdIn, 18) : '…'} IMD, min ${formatUnits(minMargOut, 18)} MARG, deadline ${requestedReveal || revealReady ? 'up to 20 min, capped at seal expiry' : '20 min'}). The transaction is simulated first and you see the reason if it would fail.`}
+              explain={`Spends ${imdIn ? formatUnits(imdIn, 18) : '…'} IMD including your bond; receives at least ${formatUnits(minMargOut, 18)} MARG. Signature expires ${requestedReveal || revealReady ? 'within 20 minutes or at seal expiry' : 'in 20 minutes'}.`}
             />
           )}
           {posted && (
@@ -287,6 +314,7 @@ export function PostPage({ refresh }: FeedProps) {
           )}
         </>
       )}
+      </>}
     </>
   );
 }

@@ -1,0 +1,29 @@
+{
+  "dark": {
+    "focus": "solid",
+    "paper": "rgb(21, 19, 15)",
+    "ink": "rgb(236, 229, 214)",
+    "soft": "rgb(180, 169, 149)",
+    "link": "rgb(241, 162, 129)",
+    "tag": "rgb(39, 34, 25)",
+    "contrast": {
+      "ink": 14.79,
+      "secondary": 8,
+      "link": 9.03,
+      "linkOnTag": 7.69
+    }
+  },
+  "light": {
+    "paper": "rgb(246, 241, 231)",
+    "ink": "rgb(29, 26, 22)",
+    "soft": "rgb(90, 81, 70)",
+    "link": "rgb(166, 60, 24)",
+    "tag": "rgb(236, 229, 214)",
+    "contrast": {
+      "ink": 15.4,
+      "secondary": 6.91,
+      "link": 5.69,
+      "linkOnTag": 5.1
+    }
+  }
+}

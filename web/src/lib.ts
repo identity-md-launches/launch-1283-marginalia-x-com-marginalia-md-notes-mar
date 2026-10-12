@@ -68,7 +68,7 @@ export const STATUS_EXPLAIN: Record<number, string> = {
   1: 'The call reached its target. The bond is returned to the author; nothing else is paid for being right.',
   2: 'The call missed its target. The bond is forfeited to the pools; the settler received 10% of it.',
   3: 'An upward call whose author sold the position before the horizon ended. The bond is forfeited.',
-  4: 'The settlement window produced no usable observations. The bond is returned, but the record counts it as wrong.',
+  4: 'The settlement window produced no usable observations. The bond is returned, but it reduces the score; the wrong counter does not change.',
   5: 'The author withdrew the note before settlement. The bond is forfeited and the record counts a retraction.',
   6: 'A thesis that still waits for the author to hang a call off it within 7 days.',
   7: 'A thesis released by a child call that resolved. The author may claim its deposit.',

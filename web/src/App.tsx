@@ -6,6 +6,8 @@ import { loadFeed, type FeedData } from './notes';
 import { HistoryStatus } from './history';
 import { AboutPage } from './pages/About';
 import { AuthorPage } from './pages/Author';
+import { HomePage } from './pages/Home';
+import { DuelPage } from './pages/Duel';
 import { FeedPage } from './pages/Feed';
 import { NotePage } from './pages/Note';
 import { PoolsPage } from './pages/Pools';
@@ -17,6 +19,7 @@ function useRoute(): string {
   const [route, setRoute] = useState(() => window.location.hash.replace(/^#/, '') || '/');
   useEffect(() => {
     const on = () => {
+      if (window.location.hash === '#main') { document.getElementById('main')?.focus(); return; }
       setRoute(window.location.hash.replace(/^#/, '') || '/');
       window.scrollTo(0, 0);
     };
@@ -37,6 +40,7 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const wallet = useWallet(cfg);
   const now = useNow();
+  useEffect(() => { if (route !== 'main') document.getElementById('main')?.focus({ preventScroll: true }); }, [route]);
 
   useEffect(() => {
     loadDeployment()
@@ -73,7 +77,7 @@ export default function App() {
         <Masthead route={route} />
         <Notice kind="bad">
           <p>The site could not load its deployment configuration or reach Ethereum: {bootError}</p>
-          <p>Reload to try again. Nothing here depends on a server; only the public RPC nodes named in imd-deployment.json.</p>
+          <p>The site needs its verified configuration and an Ethereum connection before it can offer transactions.</p><button type="button" onClick={() => window.location.reload()}>Retry connection</button>
         </Notice>
       </main>
     );
@@ -94,20 +98,23 @@ export default function App() {
   let isFeedPage = false;
   const m = (re: RegExp) => route.match(re);
   let seg;
-  if ((seg = m(/^\/author\/(0x[0-9a-fA-F]{40})$/))) page = <AuthorPage address={seg[1] as `0x${string}`} {...feedState} />;
-  else if ((seg = m(/^\/note\/(0x[0-9a-fA-F]{1,64})$/))) page = <NotePage id={seg[1] as `0x${string}`} {...feedState} />;
-  else if (route.startsWith('/post')) page = <PostPage {...feedState} />;
+  if ((seg = m(/^\/author\/(0x[0-9a-fA-F]{40})$/))) page = <AuthorPage key={route} address={seg[1] as `0x${string}`} {...feedState} />;
+  else if ((seg = m(/^\/note\/(0x[0-9a-fA-F]{1,64})$/))) page = <NotePage key={route} id={seg[1] as `0x${string}`} {...feedState} />;
+  else if ((seg = m(/^\/duel\/(0x[0-9a-fA-F]{1,64})$/))) page = <DuelPage key={route} id={seg[1] as `0x${string}`} {...feedState} />;
+  else if (route.startsWith('/feed')) { page = <FeedPage key={route} {...feedState} />; isFeedPage = true; }
+  else if (route.startsWith('/post')) page = <PostPage key={route} {...feedState} />;
   else if (route.startsWith('/seal')) page = <SealPage {...feedState} />;
   else if (route.startsWith('/pools')) page = <PoolsPage {...feedState} />;
   else if (route.startsWith('/about')) page = <AboutPage />;
-  else { page = <FeedPage {...feedState} />; isFeedPage = true; }
+  else { page = <HomePage {...feedState} />; isFeedPage = true; }
 
   return (
     <Ctx.Provider value={{ cfg, pub, contracts, wallet, now }}>
-      <div className="page">
+      <div className={`page ${isFeedPage || route.startsWith('/duel') ? 'page-wide' : ''}`}>
+        <a className="skip-link" href="#main">Skip to content</a>
         <Masthead route={route} />
         <WalletBar />
-        <main id="main">
+        <main id="main" tabIndex={-1}>
           {!isFeedPage && feed && (feed.partial || feed.warnings.length > 0) && <HistoryStatus {...feedState} />}
           {page}
         </main>

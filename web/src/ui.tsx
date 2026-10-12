@@ -139,8 +139,8 @@ export function WalletBar() {
   return (
     <div className="walletbar">
       <span className="grow">
-        {!wallet.account && !wallet.available && 'Reading Ethereum. Posting needs a browser wallet.'}
-        {!wallet.account && wallet.available && 'Reading Ethereum. Posting needs a browser wallet.'}
+        {!wallet.account && !wallet.available && 'Public records. No wallet needed to read.'}
+        {!wallet.account && wallet.available && 'Public records. No wallet needed to read.'}
         {wallet.account && wallet.onChain && (
           <>
             Connected as <Addr a={wallet.account} /> on {cfg.network.name}.
@@ -153,7 +153,7 @@ export function WalletBar() {
         )}
       </span>
       {!wallet.account && (
-        <button type="button" className="primary" onClick={wallet.connect} disabled={wallet.connecting || !wallet.available}>
+        <button type="button" className="quiet" onClick={wallet.connect} disabled={wallet.connecting || !wallet.available}>
           {wallet.connecting ? 'Connecting…' : 'Connect wallet'}
         </button>
       )}
@@ -172,7 +172,8 @@ export function WalletBar() {
 }
 
 const NAV: [string, string][] = [
-  ['#/', 'Feed'],
+  ['#/', 'Scoreboard'],
+  ['#/feed', 'Feed'],
   ['#/post', 'Post'],
   ['#/seal', 'Seal'],
   ['#/pools', 'Pools'],
@@ -224,8 +225,8 @@ export function Footer({ hook, marg }: { hook: Address; marg: Address }) {
       </p>
       <p>Informational and research purposes only. Not financial advice. Bonds can be lost.</p>
       <p>
-        A bonded feed, not a perp DEX and not a prediction market. Nothing pays for being right: a right call only gets its own bond back.
-        Reads come straight from Ethereum through public nodes; there is no backend, no analytics and no third-party script.
+        A right call returns its bond. Reputation is the record; the weekly prize is judged separately.
+        Read directly from Ethereum. No backend, analytics or third-party scripts.
       </p>
     </footer>
   );

@@ -1,134 +1,73 @@
-# Marginalia site — design
+# Marginalia site v2 — implemented design
 
-Source of truth: `web/src/styles.css` (tokens and global styles), `web/src/ui.tsx` (shared components),
-`web/src/pages/*.tsx` (page composition). Extracted from the final source of the Marginalia front end.
+Source: `web/src/styles.css`, shared `ui.tsx`, `share.tsx`, `form.tsx`, `checkpoint.tsx` and `pages/*.tsx`. This describes the implemented v2 export, not a proposal.
 
 ## Overview
 
-The audience is people who read and write bonded notes about tokens and want to see the record the chain keeps.
-The visual character is **a ledger, not a terminal**: paper and ink, serif text, hairline rules between entries,
-one rust accent for links and the one primary action on a page. There are no gradients, shadows, glass, charts
-or imagery; the only mark is the manicule ☞ beside the word Marginalia in the masthead.
-
-System-wide rules: one column, mobile first, 17 px base, a reading measure of 40 rem for prose and forms, a page
-width of 44 rem. Hierarchy comes from weight, size and spacing rather than colour. Monospace is used only for
-addresses, hashes and ids. Page-specific arrangements (the record table on the author page, the two numbered
-steps on the post page) are not rules for other pages.
+Readers compare who was right; writers put a claim on the record. The retained identity is paper, ink, serif type, a manicule and ledger rules. Home prioritizes prize/clock, wallet and citation records, duels, verdicts and feed. It contains no post form. Prose stays brief and factual; contracts and deeper definitions sit behind details or on About. Wallet connection is optional for reading.
 
 ## Colors
 
-Defined as CSS custom properties on `:root` in `web/src/styles.css`, with a `prefers-color-scheme: dark`
-override of the same names. Hex is the canonical format.
+The canonical notation remains hex. Semantic tokens live in `styles.css`; system dark preference overrides the same roles.
 
-| Token | Light | Dark | Job |
+| Token | Light | Dark | Role |
 | --- | --- | --- | --- |
-| `--paper` | `#f6f1e7` | `#15130f` | page background |
-| `--ink` | `#1d1a16` | `#ece5d6` | body text, borders of buttons |
-| `--ink-soft` | `#5a5146` | `#b4a995` | secondary text, hints, meta lines |
-| `--rust` | `#b9471f` | `#b9471f` | links, primary button, focus ring, open-status tag, notice bar |
-| `--rust-ink` | `#ffffff` | `#ffffff` | text on the primary button |
-| `--rule` | `#d9cfbd` | `#3a342b` | hairlines between entries, field borders, table rules |
-| `--field` | `#fffdf8` | `#1d1a16` | input and secondary button background |
-| `--tag` | `#ece5d6` | `#272219` | status tags, notices, hover background |
-| `--ok` | `#3f6b3a` | `#8fc287` | right-status tag, confirmed text |
-| `--bad` | `#8f2a1c` | `#e3907e` | wrong/forfeited tag, errors |
+| `--paper` | `#f6f1e7` | `#15130f` | Page |
+| `--ink` | `#1d1a16` | `#ece5d6` | Primary text, structural emphasis |
+| `--ink-soft` | `#5a5146` | `#b4a995` | Hints, metadata, labels |
+| `--field` | `#fffdf8` | `#1d1a16` | Fields and prize surface |
+| `--rule` | `#d9cfbd` | `#3a342b` | Separators and fields |
+| `--tag` | `#ece5d6` | `#272219` | Tags, notices, selected presets |
+| `--rust` / `--rust-ink` | `#b9471f` / `#ffffff` | Same | Filled primary action and its text |
+| `--accent-text`, `--focus` | `#a63c18` | `#f1a281` | Links, open labels, focus perimeter |
+| `--accent-hover` | `#9e3b18` | Same | Primary hover fill |
+| `--ok` | `#3f6b3a` | `#8fc287` | Right/confirmed |
+| `--bad` | `#8f2a1c` | `#e3907e` | Wrong/forfeited/error |
 
-Status is never colour alone: every tag carries its word (`.tag` text) and errors carry text with `role="alert"`.
-Computed rendered pairs in Chromium: light ink/paper 15.40:1, secondary/paper 6.91:1, rust link/paper 4.68:1;
-dark ink/paper 14.79:1, secondary/paper 8.00:1, rust link/paper 3.52:1. The existing requested rust is retained
-in this scoped revision; its dark small-text contrast falls below 4.5:1. See `web/VALIDATION.md` for that limitation.
-These measurements are specific pairs, not a whole-site accessibility certification.
+V2 separates accent text from the retained button fill to fix dark small-text contrast. Actual computed contrast measurements and their tested surfaces are recorded in `web/validation/v2/metrics.json` and `web/VALIDATION.md`. Every status also has a word. The share canvas deliberately uses the light paper/ink palette for exported images regardless of browser theme.
 
 ## Typography
 
-- Body: `--font-serif` = Iowan Old Style, Palatino Linotype, Palatino, Book Antiqua, Georgia, serif. System
-  fonts only; nothing is downloaded.
-- Code, addresses, ids: `--font-mono` = ui-monospace, SF Mono, Menlo, Consolas, Liberation Mono, monospace, at
-  0.85 em of the surrounding text (`.mono`, `.addr`, `code`).
-- Base 17 px (`html`), line height 1.5, `font-variant-numeric: tabular-nums` on `body` so counts and amounts
-  align. `overflow-wrap: anywhere` keeps long hashes from overflowing a 320 px viewport.
-- Roles: `h1` 1.6 rem / 600; `h2` 1.3 rem / 600 with 2 rem top space; `h3` 1.05 rem / 600; `.lede` 1.05 rem in
-  `--ink-soft`; `.small`, `.hint`, `.entry-meta` 0.88 rem in `--ink-soft`; `.tag` 0.78 rem / 600 uppercase with
-  0.02 em tracking. Headings use `text-wrap: balance`.
-- Prose and lists are capped at `--measure` (40 rem).
+Body is 17px, unitless line-height 1.5, system serif stack: Iowan Old Style, Palatino Linotype, Palatino, Book Antiqua, Georgia, serif. No font is downloaded. Weight requests use 400/600; actual system face availability varies. The mono stack is ui-monospace, SF Mono, Menlo, Consolas, Liberation Mono, monospace; use it for addresses, ranks, hashes and small ledger labels.
+
+Standard h1/h2/h3 are 1.6/1.3/1.05rem, weight 600 and line-height 1.2. Home h1 is `clamp(1.85rem,4vw,2.8rem)` with -0.035em tracking. Prize amount is `clamp(2rem,5vw,3.4rem)`; counters are tabular throughout. Small text is 0.88rem; eyebrow labels are 0.76rem monospace with 0.08em tracking. Editable fields, including address fields, are at least 1rem (17px). Prose is capped at 40rem, wraps arbitrary hashes/URLs, and remains selectable. Long theses have a feed preview and a full note page.
+
+Share cards are exactly 1200×630. They use Georgia and monospace at explicit canvas sizes, wrap words with a character fallback for long tokens, and bound line counts. A receipt's raw URL is omitted from its share rationale; the cited handle and non-authorship notice remain. The full original text stays on the note page.
 
 ## Layout
 
-- `.page`: max-width 44 rem, centred, 1 rem side padding, one column at every width.
-- Spacing scale: `--space-1` 0.25 rem through `--space-8` 2 rem (1, 2, 3, 4, 6, 8 quarter-rems).
-- `.masthead`: brand left, nav right (`margin-left: auto`), wraps under 44 rem; nav links are 44 px tall.
-- `.walletbar`: one line of state text plus at most one action (connect, or switch chain), wraps on narrow widths.
-- `.ledger` / `.entry`: the list of notes; each entry is a status tag, the token and claim on one line
-  (`.entry-head`, wraps), the text beneath (`.entry-text`, theses clamped to 6 lines in the feed), then
-  author, bond, class and date in `.entry-meta`.
-- `dl.facts`: two-column definition grid (`max-content 1fr`) that collapses to one column under 420 px.
-- `.filters`: one column, two columns from 560 px.
-- Tables (`table`) are full width within the measure, numeric columns right-aligned (`.num`).
-- Author records use `.record-facts` / `.fact-pair` below 740 px: all seven labels stay beside intact values.
-  At 740 px and above `.record-table` shows the table; extreme values scroll locally instead of splitting.
-- Raw observation evidence uses `.table-scroll` with a keyboard-focusable named region. Values and unit
-  labels stay intact; horizontal scrolling is local to the table, never the document.
-- The Feed heading/lede and disconnected wallet line are deliberately brief so a normal first entry is
-  visible on the first 390×844 screen even when history is incomplete. The count and concise warning share
-  one native summary below the filters; detailed coverage stays collapsed until requested. In this revision,
-  partial-history note text ends at y=757.28 in Chromium and y=808.48 in WebKit at 390×844.
-- Observed in the browser: see `web/VALIDATION.md`; widths not checked there are untested.
+The spacing scale is 0.25, 0.5, 0.75, 1, 1.5 and 2rem. Standard pages max out at 44rem; scoreboard, feed and duel routes use 70rem. All pages have 1rem side padding. Forms and long prose retain the 40rem measure.
+
+Home's two leaderboard columns use 1.2fr/1fr with 2.5rem gap, stacking below 50rem. Prize amount/clock use two columns, stacking below 34rem. Duel legs remain side by side with `minmax(0,1fr)` even on phones, preserving the comparison; inner padding and text size reduce below 34rem. Navigation wraps naturally and uses tighter spacing on phones. The author scoreboard has two columns with weighted wins across both; six record counters form three columns. The first-note step indicator has three equal columns. Seal timeline stacks below 34rem.
+
+Native details keep definitions/history optional. Tables that need width retain their local scroll container; the document itself reflows. Browser evidence covers home at 320, 390, 768 and 1440px and all primary pages at 320/390px. Doubled root text was checked separately from browser-native zoom, which was not tested.
 
 ## Elevation & Depth
 
-Flat by design. The only depth cues are 1 px hairlines in `--rule` and a 3 px left bar in `--rust` on
-`.notice` (`--ok` / `--bad` variants). No shadows, no overlays, no stacking beyond normal flow.
+The interface is flat. Thin rules separate records; the prize has a stronger ink top rule and field background. No gradient, blur or floating panel is introduced. The active sort button uses an inset underline. Share output opens inline, with no modal focus trap required.
 
 ## Shapes
 
-`--radius: 2px` on buttons, inputs, tags, fieldsets and notices: barely rounded, so the page reads as print.
-Buttons and inputs are 44 px tall minimum (`min-height`), fields full-width up to the measure.
+The existing radius is 2px. Buttons, fields and tags retain square ledger proportions. Standard controls have a 44px minimum height; the compact copy control retains its 32px height. Content is never clipped to a fixed-height card. The status tag stays on one line and carries its verdict text.
 
-## Components (all in `web/src/ui.tsx` unless noted)
+## Components
 
-- **Buttons** (`styles.css`): `button` default is ink outline on `--field`; `.primary` is rust fill with white
-  text, one per section; `.quiet` is a hairline-bordered secondary (refresh, copy). Disabled state is 55 %
-  opacity with `not-allowed`.
-- **TxButton**: one on-chain action with its own pending state (`busy`), label switching to `busyLabel`,
-  `aria-busy`, and inline status: sent (with tx link), confirmed (`role="status"`), or failed (`role="alert"`,
-  human-readable reason from `lib.ts explainError`). Disabled unless the wallet is connected on the right chain.
-  Always released in `finally`.
-- **WalletBar**: the four-state strip (no wallet / connect / switch to Ethereum / connected as …) with one
-  primary control at a time; chain switch falls back to `wallet_addEthereumChain` with the manifest's
-  `walletAddChain`.
-- **Addr**: short address in monospace linking to the explorer, with a `copy` button labelled for screen readers.
-- **StatusTag**: `.tag` plus a status class (`open`, `right`, `wrong`, `forfeited`, …) from `lib.ts STATUS_CLASS`.
-- **HistoryStatus** (`web/src/history.tsx`): a native `details` / `summary` disclosure, 44 px minimum
-  summary height, in secondary serif text. The summary shows the loaded-note count plus **History incomplete**
-  or **Read warning** when applicable, with status conveyed in words. Expanded details show the read block,
-  full warnings and a **Load more history** (or **Refresh history**) button, disabled while reading. Reuses
-  the existing keyboard focus rule; no new palette or animation. On Feed it sits immediately above the ledger;
-  other pages show it when coverage needs attention.
-- **Notice**: `.notice` with optional `ok` / `bad`; `bad` has `role="alert"`.
-- **Countdown**: tabular `fmtDuration` countdown driven by the shared one-second clock in `chain.ts useNow`.
-- **Masthead / Footer**: brand with manicule, section nav with `aria-current`, footer with the canonical links,
-  full hook and MARG addresses and the fixed disclaimer line.
-- **CallFields** (`web/src/form.tsx`): the shared call form (token, venue finder radio list, side, target,
-  horizon, text with byte count, parent) used by Post and Seal; hints are `.hint` under each label.
-- **Entry** (`web/src/pages/Feed.tsx`): one ledger row for a note; reused on author, note (children) and pools.
-  Its optional children slot holds author claim controls. Compact claims use Up/Down; a retraction has no
-  fabricated zero settlement price.
-- **Checkpoint** (`web/src/checkpoint.tsx`): shared baseline state, absent/young/mature/expired messaging,
-  countdown, retry and router transaction button. Seal uses its disabled variant while new sealing is unavailable.
-- **ClaimControls** (`web/src/claims.tsx`): shared deposit/refund actions using live eligibility and exact IMD
-  amounts. Used on Note and beside the corresponding Pools ledger entry.
-- **Share card** (`web/public/share-card.png`, 1200×630): local paper-and-ink typographic artwork with the
-  manicule. `web/scripts/share-card.mjs` regenerates it without remote assets; OG/Twitter tags reference it.
+- `Masthead`, `WalletBar`, `Footer` (`ui.tsx`): navigation, network/account state, informational and bond-loss copy. The first keyboard target is a visible-on-focus skip link; SPA navigation focuses `main`.
+- `Addr`, `StatusTag`, `Notice`, `Countdown` (`ui.tsx`): copy/explorer address, labeled verdict, inline alert and tabular clock. Clocks do not announce every tick.
+- `TxButton` (`ui.tsx`): per-action pending label, disabled state through confirmation, rejection/revert feedback and transaction link. Approvals await a fresh allowance read.
+- `Prize`, `Leaderboards`, `Verdicts` (`pages/Home.tsx`): live pool/eligible reads, pressed-state sorting controls, wallet and citation rankings, compact settled links. Empty/error/partial states never invent records.
+- `Citation` (`receipts.tsx`): canonical X/Twitter status link and explicit posting-wallet distinction; no embedded remote content.
+- `DuelPair`, `OpenDuels` (`pages/Duel.tsx`): independent legs, horizons, bonds, authors and records, with note links for action controls.
+- `CallFields` (`form.tsx`): shared venue finder, side and target presets, horizon, reason and parent. An optional step limits visible fields for first-time posting; all native controls retain labels.
+- `Checkpoint` (`checkpoint.tsx`): baseline countdown and eligibility. Seal checkpoints use public unused parameters, protecting the draft from calldata disclosure.
+- `Share` (`share.tsx`): one click draws and copies image plus text; fallback download, image preview and selectable/copyable text are inline. Busy and result states are explicit.
+
+Existing 120ms background/underline transitions are gated by reduced-motion preference. No animated page entrance, autoplay or decorative movement was added. Focus is a 2px explicit perimeter; forced-colors uses the system Highlight value.
 
 ## Do's and Don'ts
 
-- Start a new page from `.page` → `Masthead` → `WalletBar` → `main` → `Footer` (see `App.tsx`); add a route in
-  `App.tsx` and a nav item in `ui.tsx NAV`.
-- Use `.lede` for the one-paragraph explanation at the top, `h2` for sections, `dl.facts` for key/value state,
-  `.ledger` + `Entry` for lists of notes, `table` only when labels and numeric records fit; reuse the mobile `.record-facts` pattern at narrow widths.
-- One `.primary` action per section; every chain write goes through `TxButton`, never a bare `button`.
-- Keep copy plain and literal: a bonded feed, not a perp DEX, not a prediction market; nothing pays for being
-  right; never promise returns; use Upward call/Downward call in forms and Up/Down in the ledger; the MARG leg is "a MARG purchase".
-- Do not add colours outside the token table, gradients, shadows, icons other than the manicule, or charts.
-- Addresses, hashes and ids are the only monospace; everything else is the serif stack.
-- Do not hard-code an address: contracts come from `imd-deployment.json` at runtime, companions from the hook.
+Reuse the standard page for prose/forms and the wide page only for record comparisons. Keep the token roles and system-font stacks. Use one emphasized transactional action at a time; sort controls use pressed state and underline. Add pages through hash routing and preserve the relative runtime manifest. Explain unavailable data and history coverage. Keep receipts separate from wallet identity; show the contract's actual verdict and the current bond state.
+
+A new page should use `useApp` for verified runtime configuration, `useRead` for scoped state, the existing ledger/facts primitives, and `TxButton` for simulation and signing. Do not add hardcoded deployment addresses, unlimited approvals, remote image rendering, fabricated prices or a page-market flow before its contract exists.
+
+Design review used the pinned Better Interface material by Jakub Krehel (MIT), the document reference adapted from Paul Bakaus's Impeccable (Apache-2.0), and the pinned ethskills frontend UX guide by Austin Griffith (MIT). Review coverage and unperformed checks are in `web/VALIDATION.md`.

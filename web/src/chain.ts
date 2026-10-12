@@ -1,6 +1,6 @@
 // Chain access: a public read client over the configured public RPCs, the visitor's injected wallet for
 // signing, and the resolved contract set (router / judge / treasury are read from the hook, never typed in).
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createPublicClient,
   createWalletClient,
@@ -72,6 +72,7 @@ export function makePublicClient(cfg: AppConfig): PublicClient {
 
 /** Reads the hook's companions and constants once; everything the pages need to build a transaction. */
 export async function loadContracts(pub: PublicClient, cfg: AppConfig): Promise<Contracts> {
+  if (await pub.getChainId() !== cfg.chainId) throw new Error('RPC chain differs from the deployment.');
   const hook = cfg.hook;
   const h = { address: hook, abi: MarginaliaHookAbi } as const;
   const [router, judge, treasury, imd, token, key, pid] = await Promise.all([
@@ -85,6 +86,13 @@ export async function loadContracts(pub: PublicClient, cfg: AppConfig): Promise<
   ]);
   if (imd.toLowerCase() !== cfg.imd.toLowerCase()) throw new Error('hook.imd() differs from network.pairToken');
   if (token.toLowerCase() !== cfg.marg.toLowerCase()) throw new Error('hook.token() differs from the Marginalia address');
+  if (key.hooks.toLowerCase() !== hook.toLowerCase()) throw new Error('The launch pool is not bound to this hook.');
+  const pinnedKey = cfg.deployment.poolKey;
+  if (pinnedKey && (pinnedKey.currency0.toLowerCase() !== key.currency0.toLowerCase() || pinnedKey.currency1.toLowerCase() !== key.currency1.toLowerCase() || pinnedKey.fee !== key.fee || pinnedKey.tickSpacing !== key.tickSpacing || pinnedKey.hooks.toLowerCase() !== key.hooks.toLowerCase())) throw new Error('Live pool key differs from the handoff.');
+  await Promise.all([hook, token, router, judge, treasury, imd].map(async address => {
+    const code = await pub.getCode({ address });
+    if (!code || code === '0x') throw new Error(`No contract code at ${address}. Transactions are disabled.`);
+  }));
   const r = { address: router, abi: MarginaliaRouterAbi } as const;
   const [v3f, v2f, weth] = await Promise.all([
     pub.readContract({ ...r, functionName: 'UNIV3_FACTORY' }),
@@ -271,28 +279,35 @@ export function useNow(): number {
 }
 
 /** Generic async read with refresh; `deps` re-run it, `key` of null skips. */
-export function useRead<T>(fn: (() => Promise<T>) | null, deps: unknown[]): { data: T | undefined; error: string | null; loading: boolean; refresh: () => void } {
-  const [data, setData] = useState<T | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
+export function useRead<T>(fn: (() => Promise<T>) | null, deps: unknown[], identity: unknown[] = deps): { data: T | undefined; error: string | null; loading: boolean; refresh: () => Promise<void> } {
+  const revision = useMemo(() => ({}), deps);
+  const scope = useMemo(() => ({}), identity);
+  const latest = useRef(revision);
+  latest.current = revision;
+  const serial = useRef(0);
+  const [pending, setPending] = useState<object | null>(null);
+  const [result, setResult] = useState<{ scope: object; data?: T; error?: string }>({ scope: {} });
+  const run = async () => {
     if (!fn) return;
-    let live = true;
-    setLoading(true);
-    fn()
-      .then((d) => {
-        if (live) {
-          setData(d);
-          setError(null);
-        }
-      })
-      .catch((e) => live && setError((e as Error).message))
-      .finally(() => live && setLoading(false));
-    return () => {
-      live = false;
-    };
+    const request = ++serial.current;
+    setPending(revision);
+    try {
+      const data = await fn();
+      if (latest.current === revision && serial.current === request) setResult({ scope, data });
+    } catch (error) {
+      if (latest.current === revision && serial.current === request) setResult({ scope, error: (error as Error).message });
+    } finally {
+      if (latest.current === revision && serial.current === request) setPending(null);
+    }
+  };
+  useEffect(() => {
+    void run();
+    return () => { serial.current++; };
+    // The explicit dependencies identify the read; identity optionally preserves it during polling.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, tick]);
-  return { data, error, loading, refresh: () => setTick((t) => t + 1) };
+  }, [revision]);
+  const current = fn && result.scope === scope;
+  // An old wallet/subject cannot supply eligibility; periodic refresh can preserve the same subject.
+  // refresh resolves after the new allowance is read, so TxButton remains busy through confirmation/refetch.
+  return { data: current ? result.data : undefined, error: current ? result.error ?? null : null, loading: !!fn && (pending === revision || !current), refresh: run };
 }

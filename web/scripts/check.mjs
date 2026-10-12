@@ -67,6 +67,10 @@ const okAddrs = new Set([...handoff.contracts.map((c) => c.address.toLowerCase()
 for (const a of text.match(/0x[0-9a-fA-F]{40}/g) ?? []) if (!okAddrs.has(a.toLowerCase())) fail(`address outside handoff: ${a}`);
 if (/https?:\/\//.test(text)) fail('URL outside the network block');
 
+for (const [source, target] of [['llms.txt', 'llms.txt'], ['AGENTS.md', 'agents.md']]) {
+  if (!fs.readFileSync(path.join(root, source)).equals(fs.readFileSync(path.join(dist, target)))) fail(`${target} differs from repository source`);
+}
+
 // Static-hosting and remote-code checks on the export.
 const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
 for (const src of html.match(/(?:src|href)="([^"]+)"/g) ?? []) {

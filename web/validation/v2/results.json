@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Scoreboard order, live prize, eligibility and citation ownership",
+    "result": "pass"
+  },
+  {
+    "name": "Empty prize and wallet-free reading are invitations, not invented results",
+    "result": "pass"
+  },
+  {
+    "name": "Note and duel show both wallets, claims, bonds and independent verdicts",
+    "result": "pass"
+  },
+  {
+    "name": "Author record shows net score, weighted wins and broken holds separately",
+    "result": "pass"
+  },
+  {
+    "name": "First wallet post progresses through token, target and one-line reason",
+    "result": "pass"
+  },
+  {
+    "name": "Exact router approval persists only to router and rejected signing recovers",
+    "result": "pass"
+  },
+  {
+    "name": "Seal approval is exactly STAMP to runtime hook; draft remains local",
+    "result": "pass"
+  },
+  {
+    "name": "Seal checkpoints never reveal draft text, target, parent or side",
+    "result": "pass"
+  },
+  {
+    "name": "Seal refuses immature checkpoint, insufficient IMD and missing local storage",
+    "result": "pass"
+  },
+  {
+    "name": "Reveal rejects early, late, wrong-subject and wrong-author seals; no fallback post",
+    "result": "pass"
+  },
+  {
+    "name": "Wrong chain offers add-chain and all signing controls stay guarded",
+    "result": "pass"
+  },
+  {
+    "name": "Client share draws 1200x630 PNG and copies image plus text with zero network",
+    "result": "pass"
+  },
+  {
+    "name": "Share fallback downloads PNG and leaves selectable text",
+    "result": "pass"
+  },
+  {
+    "name": "Permissionless observe, settle and forfeit still simulate and request the hook",
+    "result": "pass"
+  },
+  {
+    "name": "Pools retain deposit, refund and eligible sweep controls",
+    "result": "pass"
+  },
+  {
+    "name": "Approvals stay pending through confirmation and allowance refresh",
+    "result": "pass"
+  },
+  {
+    "name": "Token CCIP lookup cannot call an unapproved URL",
+    "result": "pass"
+  },
+  {
+    "name": "Incomplete history stays explicit and live read failures fail closed",
+    "result": "pass"
+  },
+  {
+    "name": "All primary pages reflow at 320 and 390 pixels without clipped controls",
+    "result": "pass"
+  },
+  {
+    "name": "About serves verbatim agent docs from the gateway subpath",
+    "result": "pass"
+  },
+  {
+    "name": "Responsive production export, light/dark contrast, keyboard focus and enlarged text",
+    "result": "pass"
+  }
+]
