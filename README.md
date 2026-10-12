@@ -207,3 +207,10 @@ hold rule is unchanged). The advisory `sqrt(2) == 2` is also fixed. See `ADAPTAT
 - SELL calls have no hold rule: they settle on price alone. BUY calls must keep their post balance.
 - The hook's constructor reads no chain state (the launcher rehearses constructors in an empty EVM); the pinned
   implementation addresses are exercised by the mainnet-fork rehearsal instead.
+
+## Site
+
+The static front end lives in `web/` (Vite, React, TypeScript, viem) and its export in `dist/` with
+`dist/imd-deployment.json` as the runtime deployment configuration. See `web/README.md` for building and
+configuration, `web/VALIDATION.md` for what was checked and what was not, and `DESIGN.md` for the design tokens
+and components.

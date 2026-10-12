@@ -1,0 +1,30 @@
+{
+  "name": "marginalia-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Marginalia: a bonded feed of notes in the margin of every trade. Static site against the live launch #1283 contracts on Ethereum mainnet.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "preview": "vite preview",
+    "manifest": "node scripts/manifest.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "dependencies": {
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "viem": "2.57.4"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "@vitejs/plugin-react": "5.0.4",
+    "typescript": "5.9.3",
+    "vite": "7.1.9"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  }
+}
