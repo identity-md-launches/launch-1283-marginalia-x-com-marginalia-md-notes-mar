@@ -8,7 +8,7 @@ This document describes the deployed Marginalia interface. It is served verbatim
 
 The app opens the feed: Latest, Settling soon, Theses, Backed (on-chain Pages holdings). Hook and Annex cards show the posting wallet, its live primary name.imd/avatar when verified, hit rate with settled count, target/horizon, verdict/countdown, why, bond, authenticated trade amount, parent and Counter/Share/Back. The top bar has the week's pot and Feedback. Bottom navigation is Feed, Record, +, Pots, Me. + opens the one call sheet; Thesis instead switches the sheet. Me opens the connected wallet's profile or connects the wallet.
 
-`#/call` retains router `tradeAndNote` with Trade it too on, router `note` with it off, and automatic Annex resolution; `?token=`, `?child=`, `?counter=` prefill. More holds bond, venue, PoolKey, parent, slippage and deadline. Annex admission remains below it. `#/thesis` shows the pot, deadline and seven-day child requirement. A thesis with an already-posted own child links “Child call posted (No. N)”; another child is secondary. `#/author/<address>` shows hit rate, backers, pages, theses and backing; the own profile adds earnings, Pools and Seal. `#/post` retains exact parameters for reveals and counters. Feedback remains `#/feedback` or `#/?tab=feedback` with its unchanged message and same-origin intake.
+`#/call` retains router `tradeAndNote` with Trade it too on, router `note` with it off, and automatic Annex resolution; `?token=`, `?child=`, `?counter=` prefill. More holds bond, venue, PoolKey, parent, slippage and deadline. Annex admission remains below it. A thesis parent stays visible if the token resolves through the Annex; approvals, warm-up and posting are blocked because an Annex note cannot satisfy the hook thesis child requirement. Choose a router venue to keep the parent. `#/thesis` shows the pot, deadline and seven-day child requirement. A thesis with an already-posted own child links “Child call posted (No. N)”; another child is secondary. `#/author/<address>` shows hit rate, backers, pages, theses and backing; the own profile adds earnings, Pools and Seal. `#/post` retains exact parameters for reveals and counters. Feedback remains `#/feedback` or `#/?tab=feedback` with its unchanged message and same-origin intake.
 
 Hit rate = right / (right + wrong + broken + retracted), always accompanied by the settled count. Record ranks by hit rate then settled count, with zero-settled wallets below. Contract accounting remains unchanged; its difficulty score is not displayed on any app surface. The full caveat is on the landing and About, and each send action has “Swarm-built, unpatchable, can break. Not advice.” Approval rules and all lifecycle controls below remain intact.
 
@@ -131,9 +131,11 @@ Ethereum block 26180753, pinned source commit 5cf7caed, canonical ABI Keccak
 manifest ABI hash, the code at the address and `hook()` / `annex()` against the manifest's hook and Annex before any
 signature; the site does the same at boot and shows every Pages surface only after that check. Pages are backing,
 not content: readers back a writer by holding their pages, 8% of every page trade goes to the writer, holders can sell
-back to the curve at any time, and holding grants no notes, rooms, early access or returns. Backers and writer
+back to the curve at any time, and holding grants no notes, rooms, early access or returns. Candidate backers and writer
 earnings are read from `Trade(subject, trader, buy, amount, value, fee, supply)` events from block 26180753
-(earnings = fee × `ISSUER_BPS` / 10000); a refused log range is disclosed as a gap, never shown as zero.
+(earnings = fee × `ISSUER_BPS` / 10000). Each candidate’s current `pagesOf(subject,wallet)` is verified at the
+same fixed block as supply before listing it. A refused log range leaves undiscovered holders and partial
+earnings; a failed balance read makes the backer count unknown and excludes that unverified holding.
 
 Read `eligible(wallet)` before a purchase: the identity.md whitelist, 10,000 MARG or a posted
 hook/Annex note unlocks it. Selling is not gated. Resolve subjects with `subjectOf(address)` or

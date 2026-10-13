@@ -1,5 +1,5 @@
-// Backers of a writer: holders of that wallet's pages and what the writer earned, read from Pages Trade events.
-// Chunked from the Pages deployment block; a refused range is disclosed as a gap, never shown as zero backers.
+// Trade events discover candidate backers and writer earnings; pagesOf verifies current holdings.
+// Gaps can hide candidates and earnings, but must never turn a former holder into a current backer.
 import { parseAbiItem, type Address, type PublicClient } from 'viem';
 import { PagesAbi } from './pages-abi';
 import { LOG_CHUNK, PAGES_DEPLOY_BLOCK } from './config';
@@ -16,19 +16,20 @@ export interface Backers {
   trades: number;
   issuerBps: bigint;
   partial: boolean;
+  holdingsFailed: number;
   from: bigint;
   to: bigint;
 }
 
 export async function readBackers(pub: PublicClient, pages: Address, author: Address): Promise<Backers> {
   const h = { address: pages, abi: PagesAbi } as const;
-  const [subject, head, issuerBps] = await Promise.all([
-    pub.readContract({ ...h, functionName: 'subjectOf', args: [author] }),
-    pub.getBlockNumber(),
-    pub.readContract({ ...h, functionName: 'ISSUER_BPS' }),
+  const head = await pub.getBlockNumber({ cacheTime: 0 });
+  const [subject, issuerBps] = await Promise.all([
+    pub.readContract({ ...h, functionName: 'subjectOf', args: [author], blockNumber: head }),
+    pub.readContract({ ...h, functionName: 'ISSUER_BPS', blockNumber: head }),
   ]);
-  const s = await pub.readContract({ ...h, functionName: 'subjects', args: [subject] });
-  const net = new Map<string, bigint>();
+  const s = await pub.readContract({ ...h, functionName: 'subjects', args: [subject], blockNumber: head });
+  const candidates = new Set<Address>();
   let earned = 0n, trades = 0, partial = false;
   const start = head > PAGES_DEPLOY_BLOCK + LOG_CHUNK * BigInt(BACKER_CHUNKS) ? head - LOG_CHUNK * BigInt(BACKER_CHUNKS) + 1n : PAGES_DEPLOY_BLOCK;
   if (start > PAGES_DEPLOY_BLOCK) partial = true;
@@ -38,12 +39,25 @@ export async function readBackers(pub: PublicClient, pages: Address, author: Add
       const logs = await pub.getLogs({ address: pages, event: tradeEvent, args: { subject }, fromBlock: a, toBlock: end, strict: true });
       for (const l of logs) {
         trades++;
-        const key = l.args.trader.toLowerCase();
-        net.set(key, (net.get(key) ?? 0n) + (l.args.buy ? l.args.amount : -l.args.amount));
+        candidates.add(l.args.trader.toLowerCase() as Address);
         earned += l.args.fee * issuerBps / 10000n;
       }
     } catch { partial = true; }
   }
-  const holders = [...net.entries()].filter(([, pages]) => pages > 0n).map(([address, pages]) => ({ address: address as Address, pages })).sort((x, y) => (y.pages > x.pages ? 1 : y.pages < x.pages ? -1 : 0));
-  return { subject, supply: s[0], holders, earned, trades, issuerBps, partial, from: start, to: head };
+  const holders: Backers['holders'] = [];
+  let holdingsFailed = 0;
+  const addresses = [...candidates];
+  // Limit concurrent RPC reads even for a busy writer; a failed balance remains unknown, not zero.
+  for (let i = 0; i < addresses.length; i += 20) {
+    const balances = await Promise.allSettled(addresses.slice(i, i + 20).map(async address => ({
+      address,
+      pages: await pub.readContract({ ...h, functionName: 'pagesOf', args: [subject, address], blockNumber: head }),
+    })));
+    for (const balance of balances) {
+      if (balance.status === 'rejected') holdingsFailed++;
+      else if (balance.value.pages > 0n) holders.push(balance.value);
+    }
+  }
+  holders.sort((x, y) => (y.pages > x.pages ? 1 : y.pages < x.pages ? -1 : x.address.localeCompare(y.address)));
+  return { subject, supply: s[0], holders, earned, trades, issuerBps, partial, holdingsFailed, from: start, to: head };
 }

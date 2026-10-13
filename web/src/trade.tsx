@@ -84,12 +84,14 @@ export function TradeForm({ annex: annexForced = false, refresh, counter, childI
   const bondOk = bond !== null && bond >= L.bondMin && bond <= L.bondMax;
   const imdIn = bondOk ? L.stamp + L.margBuy + bond! : null;
   const target = parseTarget(draft.side, draft.pct, L.minTargetDeltaBps);
-  const childParent = useThesisParent(!annex && !counter ? draft.parentId : '');
+  const childParent = useThesisParent(!counter ? draft.parentId : '');
+  const childVenueError = annex && childParent.requested ? 'Annex calls cannot be a thesis’s child call. Choose a token with a router venue.' : null;
+  const childReady = childParent.ready && !childVenueError;
   const days = Number(draft.days), bytes = utf8Length(draft.why);
   const slippageBps = /^\d+(\.\d+)?$/.test(draft.slippage) && Number(draft.slippage) >= 0.1 && Number(draft.slippage) <= 5 ? Math.round(Number(draft.slippage) * 100) : null;
   const deadlineMinutes = ['10', '20'].includes(draft.deadline) ? Number(draft.deadline) : 10;
   const counterOk = !counter || counter.status===0 && counter.author.toLowerCase()!==wallet.account?.toLowerCase() && draft.side!==counter.side && eq(token,counter.x);
-  const fieldsOk = childParent.ready && counterOk && subjectReady && bondOk && !target.error && Number.isInteger(days) && days >= 1 && days <= L.maxHorizonDays && bytes > 0 && bytes <= L.textMax && slippageBps !== null;
+  const fieldsOk = childReady && counterOk && subjectReady && bondOk && !target.error && Number.isInteger(days) && days >= 1 && days <= L.maxHorizonDays && bytes > 0 && bytes <= L.textMax && slippageBps !== null;
   const params: NoteParams | null = market && fieldsOk ? { ...publicParams(token as Address, market.venue), side: draft.side, targetBps: target.targetBps!, horizonDays: days, text: draft.why, parentId: counter?.id ?? childParent.id ?? zeroHash } : null;
   const spender = annex ? c.annex : c.router;
   const window = useRead(subjectReady && spender ? async () => {
@@ -124,8 +126,12 @@ export function TradeForm({ annex: annexForced = false, refresh, counter, childI
   const canProceed = !!params && checkpointReady && quoteReady && minMargOut > 0n && !!funds.data && !funds.error && !missing;
   const wrap = trade && input && eq(input, c.weth) && missing && eq(missing.token, c.weth) && funds.data && funds.data.eth > missing.amount - missing.balance;
   const done = async () => { setRevision(r => r + 1); await funds.refresh(); refresh(); };
-  const checkpoint = async () => sendChecked(app, spender!, annex ? AnnexAbi : MarginaliaRouterAbi, 'checkpointVenue', [publicParams(token as Address, market!.venue), market!.key]);
+  const checkpoint = async () => {
+    if (!childReady) throw new Error(childVenueError ?? 'Verify the thesis parent before continuing.');
+    return sendChecked(app, spender!, annex ? AnnexAbi : MarginaliaRouterAbi, 'checkpointVenue', [publicParams(token as Address, market!.venue), market!.key]);
+  };
   const submit = async () => {
+    if (childVenueError) throw new Error(childVenueError);
     if (!params || !market || !canProceed) throw new Error('Refresh the quote and review the form.');
     let deadline = BigInt(Math.floor(Date.now() / 1000) + deadlineMinutes * 60);
     if (childParent.id) {
@@ -133,7 +139,7 @@ export function TradeForm({ annex: annexForced = false, refresh, counter, childI
       if (closes < deadline) deadline = closes;
     }
     if (annex) return sendChecked(app, c.annex!, AnnexAbi, 'post', [params, market.key, bond!, minMargOut, baselineBound(baseline.data!, draft.side), deadline]);
-    if (!trade) return sendChecked(app, c.router, MarginaliaRouterAbi, 'note', [params, c.poolKey, imdIn!, minMargOut, deadline]);
+    if (!trade) return sendChecked(app, c.router, MarginaliaRouterAbi, 'note', [params, market.key, imdIn!, minMargOut, deadline]);
     const x = { kind: market.kind, key: market.key, zeroForOne: market.venue.xIsToken0 === (draft.side === 1), pool: market.pool, tokenIn: input!, amountIn: amount!, minOut: quote.data!.output * BigInt(10000 - slippageBps!) / 10000n };
     if (x.minOut <= 0n) throw new Error('Output minimum is too small.');
     return sendChecked(app, c.router, TradeRouterAbi, 'tradeAndNote', [x, params, market.key, imdIn!, minMargOut, deadline]);
@@ -157,6 +163,7 @@ export function TradeForm({ annex: annexForced = false, refresh, counter, childI
   const action = busy && pendingAction ? pendingAction.kind : nextAction;
   const sign = (props: Parameters<typeof TxButton>[0]) => <TxButton {...props} onBusyChange={value=>{if(value)setPendingAction({kind:nextAction,approval:nextApproval});else setPendingAction(null);setBusy(value);}} />;
   const approve = async () => {
+    if (!childReady) throw new Error(childVenueError ?? 'Verify the thesis parent before continuing.');
     if (childParent.id) await checkThesisParent(pub, c.hook, childParent.id, wallet.account!, L.thesisGrace);
     return sendChecked(app, approval!.token, erc20Abi, 'approve', [spender!, approval!.amount]);
   };
@@ -166,6 +173,7 @@ export function TradeForm({ annex: annexForced = false, refresh, counter, childI
   return <section className="trade-form" aria-label="Make a call">
     {counter && <p className="small">Counter to <a href={`#/note/${counter.id}`}>{short(counter.id)}</a>. Use the same token and opposite side.</p>}
     {childParent.requested && <ChildCallContext state={childParent} />}
+    {childVenueError && <p className="status bad" role="alert">{childVenueError}</p>}
     <fieldset className="trade-fields" disabled={busy}>
       <div className="token-row"><div><label htmlFor="trade-token">Token</label><input id="trade-token" value={draft.token} onChange={e => set({ token: e.target.value })} placeholder="Paste a token address" spellCheck={false} autoComplete="off" /></div><button type="button" className="quiet token-pick" onClick={() => set({ token: c.marg })}>MARG</button></div>
       <div className="field-heading"><span>Target</span><Hint label="Target rule">Choose how far the token must move from its baseline.</Hint></div><div className="preset-line" role="group" aria-label="Target presets">{[{ label: '+25%', side: 0, pct: '25' }, { label: '+50%', side: 0, pct: '50' }, { label: '2x', side: 0, pct: '100' }, { label: '-25%', side: 1, pct: '25' }, { label: '-50%', side: 1, pct: '50' }].map(p => <button type="button" key={p.label} aria-pressed={draft.side === p.side && draft.pct === p.pct} onClick={() => set({ side: p.side, pct: p.pct })}>{p.label}</button>)}</div><div className="field-heading"><span>Horizon</span><Hint label="Horizon rule">The chain checks the call after this many whole days.</Hint></div><div className="preset-line horizon-presets" role="group" aria-label="Horizon presets">{['1','7','30'].map(d => <button type="button" key={d} aria-pressed={draft.days === d} onClick={() => set({ days: d })}>{d} {d === '1' ? 'day' : 'days'}</button>)}</div>
@@ -177,7 +185,7 @@ export function TradeForm({ annex: annexForced = false, refresh, counter, childI
     <p className="small bond-help rule-bond">{BOND_RULE}</p>
     {draft.side === 0 && <p className="small rule-hold">Hold the token through the horizon or lose the bond. <Hint label="Hold rule">{HOLD_RULE}.</Hint></p>}
     <div className="trade-action">
-      <WalletAction>{action==='approve' && approval ? sign({ label: `Approve ${fmtAmount(approval.amount, dec(approval.token))} ${sym(approval.token)}`, busyLabel: 'Approving…', primary: true, disabled: !childParent.ready, onSend: approve, onDone: done, explain: `Approve exactly ${fmtAmount(approval.amount, dec(approval.token))} ${sym(approval.token)} to ${annex ? 'the Annex' : 'the router'}.` }) : action==='wrap' ? sign({ label: 'Wrap ETH', busyLabel: 'Wrapping…', primary: true, disabled: !childParent.ready, onSend: () => sendChecked(app, c.weth, wrapAbi, 'deposit', [], missing!.amount - missing!.balance), onDone: done }) : action==='checkpoint' ? sign({ label: 'Start the one-hour warm-up', busyLabel: 'Checkpointing…', primary: true, disabled: !childParent.ready, onSend: checkpoint, onDone: done }) : sign({ label: annex ? 'Post the call' : trade ? 'Trade and post' : 'Post the call', busyLabel: annex || !trade ? 'Posting…' : 'Trading and posting…', primary: true, disabled: !canProceed || !!approval, onSend: submit, onDone: afterPost })}</WalletAction>{!wallet.account && <SendCaveat/>}
+      <WalletAction>{action==='approve' && approval ? sign({ label: `Approve ${fmtAmount(approval.amount, dec(approval.token))} ${sym(approval.token)}`, busyLabel: 'Approving…', primary: true, disabled: !childReady, onSend: approve, onDone: done, explain: `Approve exactly ${fmtAmount(approval.amount, dec(approval.token))} ${sym(approval.token)} to ${annex ? 'the Annex' : 'the router'}.` }) : action==='wrap' ? sign({ label: 'Wrap ETH', busyLabel: 'Wrapping…', primary: true, disabled: !childReady, onSend: () => sendChecked(app, c.weth, wrapAbi, 'deposit', [], missing!.amount - missing!.balance), onDone: done }) : action==='checkpoint' ? sign({ label: 'Start the one-hour warm-up', busyLabel: 'Checkpointing…', primary: true, disabled: !childReady, onSend: checkpoint, onDone: done }) : sign({ label: annex ? 'Post the call' : trade ? 'Trade and post' : 'Post the call', busyLabel: annex || !trade ? 'Posting…' : 'Trading and posting…', primary: true, disabled: !canProceed || !!approval, onSend: submit, onDone: afterPost })}</WalletAction>{!wallet.account && <SendCaveat/>}
     </div>
     <div className="baseline-line"><p className="small baseline-status">{finder.loading ? 'Finding a venue…' : !subjectReady ? 'Choose a token with a supported venue.' : checkpointReady ? 'Baseline ready.' : started && age < 3600 ? <>Baseline ready in <Countdown until={started + 3600} />.</> : 'Start the one-hour baseline warm-up.'}</p><Hint label="Baseline rule">The baseline must be one to six hours old when you post.</Hint></div>
     {posted && <Notice kind="ok"><p>Call recorded. <a className="button" href={`#/note/${posted}`}>Open the receipt</a></p></Notice>}
@@ -193,7 +201,7 @@ export function TradeForm({ annex: annexForced = false, refresh, counter, childI
       <div className="two-fields"><div><label htmlFor="custom-target">Target move (%)</label><input id="custom-target" inputMode="decimal" value={draft.pct} onChange={e => set({ pct: e.target.value })} disabled={busy} /></div><div><label htmlFor="custom-days">Horizon (days)</label><input id="custom-days" inputMode="numeric" value={draft.days} onChange={e => set({ days: e.target.value })} disabled={busy} /></div></div>
       {target.error && <p className="status bad">{target.error}</p>}
       <label htmlFor="manual-key">V4 PoolKey (optional JSON)</label><textarea id="manual-key" value={draft.manual} onChange={e => set({ manual: e.target.value })} spellCheck={false} disabled={busy} />
-      {!annex && !counter && <ThesisParentField id="trade-parent" value={draft.parentId} onChange={parentId => set({ parentId })} state={childParent} disabled={busy} />}
+      {!counter && <ThesisParentField id="trade-parent" value={draft.parentId} onChange={parentId => set({ parentId })} state={childParent} disabled={busy} />}
       <div className="two-fields"><div><label htmlFor="trade-slippage">Trade slippage (%)</label><input id="trade-slippage" inputMode="decimal" value={draft.slippage} onChange={e => set({ slippage: e.target.value })} disabled={busy || !trade} aria-invalid={slippageBps === null} /></div><div><label htmlFor="trade-deadline">Deadline</label><select id="trade-deadline" value={draft.deadline} onChange={e => set({ deadline: e.target.value })} disabled={busy}><option value="10">10 minutes</option><option value="20">20 minutes</option></select></div></div>
       {slippageBps === null && <p className="status bad">Slippage must be between 0.1% and 5%.</p>}
       <p className="small">{fmtAmount(L.stamp)} IMD stamp + {fmtAmount(L.margBuy)} IMD MARG allocation + {draft.bond} IMD bond.</p><Hint label="Cost rule">You keep the MARG allocation and pay network gas separately.</Hint><Hint label="Output minimum rule">{annex ? 'The baseline has 3% room and the MARG allocation minimum has 10% room.' : trade ? `The trade minimum has ${draft.slippage}% slippage and the MARG allocation minimum has 10% room.` : 'This call has no trade leg and the MARG allocation minimum has 10% room.'}</Hint>

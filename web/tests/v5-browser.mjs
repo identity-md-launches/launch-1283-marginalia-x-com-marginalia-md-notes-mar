@@ -18,6 +18,7 @@ const evidence = process.env.EVIDENCE_DIR;
 if (evidence) fs.mkdirSync(evidence, { recursive: true });
 const manifest = JSON.parse(fs.readFileSync(path.join(dist, 'imd-deployment.json')));
 const annex = manifest.contracts.find(c => c.name === 'MarginaliaAnnex').address;
+const pages = manifest.contracts.find(c => c.name === 'MarginaliaPages').address;
 const pagesAbi=JSON.parse(fs.readFileSync(path.join(dist,'abi/MarginaliaPages.json')));
 const hook = manifest.contracts.find(c => c.name === 'MarginaliaHook').address;
 const marg = manifest.contracts.find(c => c.name === 'Marginalia').address;
@@ -40,7 +41,9 @@ const abi = [...hookAbi,...JSON.parse(fs.readFileSync(path.join(dist,'abi/Margin
 ])];
 const venueType = { type: 'tuple', components: [{ name: 'kind', type: 'uint8' }, { name: 'ref', type: 'bytes32' }, { name: 'quote', type: 'address' }, { name: 'xIsToken0', type: 'bool' }] };
 const poolKey = { currency0: imd, currency1: marg, fee: 12500, tickSpacing: 60, hooks: hook };
-const poolId = keccak256(encodeAbiParameters([{ type: 'tuple', components: [{name:'currency0',type:'address'}, {name:'currency1',type:'address'}, {name:'fee',type:'uint24'}, {name:'tickSpacing',type:'int24'}, {name:'hooks',type:'address'}] }], [poolKey]));
+const keyType = { type: 'tuple', components: [{name:'currency0',type:'address'}, {name:'currency1',type:'address'}, {name:'fee',type:'uint24'}, {name:'tickSpacing',type:'int24'}, {name:'hooks',type:'address'}] };
+const poolIdOf = key => keccak256(encodeAbiParameters([keyType], [key]));
+const poolId = poolIdOf(poolKey);
 const venue = { kind: 1, ref: poolId, quote: imd, xIsToken0: false };
 const draft = { x: marg, venueKey: `v4:${poolId}`, side: 0, pct: '25', horizonDays: '30', text: 'A review call with a target.', parentId: '' };
 const subject = keccak256(encodeAbiParameters([{ type: 'address' }, venueType], [marg, venue]));
@@ -52,12 +55,12 @@ let f;
 const reset = (patch = {}) => { f = { now: Math.floor(Date.now()/1000), head: 26185000n, notes: true, status: 1, deposit: unit/4n, allowance: 100n*unit, claimed: false, pool: unit, count: 1, closed: true, checkpointAge: 7200, sealAge: null, symbol: 'MARG', decimals: 18, token: marg, wallet: true, account: author, chain: '0x1', observe: false, reject: true, requests: [], rpc: [], created: [], children: 0, usd:true, registered:false, pagesHolding:0n, pagesEligible:true, claimPending:false, burn:0n, ...patch }; };
 function event(name, values, block, logIndex = 0) {
   const ev = abi.find(a => a.type === 'event' && a.name === name);
-  return { address: values.source==='annex' || f.annexNotes ? annex : hook, topics: encodeEventTopics({ abi: [ev], eventName: name, args: values }), data: encodeAbiParameters(ev.inputs.filter(i => !i.indexed), ev.inputs.filter(i => !i.indexed).map(i => values[i.name])), blockNumber: toHex(block), blockHash: toHex(block, {size:32}), transactionHash: tx, transactionIndex: '0x0', logIndex: toHex(logIndex), removed: false };
+  return { address: values.source==='pages' ? pages : values.source==='annex' || f.annexNotes ? annex : hook, topics: encodeEventTopics({ abi: [ev], eventName: name, args: values }), data: encodeAbiParameters(ev.inputs.filter(i => !i.indexed), ev.inputs.filter(i => !i.indexed).map(i => values[i.name])), blockNumber: toHex(block), blockHash: toHex(block, {size:32}), transactionHash: tx, transactionIndex: '0x0', logIndex: toHex(logIndex), removed: false };
 }
 function gallery() {
   if(f.social) return [
  {id:toHex(1,{size:32}),author,side:0,targetBps:12500,horizonDays:7,parentId:zeroHash,status:0,text:'https://x.com/cited_person/status/123 Supply is falling. The next seven days will test whether demand can hold.',class:0},
- {id:toHex(2,{size:32}),author:other,side:1,targetBps:7500,horizonDays:1,parentId:zeroHash,status:0,text:'A separate Annex call with its own bond.',source:'annex'},
+ {id:toHex(2,{size:32}),author:other,side:1,targetBps:7500,horizonDays:1,parentId:zeroHash,status:0,text:f.annexText ?? 'A separate Annex call with its own bond.',source:'annex'},
  {id:toHex(3,{size:32}),author,side:0,targetBps:0,horizonDays:0,parentId:zeroHash,status:6,text:'An argument for the week: usage should matter more than a passing narrative.',children:f.childPosted?1:0},
  ...(f.childPosted?[{id:toHex(4,{size:32}),author,side:0,targetBps:15000,horizonDays:7,parentId:toHex(3,{size:32}),status:0,text:'The own child call tests that argument.'}]:[]),
  {id:toHex(5,{size:32}),author:treasury,side:0,targetBps:12500,horizonDays:30,parentId:zeroHash,status:0,text:'No settled call from this wallet yet.'}
@@ -84,6 +87,7 @@ function logs() {
   }
   if (f.sealAge !== null) out.push(event('Sealed', {hash,author,x:marg,venueRef:poolId}, f.head-1200n, 3));
   for (const n of f.created) out.push(event('NotePosted', { ...n.p, id:n.id, author:n.author }, n.block, 10));
+  if (f.backerFixture) out.push(event('Trade', {subject:toHex(BigInt(author),{size:32}),trader:other,buy:true,amount:1n,value:unit/20n,fee:unit/200n,supply:1n,source:'pages'},26181000n));
   return out;
 }
 function receiptTradeLogs() {
@@ -135,11 +139,12 @@ function value(fn, args, address) {
   if (fn === 'subjectOf') return toHex(BigInt(args[0]),{size:32});
   if (fn === 'subjectOfHandle' || fn==='registerHandle') return keccak256(toHex('x:'+args[0].toLowerCase()));
   if (fn === 'registeredHandle') return f.registered;
-  if (fn === 'subjects') return [f.pagesHolding,zeroAddress,unit,BigInt(f.now-86400)];
+  if (fn === 'subjects') return [f.backerFixture ? (f.backerSupply ?? 0n) : f.pagesHolding,zeroAddress,unit,BigInt(f.now-86400)];
   if (fn === 'claims') return [f.claimPending ? tx : zeroHash,author,unit/2n,f.claimPending?BigInt(f.now-4*86400):0n];
   if (fn === 'pendingBurn') return f.burn;
   if (fn === 'buyPrice') return [unit/20n*args[1],unit/200n*args[1]];
   if (fn === 'sellPrice') return [unit/20n*args[1],unit/200n*args[1]];
+  if (fn === 'pagesOf' && f.backerFixture) { if(f.holdingsFail) throw Error('Current holdings unavailable'); return f.backerHolding ?? 0n; }
   if (fn === 'pagesOf') return f.social ? (args[0].toLowerCase()===toHex(BigInt(author),{size:32}).toLowerCase()?2n:0n) : f.pagesHolding;
   if (fn === 'eligible') return f.pagesEligible;
   if (fn === 'claimMessage') return `I claim this handle on chain 1 for contract ${pagesAddress} to wallet ${author}`;
@@ -175,7 +180,7 @@ function value(fn, args, address) {
   if (fn === 'noteOf' && f.created.some(n=>n.id===args[0])) { const n=f.created.find(n=>n.id===args[0]);return {...n.p,author:n.author,status:n.p.targetBps===0?6:0,class:1,postPrice:unit,postBalance:unit,deposit:unit/4n,children:0}; }
   if (fn === 'noteOf') return {author:f.noteAuthor??author,x:f.token,side:0,targetBps:f.thesis ? 0 : 12000,horizonDays:f.thesis ? 0 : 30,class:1,status:f.status,postPrice:unit,postBalance:5000000n,deposit:f.deposit,parentId:zeroHash,children:f.children};
   if (fn === 'approve') return true;
-  if (fn === 'note') return id;
+  if (fn === 'note') { if(f.strictVenue && args[0].venue.kind===1 && poolIdOf(args[1])!==args[0].venue.ref) throw Error('BadVenue: supplied key differs from selected venue'); return id; }
   if (['checkpointVenue','seal','sweep','claimDeposit','claimRefund','observe','settle','settleThesis'].includes(fn)) return undefined;
   throw Error(`Unhandled function ${fn}`);
 }
@@ -190,6 +195,7 @@ function rpc(r) {
     else if (r.method === 'eth_getBlockByNumber') result = block(r.params[0]);
     else if (r.method === 'eth_getLogs') {
       const q = r.params[0];
+      if (f.backerFixture && f.backerGap !== false && q.address.toLowerCase()===pages.toLowerCase() && BigInt(q.fromBlock)===26182753n) return {jsonrpc:'2.0',id:r.id,error:{code:-32602,message:'Fixture: page sell range unavailable'}};
       if ((f.failLogs && BigInt(q.fromBlock) < f.head-2000n) || (f.refuseBefore && BigInt(q.fromBlock) < f.refuseBefore)) return {jsonrpc:'2.0',id:r.id,error:{code:-32602,message:'Archive requests require a personal token'}};
       result = logs().filter(l => l.address.toLowerCase()===q.address.toLowerCase() && BigInt(l.blockNumber) >= BigInt(q.fromBlock) && BigInt(l.blockNumber) <= BigInt(q.toBlock) && (!q.topics?.[0] || (Array.isArray(q.topics[0]) ? q.topics[0].includes(l.topics[0]) : q.topics[0] === l.topics[0])));
     } else if (r.method === 'eth_call') {
@@ -284,8 +290,125 @@ async function check(name,fn){if(process.env.TEST_FILTER&&!name.includes(process
 async function waitEnabled(locator){await locator.waitFor();await page.waitForFunction(sel=>!document.querySelector(sel)?.disabled,await locator.evaluate(e=>{e.dataset.awaitEnabled='yes';return '[data-await-enabled="yes"]';}));}
 
 const social = {gallery:true,social:true};
+async function shareResult() {
+ await page.evaluate(()=>{window.__cardText=[];const fill=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.__cardText.push(text);return fill.call(this,text,...args);};});
+ await page.locator('.profile > .share button').first().click();await page.locator('.profile > .share img').waitFor();
+ return page.evaluate(()=>window.__cardText.join(' '));
+}
 const noOverflow=async(name)=>{for(const width of [320,390,1440]){await page.setViewportSize({width,height:844});await page.waitForTimeout(70);assert((await page.evaluate(()=>document.documentElement.scrollWidth))<=width,name+': '+width);}};
 try {
+ const annexOnlyKey = {currency0:other,currency1:imd,fee:3000,tickSpacing:60,hooks:pagesAddress};
+ const childPatch = {thesis:true,status:6,noteAge:3600};
+ async function chooseVenue(key) {
+  await page.locator('#trade-token').fill(other);
+  if (!await page.locator('.trade-more').evaluate(e=>e.open)) await page.locator('.trade-more > summary').click();
+  await page.locator('#manual-key').fill(JSON.stringify(key));
+  await tradeReady();
+  await page.locator('#trade-venue').waitFor({state:'attached'});
+ }
+ for (const checkpointAge of [7200,null]) await check(`Revision: Annex-only child preserves parent and blocks ${checkpointAge===null?'warm-up':'posting'}`,async()=>{
+  await open('/call?child='+id,{...childPatch,checkpointAge});
+  await page.locator('.child-call-context').filter({hasText:'Child call under your thesis'}).waitFor();
+  await page.locator('#trade-token').fill(other);
+  await page.locator('#manual-key').fill(JSON.stringify(annexOnlyKey));
+  await page.locator('#trade-why').fill('A child must count toward the thesis.');
+  await page.locator('.trade-cost').filter({hasText:'held by the Annex'}).waitFor();
+  await page.locator('#trade-venue').waitFor({state:'attached'});
+  if(checkpointAge!==null) await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();
+  await page.waitForTimeout(200);
+  metrics[`child-${checkpointAge}`]={context:await page.locator('.child-call-context').allTextContents(),parents:await page.locator('#trade-parent').count(),disabled:await page.locator('.trade-action button').isDisabled()};
+  // The mock wallet rejects every request; on the old build this proves the unintended post calldata.
+  if(checkpointAge!==null && !await page.locator('.trade-action button').isDisabled()) {
+   await page.locator('.trade-action button').click();
+   await page.locator('.trade-action [role="alert"]').waitFor();
+   const sentCall=await sent('post');metrics[`child-${checkpointAge}`].sentParent=sentCall.args[0].parentId;
+  }
+  assert.equal(await page.locator('.child-call-context').count(),1,'Child context must survive Annex resolution');
+  assert.equal(await page.locator('#trade-parent').inputValue(),id);
+  assert.match(await page.locator('.trade-form').innerText(),/Annex calls cannot be a thesis.s child call/);
+  assert(await page.locator('.trade-action button').isDisabled());assert.equal(f.requests.length,0);
+  await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await noOverflow('annex child');await page.setViewportSize({width:390,height:844});await shot('revision-child-annex-dark-390');
+  // Switching to a router venue keeps the exact parent and recovers the legitimate action.
+  await page.locator('#manual-key').fill(JSON.stringify({...annexOnlyKey,hooks:zeroAddress}));
+  await page.locator('.trade-cost').filter({hasText:'held by the hook'}).waitFor();
+  await waitEnabled(page.locator('.trade-action button'));assert.equal(await page.locator('#trade-parent').inputValue(),id);
+  await page.locator('.trade-action button').click();await page.locator('.trade-action [role="alert"]').waitFor();
+  const recovered=await sent(checkpointAge===null?'checkpointVenue':'tradeAndNote');
+  assert.equal(recovered.to.toLowerCase(),router.toLowerCase());
+  if(checkpointAge!==null) assert.equal(recovered.args[1].parentId,id);
+ });
+ await check('Revision: Annex-only child blocks approval, explicit parent removal permits a standalone call',async()=>{
+  await open('/call?child='+id,{...childPatch,allowance:0n});await chooseVenue(annexOnlyKey);
+  await page.locator('.trade-cost').filter({hasText:'held by the Annex'}).waitFor();
+  assert(await page.locator('.trade-action button').isDisabled(),'No Annex approval for a thesis child');
+  assert.equal(f.requests.length,0);assert.equal(await page.locator('#trade-parent').inputValue(),id);
+  await page.locator('#trade-parent').fill('');await waitEnabled(page.locator('.trade-action button'));
+  await page.locator('.trade-action button').click();await page.locator('.trade-action [role="alert"]').waitFor();const approval=await sent('approve');
+  assert.equal(approval.args[0].toLowerCase(),annex.toLowerCase());assert.equal(approval.args[1],unit*6n/10n);
+ });
+ await check('Revision: manual and saved thesis parents stay blocked after Annex resolution',async()=>{
+  for(const saved of [false,true]) {
+   await open(saved?'/call':'/call?token='+other,{...childPatch,...(saved?{savedTrade:{token:other,manual:JSON.stringify(annexOnlyKey),parentId:id}}:{})});
+   if(!saved) await chooseVenue(annexOnlyKey);else await tradeReady();
+   await page.locator('.trade-cost').filter({hasText:'held by the Annex'}).waitFor();
+   if(!saved) await page.locator('#trade-parent').fill(id);
+   await page.locator('.child-call-context').filter({hasText:'Child call under your thesis'}).waitFor();
+   assert(await page.locator('.trade-action button').isDisabled());assert.equal(f.requests.length,0);
+   assert.equal(await page.locator('#trade-parent').inputValue(),id);
+  }
+ });
+ for(const quote of [imd,zeroAddress]) await check(`Revision: just-the-call sends selected ${quote===imd?'IMD':'native ETH'} v4 key`,async()=>{
+  await open('/call?token='+other,{strictVenue:true});
+  const key=quote===imd?{...annexOnlyKey,hooks:zeroAddress}:{currency0:zeroAddress,currency1:other,fee:3000,tickSpacing:60,hooks:zeroAddress};
+  await chooseVenue(key);
+  if(await page.locator('#trade-toggle').isChecked()) await page.locator('#trade-toggle').uncheck();
+  if(quote===zeroAddress) assert(await page.locator('#trade-toggle').isDisabled());
+  await waitEnabled(page.locator('.trade-action button'));await page.locator('.trade-action button').click();
+  await page.locator('.trade-action [role="alert"]').waitFor();
+  const request=await sent('note');assert.equal(request.to.toLowerCase(),router.toLowerCase());
+  assert.equal(poolIdOf(request.args[1]),poolIdOf(key));assert.equal(request.args[0].venue.ref,poolIdOf(key));assert.equal(request.args[0].parentId,zeroHash);
+  assert.equal(request.args[2],unit*6n/10n);assert(request.args[3]>0n);
+ });
+ for(const width of [390,320]) await check(`Revision: Annex detail expands full why at ${width} dark`,async()=>{
+  const why='Demand has been rising for seven days while supply has stayed flat. I expect a reversal within the next day because the largest pool is losing depth. The claim is invalid if usage improves before the deadline. Final condition: do not assume the same liquidity tomorrow.';
+  await open('/',{...social,annexText:why});await page.setViewportSize({width,height:844});await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
+  const card=page.locator('[data-source="annex"]');await card.waitFor();
+  assert.equal(await card.locator('.entry-text').evaluate(e=>getComputedStyle(e).webkitLineClamp),'3');
+  await card.locator('.card-why').click();await page.getByRole('heading',{name:'Launched-token receipt'}).waitFor();
+  const body=page.locator('main .entry-text');const size=await body.evaluate(e=>({height:e.clientHeight,scroll:e.scrollHeight,clamp:getComputedStyle(e).webkitLineClamp,linked:!!e.closest('a')}));metrics[`annex-${width}`]=size;await shot(`revision-annex-detail-dark-${width}`,true);
+  assert.equal(await body.innerText(),why);assert.equal(size.height,size.scroll,'Complete call qualifications must be visible');assert.notEqual(size.clamp,'3');assert(!size.linked,'Detail text must not link back to itself');assert((await page.evaluate(()=>document.documentElement.scrollWidth))<=width);
+ });
+ await check('Revision: gapped Pages sell excludes former holder at fixed head',async()=>{
+  await open('/author/'+author,{backerFixture:true});
+  await page.locator('.profile-stats dd').first().filter({hasText:/\d/}).waitFor();
+  metrics.backers=await page.locator('.profile-stats').innerText();assert.equal(await page.locator('.profile-stats dd').nth(1).innerText(),'0');
+  await page.getByRole('button',{name:'Backers',exact:true}).click();
+  assert.equal(await page.locator('.backer-list .person').count(),0,'A former holder is not a current backer');
+  assert.equal(await page.locator('.profile-stats dd').first().innerText(),'≥ 0');
+  const reads=f.rpc.filter(r=>r.method==='eth_call').map(r=>({...decodeFunctionData({abi,data:r.params[0].data}),block:r.params[1]}));
+  const balances=reads.filter(r=>r.functionName==='pagesOf'&&r.args[1].toLowerCase()===other);assert(balances.length>0);assert(balances.every(r=>r.block===toHex(f.head)));
+  await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await noOverflow('gapped backers');await page.setViewportSize({width:390,height:844});await shot('revision-backers-gap-dark-390');
+  assert.match(await shareResult(),/At least 0 backers/);
+ });
+ await check('Revision: failed current Pages balance is unknown, retry recovers',async()=>{
+  await open('/author/'+author,{backerFixture:true,holdingsFail:true});
+  await page.locator('.profile-stats dd').first().filter({hasText:/Unknown|\d/}).waitFor();
+  assert.equal(await page.locator('.profile-stats dd').first().innerText(),'Unknown');
+  await page.getByRole('button',{name:'Backers',exact:true}).click();assert.equal(await page.locator('.backer-list .person').count(),0);
+  assert.match(await text(),/Current page balances could not be verified/);
+  assert.match(await shareResult(),/Backer count unknown/);
+  f.holdingsFail=false;await page.getByRole('button',{name:'Retry backers',exact:true}).click();
+  await page.locator('.profile-stats dd').first().filter({hasText:'≥ 0'}).waitFor();
+ });
+ await check('Revision: admission rules are named one-sentence keyboard tap hints',async()=>{
+  await open('/call');await tradeReady();await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
+  await page.getByText('Request a hook admission',{exact:true}).click();
+  const section=page.locator('details').filter({has:page.locator('#admission-hooks')});assert.equal(await section.locator('.rule-hint').count(),3);
+  for(const [name,line] of [['Admission rule','A panel can admit hooks that keep trading open to everyone.'],['Hook limit','Up to four hooks per request.'],['Admission fee risk','A refused or split answer can spend the fee without admitting a hook.']]) {
+   const hint=page.getByLabel(name,{exact:true});await hint.focus();await page.keyboard.press('Enter');assert.equal(await hint.locator('..').locator('span').innerText(),line);assert(await hint.locator('..').evaluate(e=>e.open));
+  }
+  assert.match(await section.innerText(),/Panel fee: 0.5 IMD/);await noOverflow('admission hints');await page.setViewportSize({width:390,height:844});await page.locator('#admission-hooks').scrollIntoViewIfNeeded();await shot('revision-admission-dark-390');assert.equal(f.requests.length,0);
+ });
  await check('Landing: verbatim promise and caveat, live pot, metadata, one Launch app and static subpath',async()=>{
   await open('landing',{wallet:false});
   for(const line of ['Build your trader reputation on-chain.','Write your notes and theses with your trades.','Let readers back you by holding your pages.'])assert((await text()).includes(line));
@@ -359,6 +482,6 @@ try {
   await open('/',social);await page.setViewportSize({width:390,height:844});const plus=await page.locator('.compose-trigger').boundingBox();assert(plus.y+plus.height<=844);assert((await page.locator('.social-card').first().boundingBox()).y<400);
  });
 } finally {
- if(evidence)fs.writeFileSync(path.join(evidence,'results.json'),JSON.stringify(reports,null,2));
+ if(evidence){fs.writeFileSync(path.join(evidence,'results.json'),JSON.stringify(reports,null,2));fs.writeFileSync(path.join(evidence,'metrics.json'),JSON.stringify(metrics,null,2));}
  await context?.close();await browser.close();server.close();
 }

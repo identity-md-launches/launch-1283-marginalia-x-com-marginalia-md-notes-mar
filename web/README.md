@@ -70,3 +70,7 @@ node tests/feedback-ledger.mjs
 TypeScript unit files in tests can be bundled with the locked esbuild (`--bundle --platform=node --format=esm --outfile=/tmp/<test>.mjs`) then run with Node. Retained units cover v2, revision, history, v3 and child-call behavior; new units cover identity/holdings/ranking and authenticated trade receipts. Browser fixtures decode actual calldata and provide deterministic chain state; they do not contact a live chain or spend funds. All original test files remain. Earlier v2/revision presentation suites remain historical; current v3/v4/child/feedback suites are ported to the app entrypoint.
 
 [VALIDATION.md](VALIDATION.md) records exact results and limits. [DESIGN.md](../DESIGN.md) documents implemented tokens and responsive behavior. The Better Interface review and pinned taste probe are local evidence, not independent certification. Real wallet spending, oracle outcomes, full historical availability, Safari and physical-device assistive technology remain untested here.
+
+## v5 review revision
+
+The extended `tests/v5-browser.mjs` includes the reported Annex child-parent, selected PoolKey, expanded receipt, gapped backer and admission-hint regressions. Run that production-browser suite with `TEST_FILTER=Revision` for only these cases. `tests/backers-unit.ts` uses deterministic fixed-block reads to cover missing buys/sells, failed balances and bounded candidate verification; bundle and run it like the retained unit suites above. Current revision evidence and limitations are appended in `VALIDATION.md`.

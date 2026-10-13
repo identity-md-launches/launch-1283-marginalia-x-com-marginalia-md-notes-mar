@@ -1,0 +1,46 @@
+[
+  {
+    "name": "First screen: v4 promise and caveat retained on the v5 landing with Launch app",
+    "result": "pass"
+  },
+  {
+    "name": "App navigation routes to the call sheet, thesis sheet and connected profile",
+    "result": "pass"
+  },
+  {
+    "name": "One call flow: defaults, visible fields, one button, advanced behind More, trade-it-too on when the wallet holds IMD",
+    "result": "pass"
+  },
+  {
+    "name": "Trade it too off posts just the call through router.note with an exact 0.6 IMD approval to the router",
+    "result": "pass"
+  },
+  {
+    "name": "Trade it too on keeps the exact combined 1.6 IMD approval and tradeAndNote",
+    "result": "pass"
+  },
+  {
+    "name": "Trade it too defaults off when the wallet holds no IMD; token from the URL wins over the last token",
+    "result": "pass"
+  },
+  {
+    "name": "Baseline rule is explained where it bites: warm-up with countdown, ready, and the warm-up button",
+    "result": "pass"
+  },
+  {
+    "name": "Thesis flow states the 7-day child rule before the bond and again on the receipt with the button",
+    "result": "pass"
+  },
+  {
+    "name": "Profile page: wallet, hit rate with count, calls/theses/backers and Pages controls; score removed",
+    "result": "pass"
+  },
+  {
+    "name": "Own profile shows earnings; Feedback opens from top bar and the old tab alias",
+    "result": "pass"
+  },
+  {
+    "name": "Every v4 route reflows at 320 and 390 in dark mode with focus visible",
+    "result": "pass"
+  }
+]

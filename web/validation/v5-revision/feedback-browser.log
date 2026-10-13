@@ -1,0 +1,10 @@
+PASS Feedback opens from the app top bar, fixed list precedes form, and board is empty with real service
+PASS Real EIP-191 signature reaches Worker; exact JSON, handle normalization, saved entry
+PASS UTF-8 counter validates bytes and focuses text; handle validation is local
+PASS Disconnected connect, missing wallet and wrong chain need no transaction/switch
+PASS Rejected signature preserves text and re-enables action
+PASS Pending locks form; account change before signature returns prevents POST
+PASS HTTP error, board retry and signature reuse preserve draft
+PASS Rate-limit response is displayed without gas or approvals
+PASS Picked order, verified note badge, self-reported handle and adopted shares render
+PASS Long text/hashes, keyboard focus, dark mode and responsive layout

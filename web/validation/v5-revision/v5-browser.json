@@ -1,0 +1,94 @@
+[
+  {
+    "name": "Revision: Annex-only child preserves parent and blocks posting",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: Annex-only child preserves parent and blocks warm-up",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: Annex-only child blocks approval, explicit parent removal permits a standalone call",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: manual and saved thesis parents stay blocked after Annex resolution",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: just-the-call sends selected IMD v4 key",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: just-the-call sends selected native ETH v4 key",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: Annex detail expands full why at 390 dark",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: Annex detail expands full why at 320 dark",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: gapped Pages sell excludes former holder at fixed head",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: failed current Pages balance is unknown, retry recovers",
+    "result": "pass"
+  },
+  {
+    "name": "Revision: admission rules are named one-sentence keyboard tap hints",
+    "result": "pass"
+  },
+  {
+    "name": "Landing: verbatim promise and caveat, live pot, metadata, one Launch app and static subpath",
+    "result": "pass"
+  },
+  {
+    "name": "App host: root document mapping uses the same relative assets and runtime manifest",
+    "result": "pass"
+  },
+  {
+    "name": "App shell: Feed first, pot, Feedback, five bottom controls and Me connect",
+    "result": "pass"
+  },
+  {
+    "name": "Feed cards: hook and Annex, identity fallback, counts, age, claims and Counter Share Back",
+    "result": "pass"
+  },
+  {
+    "name": "LARP: verified primary name and passive avatar; citation never becomes author",
+    "result": "pass"
+  },
+  {
+    "name": "Identity failures stay passive: absent registry code and SVG scripts cannot sign or execute",
+    "result": "pass"
+  },
+  {
+    "name": "Trade card reads authenticated router receipt and reports IMD spent",
+    "result": "pass"
+  },
+  {
+    "name": "Record: hit rate only, ties by settled count and zero settled below ranked wallets",
+    "result": "pass"
+  },
+  {
+    "name": "Profile: one rate with sample, pages, theses, backing control, tabs and own earnings",
+    "result": "pass"
+  },
+  {
+    "name": "Compose: defaults and tap hints, last token, one action, caveat and modal keyboard",
+    "result": "pass"
+  },
+  {
+    "name": "Child-call fix: posted receipt on thesis card and page, further call is secondary",
+    "result": "pass"
+  },
+  {
+    "name": "Every app surface: 320 and 390 dark, no overflow, score absent, phone first action",
+    "result": "pass"
+  }
+]

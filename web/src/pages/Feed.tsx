@@ -24,7 +24,7 @@ function TradeAmount({ n }: { n: Note }) {
   if (n.classAtPost === 1 || n.source === 'annex' || (n.classAtPost !== 0 && !read.data)) return null;
   return <span>{read.data ? `traded ${read.data.approximate ? '≈ ' : ''}${fmtAmount(read.data.amount)} ${read.data.symbol}${read.data.symbol === 'WETH' ? ' · IMD equivalent unavailable' : ''}` : 'Trade amount unavailable'}</span>;
 }
-export function Entry({ n, tokenName, children }: { n: Note; tokenName?: string; children?: ReactNode }) {
+export function Entry({ n, tokenName, children, expanded = false }: { n: Note; tokenName?: string; children?: ReactNode; expanded?: boolean }) {
   const { pub, contracts, wallet, now } = useApp();
   const feed = useContext(FeedContext);
   const thesis = isThesis(n), mine = wallet.account?.toLowerCase() === n.author.toLowerCase();
@@ -37,7 +37,7 @@ export function Entry({ n, tokenName, children }: { n: Note; tokenName?: string;
     <div className="card-person"><Person address={n.author}/><time dateTime={new Date(n.timestamp * 1000).toISOString()} title={fmtDate(n.timestamp)}>{ageOf(n.timestamp, now)}</time></div>
     <div className="card-rate"><AuthorRate address={n.author} revision={feed?.loadedAt}/><span className="small">hit rate</span></div>
     <div className="card-claim"><span className="token-chip" title={n.x}>{thesis ? `thesis · week ${Math.floor(n.timestamp / 604800)}` : token}</span>{!thesis && <><strong>{describeTarget(n.side, n.targetBps)}</strong><span className="small">{n.horizonDays}d</span></>}<span className={`tag ${verdict.replace(' ', '-')}`}>{verdict}{n.status === Status.Open && <> · <Countdown until={horizonEndOf(n)}/></>}</span></div>
-    <a className="card-why" href={`#/note/${n.id}`} aria-label={`Read ${thesis ? 'thesis' : 'call'} ${n.source === 'annex' ? short(n.id) : 'No. ' + n.index}`}><p className="entry-text">{n.text}</p></a>
+    {expanded ? <p className="entry-text">{n.text}</p> : <a className="card-why" href={`#/note/${n.id}`} aria-label={`Read ${thesis ? 'thesis' : 'call'} ${n.source === 'annex' ? short(n.id) : 'No. ' + n.index}`}><p className="entry-text">{n.text}</p></a>}
     <Citation text={n.text}/>
     <div className="entry-meta"><span>{n.deposit > 0n ? `${fmtAmount(n.deposit)} IMD bond` : 'Bond released or forfeited'}</span><TradeAmount n={n}/><a href={`#/note/${n.id}`}>{n.source === 'annex' ? `Annex ${short(n.id, 6, 4)}` : `No. ${n.index}`}</a></div>
     {parent && <p className="small card-parent"><a href={`#/note/${parent.id}`}>{isThesis(parent) ? `under thesis No. ${parent.index}` : `counter to ${parent.source === 'annex' ? 'Annex ' + short(parent.id) : 'No. ' + parent.index}`}</a></p>}

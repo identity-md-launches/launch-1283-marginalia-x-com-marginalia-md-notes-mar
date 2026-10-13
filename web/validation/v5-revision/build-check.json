@@ -1,0 +1,34 @@
+{
+  "typecheck": {
+    "command": "npm run typecheck",
+    "exitCode": 0
+  },
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0
+  },
+  "manifest": {
+    "command": "npm run manifest && npm run check",
+    "exitCode": 0,
+    "contracts": 7,
+    "assets": 22
+  },
+  "sourceAndTestsMatchMirror": true,
+  "mainAssets": [
+    {
+      "path": "assets/ccip-d2UtB2eS.js",
+      "sha256": "560648f26c60fb7efbff714cd110d6e096db2add684f6e3ab3a06193b85188fb"
+    },
+    {
+      "path": "assets/index-Cyhf5B4A.js",
+      "sha256": "7ecdc84d1c3f9984ecacc0cd71ebeea1a143c8e0e55f743941770aae95e58b5d"
+    },
+    {
+      "path": "assets/index-bDE5sXVW.css",
+      "sha256": "e87ce4157026910042356570e81b4e188c223a14391dbab15d1f1f701d92aef8"
+    }
+  ],
+  "limitations": [
+    "Vite retains the >500 kB chunk advisory; no new dependency or chunk policy."
+  ]
+}

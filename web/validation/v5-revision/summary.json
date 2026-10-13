@@ -1,0 +1,41 @@
+{
+  "base": "6265fecda7b2ee59f0da0151eb4e91015c4b8d6a",
+  "originalMainAsset": "assets/index-DoUFokx3.js",
+  "findings": [
+    {
+      "finding": "74821a7c7a463a878b9af15a103390f158ef93032d8c3b8d3229c366c8b0376f",
+      "verdict": "fixed",
+      "detail": "Reproduced against the original production export: automatic Annex resolution removed the thesis context and parent field, enabled posting, and issued a mocked Annex.post with parentId zero. TradeForm now retains the thesis check/context/field independently of venue resolution, explains that an Annex call cannot be a thesis child, and blocks approvals, checkpoints and submission until a router venue is selected or the parent is explicitly cleared. Submit/approve/checkpoint also guard this condition. Browser regressions cover ready and missing checkpoints, missing allowance, URL/manual/saved parents, recovery to a router venue with the same parent, and explicit removal with the unchanged exact Annex allowance."
+    },
+    {
+      "finding": "3f922c5aa5441a0e3da8eae932c8565ccde053b3c5249fdd2ec0f665b7128a9e",
+      "verdict": "fixed",
+      "detail": "Reproduced the supplied long text at 390 and 320: detail clientHeight was 72px versus 144px/168px scrollHeight, with line-clamp 3 and a self-link. Entry now has an expanded variant used by AnnexNote: the entire plain text renders without the excerpt link or clamp. Feed excerpts keep three lines. Browser measurements after the fix are 144/144px and 168/168px, no clamp and no text self-link, in dark mode."
+    },
+    {
+      "finding": "016d5dd9e3de3aaa782dc5f5ce66a18bde824191b60a0ff5ab9b2e70fb5a0848",
+      "verdict": "fixed",
+      "detail": "Reproduced a readable buy, missing sell range, zero supply and zero pagesOf: the original profile listed one page and Backers >= 1. readBackers now discovers all candidate wallets from readable events, then reads pagesOf for each at the same fixed head as subjects/supply. Zero balances are excluded; failed balance reads are counted separately, omitted from the holder list and shown as Unknown in the count and share card with an explicit retry. History/earnings gaps remain separately disclosed. Unit and production-browser regressions cover missing sells, missing buys, read failures, bounded scan/concurrency, verified amounts, share text and retry recovery."
+    },
+    {
+      "finding": "2678ce9285f76874478c724cdfd2ce6f1466b0b142a710345795d590ef5f67f4",
+      "verdict": "fixed",
+      "detail": "Reproduced the admission disclosure with its three-sentence paragraph and no rule hints. Replaced it with the existing Hint component named Admission rule, Hook limit and Admission fee risk beside the address/fee controls, preserving each original sentence and the live fee. Scoped wrapping lets expanded hints use the available width. Browser tests open all three by keyboard and check their text, the fee and 320/390/1440 reflow; final dark screenshots inspected."
+    },
+    {
+      "finding": "ca4638350661829d6989050d42e108435fa026fd1d37b5c2d648eaf9d9fedf84",
+      "verdict": "fixed",
+      "detail": "Reproduced for non-launch hookless v4 pools paired with IMD and native ETH: the original router.note simulation received the launch key and failed the contract PoolId comparison with BadVenue. The no-trade branch now passes market.key, consistent with validation, checkpoint and tradeAndNote. Production-browser regressions enforce the PoolId equality during simulation and decode the resulting wallet request to verify the selected key, derived venue, router, exact note cost and positive output minimum. Native ETH venues remain no-trade as required."
+    },
+    {
+      "finding": "531056d74bd880976f18424a78787636bd65202ba17e9f7f11cc2e0ba7c5a388",
+      "verdict": "fixed",
+      "detail": "Reproduced; this is the same root cause as 016d5dd9e3de3aaa782dc5f5ce66a18bde824191b60a0ff5ab9b2e70fb5a0848. Fixed by verifying candidate pagesOf balances at the supply snapshot before listing holders. The gapped-sell fixture now has no listed former holder and a verified lower bound of zero; balance-read failures instead show an unknown count in both profile and share card. Readable event fees continue to provide explicitly partial earnings."
+    }
+  ],
+  "browserScenarios": 86,
+  "browserPassed": 86,
+  "unitSuitesPassed": 8,
+  "feedbackServiceSuitesPassed": 3,
+  "liveTransactionsSent": 0
+}

@@ -1,0 +1,29 @@
+{
+  "child-7200": {
+    "context": [
+      "Child call under your thesis 0x0000…0001, due Oct 20, 2026, 7:03 PM"
+    ],
+    "parents": 1,
+    "disabled": true
+  },
+  "child-null": {
+    "context": [
+      "Child call under your thesis 0x0000…0001, due Oct 20, 2026, 7:03 PM"
+    ],
+    "parents": 1,
+    "disabled": true
+  },
+  "annex-390": {
+    "height": 144,
+    "scroll": 144,
+    "clamp": "none",
+    "linked": false
+  },
+  "annex-320": {
+    "height": 168,
+    "scroll": 168,
+    "clamp": "none",
+    "linked": false
+  },
+  "backers": "Backers\n≥ 0\nPages held\n0\nTheses\n0"
+}

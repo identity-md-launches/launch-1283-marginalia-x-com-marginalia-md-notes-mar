@@ -1,0 +1,11 @@
+{
+  "prospectiveFiles": 697,
+  "prospectiveSourceBytes": 6404015,
+  "limitBytes": 8388608,
+  "withinLimit": true,
+  "exportFiles": 23,
+  "exportBytes": 1120849,
+  "protectedFilesUnchanged": true,
+  "trackedSubmodules": 0,
+  "includesNewFilesWithoutChangingGitIndex": true
+}

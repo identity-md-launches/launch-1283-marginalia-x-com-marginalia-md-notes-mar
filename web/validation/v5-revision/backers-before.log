@@ -1,0 +1,127 @@
+FAIL A sell in an unreadable range cannot leave a former holder in the list AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   {
++     address: '0x2222222222222222222222222222222222222222',
++     pages: 1n
++   }
++ ]
+- []
+
+    at file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1155:10
+    at async check (file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1143:5)
+    at async file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1150:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+FAIL Every candidate is checked, including net-zero and sell-only histories AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ []
+- [
+-   {
+-     address: '0x2222222222222222222222222222222222222222',
+-     pages: 3n
+-   }
+- ]
+
+    at file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1164:12
+    at async check (file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1143:5)
+    at async file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1160:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [],
+  expected: [Array],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+FAIL Failed balance reads are excluded and marked independently of history gaps AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   {
++     address: '0x2222222222222222222222222222222222222222',
++     pages: 1n
++   }
++ ]
+- []
+
+    at file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1171:12
+    at async check (file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1143:5)
+    at async file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1167:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+FAIL Complete history uses current balances, deduplicates candidates and sorts holdings AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
+    {
+      address: '0x2222222222222222222222222222222222222222',
++     pages: 1n
+-     pages: 2n
+    }
+  ]
+
+    at file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1179:10
+    at async check (file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1143:5)
+    at async file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1176:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [Array],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+FAIL Bounded history discloses undiscovered holders but verifies sell-only candidates AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ []
+- [
+-   {
+-     address: '0x2222222222222222222222222222222222222222',
+-     pages: 1n
+-   }
+- ]
+
+    at file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1190:10
+    at async check (file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1143:5)
+    at async file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1185:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [],
+  expected: [Array],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+FAIL Candidate balances are read in bounded batches and failures do not hide verified holders AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+undefined !== 1
+
+    at file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1208:10
+    at async check (file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1143:5)
+    at async file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1193:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: 1,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1213
+if (failures) throw new Error(`${failures} backer regressions failed`);
+                    ^
+
+Error: 6 backer regressions failed
+    at file:///tmp/marginalia-v5-fixes-nft40ta1/backers-before.mjs:1213:21
+
+Node.js v22.23.3

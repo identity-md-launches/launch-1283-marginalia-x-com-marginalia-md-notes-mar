@@ -7,7 +7,7 @@ import { fmtAmount, fmtDate, short, Status, utf8Length, validAddress } from './l
 import { intakeAbi } from './market-abi';
 import { UsdContext } from './price';
 import { sendChecked } from './transactions';
-import { Addr, Countdown, Notice, TxButton, WalletAction } from './ui';
+import { Addr, Countdown, Hint, Notice, TxButton, WalletAction } from './ui';
 import type { FeedProps } from './pages/Feed';
 import { Entry } from './pages/Feed';
 import type { Note } from './notes';
@@ -29,11 +29,10 @@ export function Admission() {
   } : null, [c.annex, wallet.account, text, Math.floor(now / 30)], [c.annex, wallet.account, text]);
   const s = state.data;
   const ready = valid && !!s && !state.error && s.cost > 0n && s.cost <= 10n ** 18n && s.balance >= s.cost && s.eligible.every(a => a.code && a.code !== '0x' && !a.admitted);
-  return <details className="trade-details"><summary>Request a hook admission</summary>
-    <p className="small">A panel can admit hooks that keep trading open to everyone. Up to four hooks per request. A refused or split answer can spend the fee without admitting a hook.</p>
-    <label htmlFor="admission-hooks">Hook addresses</label><textarea id="admission-hooks" value={text} onChange={e => setText(e.target.value)} disabled={busy} placeholder="One address per line" />
+  return <details className="trade-details admission"><summary>Request a hook admission</summary>
+    <div className="field-heading"><label htmlFor="admission-hooks">Hook addresses</label><Hint label="Admission rule">A panel can admit hooks that keep trading open to everyone.</Hint><Hint label="Hook limit">Up to four hooks per request.</Hint></div><textarea id="admission-hooks" value={text} onChange={e => setText(e.target.value)} disabled={busy} placeholder="One address per line" />
     {text && !valid && <p className="status bad">Enter one to four distinct contract addresses.</p>}
-    <p>Panel fee: {s ? fmtAmount(s.cost) : '…'} IMD <UsdContext imd={s?.cost} /></p>
+    <div className="field-heading"><p>Panel fee: {s ? fmtAmount(s.cost) : '…'} IMD <UsdContext imd={s?.cost} /></p><Hint label="Admission fee risk">A refused or split answer can spend the fee without admitting a hook.</Hint></div>
     {s?.eligible.map(a => <p className="small" key={a.address}>{short(a.address)}: {a.admitted ? 'Already admitted' : !a.code || a.code === '0x' ? 'No contract code' : 'Not admitted'}</p>)}
     {state.error && <Notice kind="bad"><p>Admission reads failed. <button type="button" onClick={state.refresh}>Retry</button></p></Notice>}
     <WalletAction>{s && s.allowance < s.cost ? <TxButton label={`Approve ${fmtAmount(s.cost)} IMD for admission`} busyLabel="Approving…" disabled={!ready} onBusyChange={setBusy} onSend={() => sendChecked(app,c.imd,erc20Abi,'approve',[c.annex!,s.cost])} onDone={state.refresh} /> : <TxButton label="Request admission" busyLabel="Requesting…" disabled={!ready} onBusyChange={setBusy} onSend={() => sendChecked(app,c.annex!,AnnexAbi,'requestAdmission',[addresses])} onDone={state.refresh} />}</WalletAction>
@@ -55,7 +54,7 @@ export function AnnexNote({ n, refresh }: { n: Note; refresh: FeedProps['refresh
   const tx = (name:string,args:readonly unknown[]) => () => sendChecked(app,c.annex!,AnnexAbi,name,args);
   const last = s?.obs.at(-1);
   const observeReady = !!s && s.view.status === Status.Open && now >= end && now <= end+21600 && (!last || s.block.number >= last.blockNumber+20n);
-  return <><h1>Launched-token receipt</h1><p className="small">Annex · {short(n.id,10,6)}</p><ul className="ledger"><Entry n={s ? {...n,status:s.view.status,deposit:s.view.deposit} : n}/></ul>
+  return <><h1>Launched-token receipt</h1><p className="small">Annex · {short(n.id,10,6)}</p><ul className="ledger"><Entry expanded n={s ? {...n,status:s.view.status,deposit:s.view.deposit} : n}/></ul>
     {!mine && s?.view.status===Status.Open && <a className="button" href={`#/post?counter=${n.id}`}>Counter this call</a>}
     <Share card={{ kind:'Note',title:'A call on the record',columns:[noteColumn(n,short(n.x))],line:`Marginalia Annex call by ${short(n.author)}.`,filename:`marginalia-annex-${n.id}` }} />
     {live.error && <Notice kind="bad"><p>Live note state unavailable.</p><button type="button" onClick={live.refresh}>Retry note</button></Notice>}

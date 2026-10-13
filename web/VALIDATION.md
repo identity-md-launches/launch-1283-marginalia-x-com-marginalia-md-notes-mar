@@ -50,3 +50,59 @@ The assigned browser connector returned a closed transport. Locally installed Pl
 The worker checked the critical address/approval/script categories: runtime addresses come from the authorized manifest or verified hook companions; all v4 exact spender/amount rules remain; LARP modules accept only public reads and never invoke wallet APIs; client-side venue quotes remain; remote avatar content enters only an image/JSON parser; no external script or cited-handle authorship is introduced. No unresolved critical finding was identified in this local review. A critical address, approval or script finding from the independent review must still refuse hosting.
 
 The host must publish the whole dist tree and map the app host entrypoint as documented. Neither production mounting nor named-domain content was changed here. Live tests were reads only: funded actions, contract-wallet signing, oracle responses, settlement progression, reorg behavior on a real chain, third-party metadata/CORS availability, complete historic event coverage, WebKit/Safari and native assistive technology remain untested. Missing/gapped data is disclosed by the UI. No complete-history, identity-ownership or financial outcome guarantee is implied.
+
+
+## 2026-10-13 · Review revision of the accepted v5 tree
+
+**Complete for the reported scope.** Base `6265fecda7b2ee59f0da0151eb4e91015c4b8d6a`. This section supersedes the earlier v5 review only for these findings and the checks rerun below. Six IDs, five root causes; every ID is answered as fixed in `.imd-responses.json`. These are worker observations, not independent certification. No real wallet request or live RPC was used by these regressions.
+
+### Reproduction and fixes
+
+| Finding ID prefix; source | Reproduced on accepted export | Correction and final recheck |
+| --- | --- | --- |
+| `74821a7c`; `web/src/trade.tsx:87` | With a valid own thesis, Annex-only discovery removed context and parent, enabled the action and sent mocked `Annex.post` with zero parent. Missing checkpoint/allowance also exposed unintended actions. | Parent lookup no longer depends on Annex resolution. Keep context/field, show a persistent explanation, require a router venue for any thesis parent; guard approval, checkpoint and submit. Tests cover URL, manually entered and saved parents; zero wallet requests while blocked; recovery to a router key with the same parent; explicit clearing and exact standalone Annex approval. `before-child-metrics.json`, `metrics.json`. |
+| `ca463835`; `web/src/trade.tsx:142` | Non-launch hookless IMD and native-ETH v4 pools failed the router's PoolId/key comparison in simulation (`BadVenue`); no note wallet request followed. | Send `market.key` to `note`, as already used by validation/checkpoint/trade. Fixture enforces the Solidity comparison from `src/MarginaliaRouter.sol:207`; both cases now reach the mock wallet with matching key/ref, router, 0.6 IMD cost and positive MARG minimum. No broadcast. |
+| `3f922c5a`; `web/src/annex.tsx:57`, `web/src/pages/Feed.tsx:42` | Supplied 269-byte why remained clamped on the detail page: 72px client height, 144px scroll height at 390; 72/168px at 320, self-link retained. | `Entry expanded` renders plain complete text only on Annex detail. Feed still clamps to three lines. After: 144/144px and 168/168px; computed clamp `none`, no text link. Both dark screenshots inspected. |
+| `016d5dd9` and duplicate `531056d7`; `web/src/backers.ts:24`, `web/src/pages/Author.tsx:39` | Readable buy plus refused sell range returned a former holder with one page despite supply/pagesOf zero; profile claimed ≥1. | Discover all traders, including sell-only/net-zero candidates; verify each current balance at the same fixed head as supply in batches of at most 20; omit zero or failed balances. Unknown counts and retry for failed reads; separate history/earnings gap. Browser proves no former holder, ≥0 verified lower bound, correct share text, unknown-count share on failure and retry recovery. Six unit groups also cover bounded scans, deduplication, current amounts and concurrency. |
+| `2678ce92`; `web/src/annex.tsx:32`, `web/src/app.css:132` | Admission had a three-sentence paragraph and zero rule hints. | Three existing `Hint` controls retain original sentences and live fee. Keyboard opens each named hint; 320/390/1440 reflow passes. First visual pass found squeezed labels when hints opened in a flex row; scoped normal-flow wrapping fixed it. Final screenshot inspected. |
+
+The original backer unit failures in `backers-before.log` are intentional reproduction evidence. `before-metrics.json` contains the original clipping and false-count measurements. All current test reports in this directory pass. Fixtures are local: representative wallet/token addresses in test files are not deployment configuration or placeholders in the app.
+
+### Rerun commands and outcomes
+
+Dependencies were installed with the **unchanged** `web/package-lock.json` in a fresh temporary mirror under `/tmp/`, using `npm ci --no-audit --no-fund`. Playwright 1.58.2 and Chromium 145 were installed separately outside the repository. The source build used the existing Vite config; no package, lockfile, node_modules, build config or ignore file was changed in this tree.
+
+From the mirrored `web/`: `npm run typecheck`, `npm run build`, `npm run manifest`, `npm run check` passed. Final static JS is approximately 748 kB (218 kB gzip), CSS 37 kB; the retained Vite chunk-size advisory remains. Manifest validation checks all 7 bound contract ABIs and 22 other exported files, the unchanged handoff/network/walletAddChain, local assets and agent-document equality. Final export and prospective submission bytes are in `bundle.json`.
+
+Each browser command used `PLAYWRIGHT_MODULE=<temporary playwright/index.mjs>`, `PLAYWRIGHT_BROWSERS_PATH=<temporary browsers>` and `EVIDENCE_DIR=<temporary suite directory>` against the rebuilt production `dist/`:
+
+| Command from web/ | Result |
+| --- | --- |
+| `node tests/v5-browser.mjs` | 23/23: retained 12 plus 11 new revision scenarios |
+| `node tests/v4-browser.mjs` | 11/11 |
+| `node tests/child-call-browser.mjs` | 22/22, retaining all nine previously ported scenarios |
+| `node tests/v3-browser.mjs` | 20/20 |
+| `node tests/feedback-browser.mjs` | 10/10 |
+
+Browser tests reject unexpected external requests and script errors; transaction assertions decode real ABI calldata sent only to the fixture. Expected fixture errors for unavailable balances and simulated reverts appear in logs, not as page exceptions. The current 86 scenarios cover exact approvals, add-chain, simulation/error handling, receipt authorship, LARP and passive avatars, Pages and lifecycle controls, counters/reveals, defaults, first-screen actions, dark 320/390 and 1440 reflow, and the new failure cases. `*-browser.json` and `*-browser.log` retain results.
+
+Bundled each TypeScript unit with the locked esbuild (`--bundle --platform=node --format=esm`), then ran with Node: v2, revision, history, v3, child-call, v5, trade-receipt and **backers** all pass (eight suites, `units.log`). `node tests/feedback-worker.mjs`, `feedback-noted.mjs` and `feedback-ledger.mjs` also pass. The optional durable workerd runtime suite and historical obsolete v2 presentation browser suites were not rerun; their source remains intact. Contract tests were not rerun for this frontend-only revision.
+
+From repository root: `IMD_PLAYWRIGHT=<temporary playwright/index.mjs> PLAYWRIGHT_BROWSERS_PATH=<temporary browsers> node .imd/reads/skills/design-critic/scripts/taste.mjs --out test/scratch/taste --offline`. **15/16 checks pass** at 320/390/1440; `taste-summary.json`. The unchanged required promise/caveat produces the same sole copy-budget exception: 74 first-screen prose words at 390 (generic bar 60). The actual 390 first-screen screenshot was inspected: product and Launch app remain visible, caveat unchanged. Offline pot reads honestly show unavailable; populated live-state UI is covered by the retained fixture tests. Probe screenshots remain in scratch, which the worker removes.
+
+### Better Interface coverage of the revision
+
+| Domain | Coverage and final state |
+| --- | --- |
+| Accessibility — checked | Existing native labelled fields, disabled transaction states and role=alert explanations retained. Admission uses named native details/summary; each toggled with Enter in browser. Modal focus/escape and parent field keyboard behavior passed retained suites. No screen-reader or native 200% zoom session. |
+| Layout — checked | Screenshots inspected for corrected Annex detail at 320/390, blocked child flow, gapped-backer profile and admission. Long note text is fully reachable; opened hints use full width. Revised states pass 320/390/1440 overflow checks. No unrelated layout or breakpoint changes. |
+| Writing — checked | Critical error states the incompatibility and how to recover. Partial history is distinct from unverified current balances; profile/share use the same uncertainty. Original admission sentences, fee/risk, caveats and backing copy preserved. |
+| Typography — checked | Reuse existing serif/mono scale, weights, line-height and wrapping. Removed only detail truncation; feed excerpts retain their clamp. No new fonts or type sizes. Actual long-text heights recorded above. |
+| Colors — checked within limits | Reuse existing theme/status tokens, with text as well as color conveying the block. Pinned landing probe passes measured contrast; dark corrected-state screenshots inspected. No new palette values; full-route dark contrast and forced-colors audit were not separately repeated. |
+| UI — checked | Zero wallet requests while a thesis has an Annex-only venue; normal router recovery and explicit parent removal work. Missing holdings never become zero, errors support retry, share cards agree. Existing approval amounts, recipients, WETH deposit and simulation/receipt flows pass regressions. |
+
+### Scope and limitations
+
+The generated export contains both entrypoints and the regenerated SHA-256 inventory. No token/Solidity, ABI, deployment address/network, external script, dependency/build configuration, fee/mint/payment model, Feedback intake or adopted-ledger change. This revision corrects the existing `note` calldata to match the selected venue and prevents invalid child workflows; it adds no contract action. LARP code remains view-only, metadata remains passive, quotes remain client-side and receipt authorship remains the posting wallet. Source diff plus all critical-flow regressions identified no unresolved address, approval or script issue. Independent review still decides hosting.
+
+The assigned browser connector returned `Transport closed`; the local Playwright browser supplied screenshots and interactions. Downloaded WebKit reported missing host libraries (including GTK4/GStreamer), so no WebKit result is claimed. Mainnet spending/signatures, fresh live RPC reads, oracle/lifecycle progression, production hosting/Feedback deployment, reorgs, complete historical discovery, physical devices, native assistive technology and the complete dark-route contrast matrix remain untested in this revision. Existing historical live-read evidence is not relabelled as a fresh check.

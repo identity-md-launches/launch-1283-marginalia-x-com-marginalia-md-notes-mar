@@ -129,6 +129,8 @@ summary { cursor:pointer; min-height:44px; padding-block:.6rem; }
 .rule-hint[open] { display:block; flex-shrink:1; }
 .rule-hint[open] > span { display:block; padding:.5rem .65rem; background:var(--tag); border-radius:var(--radius); margin:.3rem 0; line-height:1.5; }
 .trade-form .rule-hint:not([open]) > span { display:none; }
+.admission .field-heading { display:block; margin:.5rem 0; }
+.admission .field-heading > label, .admission .field-heading > p { display:inline; margin-inline-end:.5rem; }
 .baseline-line { display:flex; gap:.5rem; align-items:center; margin:.5rem 0; }
 .baseline-status { flex:1; margin:0; }
 .send-caveat { color:var(--ink-soft); font-size:var(--text-small); margin:.4rem 0 .5rem; line-height:1.4; }
