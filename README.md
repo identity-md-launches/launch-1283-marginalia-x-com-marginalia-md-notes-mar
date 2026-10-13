@@ -1,11 +1,10 @@
 # Marginalia — notes in the margin of every trade
 
-## Static site v3.1
+## Static site v5
 
-The trade-first frontend, live Annex integration and deployment-gated Pages v0.10 are delivered in `web/` with a ready-to-host export in `dist/`. See [frontend setup](web/README.md), [worker validation](web/VALIDATION.md), [design](DESIGN.md) and [operator launch copy](docs/launch-copy.md). The live contracts are unchanged.
+The landing and social app are delivered in `web/` and repository-root `dist/`. Open `dist/index.html` through a static server for the landing or `dist/app/index.html` for the feed. The app keeps every existing contract control, adds read-only LARP identity and ranks records only by hit rate with settled count. The child-call suite is ported to app routes. No contract is deployed by this job.
 
-An author's open thesis now offers **Post the child call**. Both hook composers accept an optional own-thesis parent, check its live status, author and seven-day grace, and post the exact parent ID. Thesis confirmation links to the child composer; feed cards show the outstanding child requirement.
-
+See [frontend setup and hosting](web/README.md), [worker validation](web/VALIDATION.md), [design](DESIGN.md), [function-to-home map](docs/STATUS.md) and [LARP provenance](docs/integrations/larp.md). Publication, funded wallet actions and production Feedback mounting remain operator steps.
 
 This launch deploys the fixed-supply Marginalia token and its Uniswap v4 hook on Ethereum mainnet. The hook clones the live launch-1240 Router, Judge and Treasury and calls the live Pricer; none of those implementations is redeployed. Buying MARG through the
 router with a note attached posts a falsifiable call on an ERC-20 other than IMD itself, backed by a flat 0.1 IMD stamp and an

@@ -1,0 +1,13 @@
+{
+  "measurement": "Prospective submitted regular files, tracked plus untracked nonignored, excluding task inputs and scratch; deleted files excluded.",
+  "files": 671,
+  "bytes": 5946516,
+  "limitBytes": 8388608,
+  "exportFiles": 23,
+  "exportBytes": 1113720,
+  "allAssetSha256": "passed",
+  "runtimeNetworkEqualsPinned": "passed",
+  "agentDocsEqualSource": "passed",
+  "protectedPathsUnchanged": "passed",
+  "submodules": 0
+}

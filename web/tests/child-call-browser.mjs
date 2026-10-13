@@ -34,7 +34,7 @@ const other = '0x2222222222222222222222222222222222222222';
 const deploy = 26169583n, unit = 10n ** 18n;
 const hookAbi = JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaHook.json')));
 const abi = [...hookAbi,...JSON.parse(fs.readFileSync(path.join(dist,'abi/MarginaliaAnnex.json'))),...pagesAbi, ...JSON.parse(fs.readFileSync(path.join(dist,'abi/MarginaliaTreasury.json'))), ...JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaRouter.json'))), ...JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaJudge.json'))), ...parseAbi([
-  'function symbol() view returns (string)', 'function decimals() view returns (uint8)', 'function balanceOf(address) view returns (uint256)', 'function allowance(address,address) view returns (uint256)', 'function approve(address,uint256) returns (bool)',
+  'function IDENTITY() view returns (address)', 'function LARP() view returns (address)', 'function NAMES() view returns (address)', 'function primaryOf(address) view returns (uint256,string,bool)', 'function faceURI(uint256) view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)', 'function balanceOf(address) view returns (uint256)', 'function allowance(address,address) view returns (uint256)', 'function approve(address,uint256) returns (bool)',
   'function slot0() view returns (uint160,int24,uint16,uint16,uint16,uint8,bool)', 'function getSlot0(bytes32) view returns (uint160,int24,uint24,uint24)', 'function tickBitmap(int16) view returns (uint256)', 'function getTickBitmap(bytes32,int16) view returns (uint256)', 'function ticks(int24) view returns (uint128,int128,uint256,uint256,int56,uint160,uint32,bool)', 'function getTickLiquidity(bytes32,int24) view returns (uint128,int128)', 'function token0() view returns (address)', 'function token1() view returns (address)', 'function tickSpacing() view returns (int24)', 'function liquidity() view returns (uint128)', 'function fee() view returns (uint24)', 'function deposit() payable', 'function priceOf(bytes32,address) view returns (uint256)', 'function observe(address,(uint8 kind,bytes32 ref,address quote,bool xIsToken0),address) view returns (uint256,uint256)',
   'function getPool(address,address,uint24) view returns (address)', 'function getPair(address,address) view returns (address)', 'function getLiquidity(bytes32) view returns (uint128)',
 ])];
@@ -85,6 +85,11 @@ function block(number) {
   return { number:toHex(n), hash:toHex(n,{size:32}), parentHash:toHex(n-1n,{size:32}), timestamp:toHex(time), nonce:'0x0000000000000000', difficulty:'0x0', totalDifficulty:'0x0', gasLimit:'0x1c9c380', gasUsed:'0x0', miner:zeroAddress, extraData:'0x', baseFeePerGas:'0x1', size:'0x1', transactions:[], uncles:[], logsBloom:`0x${'0'.repeat(512)}`, receiptsRoot:zeroHash, stateRoot:zeroHash, transactionsRoot:zeroHash, sha3Uncles:zeroHash, mixHash:zeroHash };
 }
 function value(fn, args, address) {
+  if(fn==='IDENTITY') return author;
+  if(fn==='LARP') return manifest.contracts.find(c=>c.name==='LARP').address;
+  if(fn==='NAMES') return manifest.contracts.find(c=>c.name==='IMDNames').address;
+  if(fn==='primaryOf') return [0n,'',false];
+
   const constants = { hook, pricer:treasury, router, judge, treasury, imd, token:marg, UNIV3_FACTORY:v3, UNIV2_FACTORY:v2, WETH:weth, STAMP:unit/10n, MARG_BUY:unit/4n, BOND_MIN:unit/4n, BOND_MAX:10n*unit, SEAL_MIN:1800n, SEAL_MAX:21600n, SETTLE_WINDOW:21600n, THESIS_GRACE:604800n, SWEEP_AFTER:2419200n, TEXT_MAX:280n, THESIS_TEXT_MAX:8192n, MIN_TARGET_DELTA_BPS:1000, MAX_HORIZON_DAYS:90, KEEPER_BPS:1000n, JUDGE_THRESHOLD:2n*unit, poolId, getPoolKey:poolKey, margPriceInImd:unit, getLiquidity:1000000n*unit, noteCount: f.notes ? 1n : 0n };
   if (fn in constants) return constants[fn];
   if (fn === 'symbol') return address.toLowerCase() === imd.toLowerCase() ? 'IMD' : f.symbol;
@@ -188,7 +193,7 @@ function rpc(r) {
 const mime = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml'};
 const server = createServer((req,res) => {
   let file = decodeURIComponent(req.url.split('?')[0]).replace(/^\/preview\//,'');
-  if (file === '') file='index.html';
+  if (file === '' || file.endsWith('/')) file += 'index.html';
   const p = path.join(dist,file);
   if (!p.startsWith(dist) || !fs.existsSync(p) || !fs.statSync(p).isFile()) { res.writeHead(404).end(); return; }
   res.setHeader('Content-Type',mime[path.extname(p)] || 'application/octet-stream'); res.end(fs.readFileSync(p));
@@ -243,7 +248,7 @@ if(functionName==='deposit')f.wethBalance=(f.wethBalance??0n)+BigInt(t.value);if
     else {external.push(u);await route.abort();}
   });
   page=await context.newPage();page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(url+'#'+route);
+  await page.goto(url+'app/#'+route);
   await page.locator('footer').waitFor({timeout:12000}).catch(async e=>{console.error('BOOT',await page.locator('body').innerText());throw e;});
   await page.getByRole('button',{name:'Refresh',exact:true}).waitFor({timeout:100}).catch(()=>{});
   await page.waitForTimeout(300);
@@ -261,7 +266,7 @@ async function sent(fn){const all=await page.evaluate(()=>window.__sent);const e
 async function check(name,fn){if(process.env.TEST_FILTER&&!name.includes(process.env.TEST_FILTER))return;try{await fn();assert.deepEqual(errors,[],'Browser script errors');assert.deepEqual(external,[],'Unexpected outside request'); reports.push({name,result:'pass'});console.log('PASS',name);}catch(e){reports.push({name,result:'FAIL',error:e.stack});console.error('FAIL',name,e.message);if(page)console.error((await page.locator('body').innerText()).slice(0,3500));process.exitCode=1;}}async function tradeReady(){await page.locator('#trade-why').fill('A tested call');await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();}
 async function waitEnabled(locator){await locator.waitFor();await page.waitForFunction(sel=>!document.querySelector(sel)?.disabled,await locator.evaluate(e=>{e.dataset.awaitEnabled='yes';return '[data-await-enabled="yes"]';}));}
 const ownThesis = { thesis:true, status:6, noteAge:3600 };
-const parentLabel = 'Parent thesis (optional)';
+const parentLabel = 'More';
 const parentContext = () => page.locator('.child-call-context');
 async function tradeChild() {
   await page.locator('#trade-token').fill(marg);
@@ -292,7 +297,7 @@ try {
     metrics.childActionBottom=childActionBox.y+childActionBox.height;
     assert(metrics.childActionBottom<=844,`Child action bottom: ${metrics.childActionBottom}`);
     await shot('child-trade-390');
-    await page.getByRole('button',{name:'Just the call',exact:true}).click();
+    await page.goto(url+'app/#/post?child='+id);await page.locator('#x').waitFor();
     assert.equal(await page.locator('#x').inputValue(),'');
     assert.equal(await page.locator('#text').inputValue(),'');
     assert.equal(await page.locator('#parent').inputValue(),id);
@@ -307,24 +312,24 @@ try {
     }
   });
   await check('A child link discards unrelated saved trade and seal prefills',async()=>{
-    await open('/?child='+id,{...ownThesis,sealAge:3600,savedTrade:{token:other,amount:'12',side:1,pct:'50',days:'30',why:'Previous draft',bond:'10',manual:'',parentId:toHex(77,{size:32})}});
+    await open('/call?child='+id,{...ownThesis,sealAge:3600,savedTrade:{token:other,amount:'12',side:1,pct:'50',days:'30',why:'Previous draft',bond:'10',manual:'',parentId:toHex(77,{size:32})}});
     assert.equal(await page.locator('#trade-token').inputValue(),'');
     assert.equal(await page.locator('#trade-why').inputValue(),'');
     assert.equal(await page.locator('#trade-parent').inputValue(),id);
-    await page.getByRole('button',{name:'Just the call',exact:true}).click();
+    await page.goto(url+'app/#/post?child='+id);await page.locator('#x').waitFor();
     assert.equal(await page.locator('#x').inputValue(),'');
     assert(!/Revealing seal/.test(await text()));
   });
   for(const mode of ['trade','call']) {
     await check(`${mode}: all three chain gates and nonexistent/malformed parents block posting`,async()=>{
       for(const [patch,error] of [[{status:0},'Choose an open thesis'],[{noteAuthor:other},'belongs to another wallet'],[{noteAge:604801},'deadline has passed']]) {
-        await open(mode==='trade'?'/':'/post',{...ownThesis,...patch});
+        await open(mode==='trade'?'/call':'/post',{...ownThesis,...patch});
         if(mode==='trade')await tradeReady();else await callForm();
         await chooseManualParent(mode);
         await page.locator(mode==='trade'?'#trade-parent-status':'#parent-status').filter({hasText:error}).waitFor();
         assert(await (await childAction(mode)).isDisabled());assert.equal(f.requests.length,0);
       }
-      await open(mode==='trade'?'/':'/post',ownThesis);
+      await open(mode==='trade'?'/call':'/post',ownThesis);
       if(mode==='trade')await tradeReady();else await callForm();
       await chooseManualParent(mode,toHex(77,{size:32}));
       await page.locator(mode==='trade'?'#trade-parent-status':'#parent-status').filter({hasText:'does not exist'}).waitFor();
@@ -346,7 +351,7 @@ try {
     assert.equal(f.children,1);
   });
   await check('Trade child supports another token and either side, with combined/exact approval intact',async()=>{
-    await open('/?child='+id,{...ownThesis,tradeToken:other,wethMarket:true,allowance:0n,wethBalance:10n*unit,reject:false});
+    await open('/call?child='+id,{...ownThesis,tradeToken:other,wethMarket:true,allowance:0n,wethBalance:10n*unit,reject:false});
     await page.locator('#trade-token').fill(other);await tradeReady();
     await page.getByRole('button',{name:'-25%',exact:true}).click();
     const action=page.locator('.trade-action button');await action.filter({hasText:'Approve'}).waitFor();await waitEnabled(action);await action.click();
@@ -360,61 +365,61 @@ try {
     const approval=await sent('approve');assert.equal(approval.args[0].toLowerCase(),router.toLowerCase());assert.equal(approval.args[1],unit);
   });
   await check('Trade child approval still sums IMD and caps the transaction deadline at grace end',async()=>{
-    await open('/?child='+id,{...ownThesis,noteAge:604700,allowance:0n,reject:false});await tradeChild();
+    await open('/call?child='+id,{...ownThesis,noteAge:604700,allowance:0n,reject:false});await tradeChild();
     const action=page.locator('.trade-action button');await action.filter({hasText:'Approve 1.6 IMD'}).waitFor();await waitEnabled(action);await action.click();
     await action.filter({hasText:'Trade and post'}).waitFor();await waitEnabled(action);await action.click();await page.getByText('Call recorded.',{exact:false}).waitFor();
     assert.equal((await sent('approve')).args[1],1600000000000000000n);
     assert.equal((await sent('tradeAndNote')).args[5],BigInt(f.now+100));
   });
   await check('Live wallet change invalidates prior parent eligibility',async()=>{
-    await open('/?child='+id,ownThesis);await tradeChild();await waitEnabled(page.locator('.trade-action button'));
+    await open('/call?child='+id,ownThesis);await tradeChild();await waitEnabled(page.locator('.trade-action button'));
     await page.evaluate(account=>window.__walletAccount(account),other);
     await parentContext().filter({hasText:'belongs to another wallet'}).waitFor();
     assert(await page.locator('.trade-action button').isDisabled());
     await page.evaluate(account=>window.__walletAccount(account),author);await waitEnabled(page.locator('.trade-action button'));
   });
   await check('Grace expiry during editing disables the child action without real-time waiting',async()=>{
-    await open('/?child='+id,{...ownThesis,noteAge:604795});await page.clock.install({time:new Date(f.now*1000)});
+    await open('/call?child='+id,{...ownThesis,noteAge:604795});await page.clock.install({time:new Date(f.now*1000)});
     await tradeChild();await waitEnabled(page.locator('.trade-action button'));await page.clock.fastForward(6000);
     await parentContext().filter({hasText:'deadline has passed'}).waitFor();assert(await page.locator('.trade-action button').isDisabled());assert.equal(f.requests.length,0);
   });
   for(const mode of ['trade','call']) {
     await check(`${mode}: fresh preflight refuses a parent closed after the last UI read`,async()=>{
-      await open(mode==='trade'?'/?child='+id:'/post?child='+id,ownThesis);
+      await open(mode==='trade'?'/call?child='+id:'/post?child='+id,ownThesis);
       if(mode==='trade')await tradeChild();else await callForm();
       await waitEnabled(await childAction(mode));f.status=7;await (await childAction(mode)).click();
       await page.getByRole('alert').filter({hasText:'Choose an open thesis'}).waitFor();assert.equal(f.requests.length,0);
     });
   }
   await check('Failed chain reads stay disabled and recover with an explicit retry',async()=>{
-    await open('/?child='+id,{...ownThesis,notes:false,parentReadFail:true});
+    await open('/call?child='+id,{...ownThesis,notes:false,parentReadFail:true});
     await parentContext().filter({hasText:'Could not verify'}).waitFor();assert(await page.locator('.trade-action button').isDisabled());
     f.parentReadFail=false;await page.getByRole('button',{name:'Retry parent check',exact:true}).click();
     await parentContext().filter({hasText:'Child call under your thesis'}).waitFor();
   });
   await check('Parent reads work independently of missing event history',async()=>{
-    await open('/?child='+id,{...ownThesis,notes:false});await parentContext().filter({hasText:'Child call under your thesis'}).waitFor();await tradeChild();await waitEnabled(page.locator('.trade-action button'));
+    await open('/call?child='+id,{...ownThesis,notes:false});await parentContext().filter({hasText:'Child call under your thesis'}).waitFor();await tradeChild();await waitEnabled(page.locator('.trade-action button'));
   });
   await check('Thesis confirmation uses its receipt block and links to its own child composer',async()=>{
     await open('/post?kind=thesis',{reject:false});await page.locator('#thesis').fill('An argument that needs an ordinary child call.');
     const button=page.getByRole('button',{name:'Post the thesis',exact:true});await waitEnabled(button);await button.click();
-    const next=page.getByRole('link',{name:/Next: your child call, due /});await next.waitFor();
+    const next=page.getByRole('link',{name:'Post the child call',exact:true});await next.waitFor();
     assert(!(await text()).includes('The venue you chose is not stored on chain'), 'A thesis has no venue notice');
-    const created=f.created[0];assert.equal(created.p.targetBps,0);assert.equal(await next.getAttribute('href'),'#/?child='+created.id);
+    const created=f.created[0];assert.equal(created.p.targetBps,0);assert.equal(await next.getAttribute('href'),'#/call?child='+created.id);
     const date=await page.evaluate(ts=>new Date(ts*1000).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}),f.now+604800);
-    assert.match(await next.innerText(),new RegExp(date.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.match(await page.locator('.notice.ok').first().innerText(),new RegExp(date.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
     await shot('thesis-next-390');await next.click();await parentContext().filter({hasText:'Child call under your thesis'}).waitFor();
     assert.equal(await page.locator('#trade-parent').inputValue(),created.id);assert.equal(await page.locator('#trade-token').inputValue(),'');
   });
   await check('Home Write a thesis returns to the child composer even within the same route',async()=>{
-    await open('/',{reject:false});await page.getByRole('button',{name:'Write a thesis',exact:true}).click();
+    await open('/call',{reject:false});await page.getByRole('link',{name:'Thesis instead',exact:true}).click();
     await page.locator('#thesis').fill('The argument comes first, then its child.');const button=page.getByRole('button',{name:'Post the thesis',exact:true});await waitEnabled(button);await button.click();
-    await page.getByRole('link',{name:/Next: your child call, due /}).click();await page.locator('#trade-token').waitFor();assert.equal(await page.locator('#trade-parent').inputValue(),f.created[0].id);
+    await page.getByRole('link',{name:'Post the child call',exact:true}).click();await page.locator('#trade-token').waitFor();assert.equal(await page.locator('#trade-parent').inputValue(),f.created[0].id);
   });
   await check('Feed needs-child label follows live children, including after a recorded child',async()=>{
-    await open('/feed',ownThesis);await page.getByText('needs its child call',{exact:true}).waitFor();
-    f.children=1;await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByText('needs its child call',{exact:true}).waitFor({state:'detached'});
-    await open('/feed',{...ownThesis,status:8});assert.equal(await page.getByText('needs its child call',{exact:true}).count(),0);
+    await open('/feed',ownThesis);await page.getByText('Needs its child call within 7 days.',{exact:true}).waitFor();
+    f.children=1;await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByText('Needs its child call within 7 days.',{exact:true}).waitFor({state:'detached'});
+    await open('/feed',{...ownThesis,status:8});assert.equal(await page.getByText('Needs its child call within 7 days.',{exact:true}).count(),0);
   });
   await check('Counters retain other-author, same-token and opposite-side rules',async()=>{
     await open('/post?counter='+id,{status:0,noteAuthor:other});
@@ -424,32 +429,32 @@ try {
     await open('/post?counter='+id,{status:0});await page.getByLabel(/Launch pool/).check();await page.locator('#text').fill('Own counter refused');assert(await (await childAction('call')).isDisabled());
   });
   await check('Annex composer never offers or submits a hook child parent',async()=>{
-    await open('/?child='+id,ownThesis);await page.getByRole('button',{name:'Launched tokens',exact:true}).click();
+    await open('/call?counter='+id,{...ownThesis,thesis:false,status:0,annexNotes:true,noteAuthor:other,noteBlock:26179900n});await page.locator('#trade-token').waitFor();
     assert.equal(await page.locator('#trade-parent').count(),0);assert.equal(await parentContext().count(),0);
   });
   await check('Disconnected and wrong-chain child actions offer connect or add-chain before posting',async()=>{
-    await open('/?child='+id,{...ownThesis,wallet:false});await page.locator('.trade-action button').click();await page.getByText(/No browser wallet found/).first().waitFor();assert.equal(f.requests.length,0);
-    await open('/?child='+id,{...ownThesis,chain:'0xaa36a7'});await parentContext().filter({hasText:'Switch to Ethereum'}).waitFor();await page.getByRole('button',{name:'Switch to Ethereum',exact:true}).click();
+    await open('/call?child='+id,{...ownThesis,wallet:false});await page.locator('.trade-action button').click();await page.getByText(/No browser wallet found/).first().waitFor();assert.equal(f.requests.length,0);
+    await open('/call?child='+id,{...ownThesis,chain:'0xaa36a7'});await parentContext().filter({hasText:'Switch to Ethereum'}).waitFor();await page.locator('dialog').getByRole('button',{name:'Switch to Ethereum',exact:true}).click();
     assert.deepEqual((await page.evaluate(()=>window.__added))[0],manifest.walletAddChain);await parentContext().filter({hasText:'Child call under your thesis'}).waitFor();
   });
   await check('Child surfaces reflow at 320, 390 and 1440; keyboard and dark focus stay visible',async()=>{
-    for(const route of ['/note/'+id,'/?child='+id,'/post?child='+id,'/feed']) {
+    for(const route of ['/note/'+id,'/call?child='+id,'/post?child='+id,'/feed']) {
       await open(route,ownThesis);
       for(const width of [320,390,1440]) {await page.setViewportSize({width,height:844});const w=await page.evaluate(()=>document.documentElement.scrollWidth);assert(w<=width,`${route}: ${w} > ${width}`);metrics[`${route}:${width}`]={width,scroll:w};}
     }
-    await open('/?child='+id,ownThesis);await page.setViewportSize({width:320,height:844});await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
+    await open('/call?child='+id,ownThesis);await page.setViewportSize({width:320,height:844});await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
     await page.locator('#trade-parent').focus();await page.keyboard.press('Shift+Tab');await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(()=>document.activeElement.id),'trade-parent');
     assert.notEqual(await page.locator('#trade-parent').evaluate(e=>getComputedStyle(e).outlineStyle),'none');
     await shot('child-focus-dark-320');
     await page.locator('#trade-parent').fill('0x'+'f'.repeat(64));await page.locator('#trade-parent-status').filter({hasText:'does not exist'}).waitFor();assert((await page.evaluate(()=>document.documentElement.scrollWidth))<=320);await shot('child-error-dark-320');
-    await open('/',{wallet:false});const box=await page.locator('.trade-action button').boundingBox();assert(box.y+box.height<=844);await shot('home-390');
+    await open('/call',{wallet:false});const box=await page.locator('.trade-action button').boundingBox();assert(box.y+box.height<=844);await shot('home-390');
   });
   await check('Loaded home Feedback preserves a draft across composer changes',async()=>{
-    await open('/');await page.getByRole('button',{name:'Feedback',exact:true}).click();
+    await open('/');await page.getByRole('link',{name:'Feedback',exact:true}).click();
     await page.locator('#feedback-text').fill('Make the first step clearer.');
-    await page.getByRole('button',{name:'Trade and post',exact:true}).first().click();
-    await page.getByRole('button',{name:'Feedback',exact:true}).click();
+    await page.getByRole('link',{name:'Make a call',exact:true}).click();await page.getByRole('button',{name:'Close compose'}).click();
+    await page.getByRole('link',{name:'Feedback',exact:true}).click();
     assert.equal(await page.locator('#feedback-text').inputValue(),'Make the first step clearer.');
     assert.equal(f.requests.length,0);
   });

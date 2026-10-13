@@ -1,69 +1,52 @@
-// The profile page is the product: a wallet, its hit rate, its record, its calls and theses, and its backers.
-import { PagesPanel } from './Pages';
+import { useRef, useState } from 'react';
 import type { Address } from 'viem';
-import { readRecord } from '../records';
+import { PagesPanel } from './Pages';
+import { PagesAbi } from '../pages-abi';
+import { sharedRecord } from '../social';
 import { readBackers } from '../backers';
 import { useApp, useRead } from '../chain';
-import { fmtAmount, fmtScore, short, Status } from '../lib';
-import { UsdContext } from '../price';
-import { formatRate, recordRate } from '../scoreboard';
+import { fmtAmount, short, Status } from '../lib';
+import { formatRate, recordRate, settledCount } from '../scoreboard';
 import { Share } from '../share';
-import { Addr, Countdown, Notice, StatusTag } from '../ui';
-import { OpenDuels } from './Duel';
+import { Notice } from '../ui';
+import { Person } from '../identity';
 import { Entry, type FeedProps } from './Feed';
-
-export const SCORE_MEANING = "Score accrues only on calls priced on the MARG launch pool; every other token's calls settle and count in the hit rate.";
 export const BACKING_COPY = 'Readers back a writer by holding their pages. 8% of every page trade goes to the writer. Holders can sell back to the curve at any time.';
-
 export function AuthorPage({ address, feed, error, loading, refresh }: FeedProps & { address: Address }) {
-  const { pub, contracts, wallet, now } = useApp();
-  const rec = useRead(() => readRecord(pub,contracts,address), [address, feed?.loadedAt]);
-  const backers = useRead(contracts.pages ? () => readBackers(pub, contracts.pages!, address) : null, [address, contracts.pages, feed?.loadedAt], [address, contracts.pages]);
+  const { pub, contracts, wallet } = useApp();
+  const rec = useRead(() => sharedRecord(pub, contracts, address, feed?.loadedAt), [address, feed?.loadedAt]);
+  const backers = useRead(contracts.pages ? () => readBackers(pub, contracts.pages!, address) : null, [address, contracts.pages, feed?.loadedAt]);
+  const price = useRead(contracts.pages ? async () => {
+    const h = { address: contracts.pages!, abi: PagesAbi } as const;
+    const subject = await pub.readContract({ ...h, functionName: 'subjectOf', args: [address] });
+    const [value, fee] = await pub.readContract({ ...h, functionName: 'buyPrice', args: [subject, 1n] });
+    return value + fee;
+  } : null, [contracts.pages, address, feed?.loadedAt]);
+  const [tab, setTab] = useState<'Calls'|'Theses'|'Backers'>('Calls');
+  const [backOpen, setBackOpen] = useState(new URLSearchParams(window.location.hash.split('?')[1]).has('back'));
+  const backing = useRef<HTMLDetailsElement>(null);
   const notes = feed?.notes.filter(n => n.author.toLowerCase() === address.toLowerCase()) ?? [];
-  const r = rec.error ? undefined : rec.data;
-  const b = backers.error ? undefined : backers.data;
+  const r = rec.error ? undefined : rec.data, b = backers.error ? undefined : backers.data;
   const mine = wallet.account?.toLowerCase() === address.toLowerCase();
-  const theses = notes.filter(n => n.targetBps === 0);
-  const open = notes.filter(n => n.targetBps !== 0 && n.status === Status.Open);
-  const settled = notes.filter(n => n.targetBps !== 0 && n.status !== Status.Open);
+  const theses = notes.filter(n => n.targetBps === 0), calls = notes.filter(n => n.targetBps !== 0);
+  const counter = !mine ? calls.find(n => n.status === Status.Open) : undefined;
   const rate = r ? formatRate(recordRate(r)) : '…';
-  const counts = r ? `${r[1]} posted · ${r[2]} right · ${r[3]} wrong · ${r[4]} broken · ${r[5]} retracted` : 'record unavailable';
-  return <>
-    <p className="eyebrow">{mine ? 'Your profile' : 'Profile'}</p>
-    <h1 className="profile-wallet"><Addr a={address} full /></h1>
-    {mine && <p className="small">This is your wallet. You are your wallet: no account, no handle, no name unless you want one.</p>}
-    {rec.error && <Notice kind="bad"><p>Could not read the record. <button type="button" onClick={rec.refresh}>Retry record</button></p></Notice>}
-    <section className="profile-rate" aria-label="Hit rate"><span className="eyebrow">Hit rate</span><strong className="rate-large">{rate}</strong><p className="small">right ÷ (right + wrong + broken + retracted); open calls, theses and no-data outcomes are excluded.</p></section>
-    <dl className="record-grid" aria-label="Record counts">{['Posted', 'Right', 'Wrong', 'Broken', 'Retracted'].map((label, i) => <div key={label}><dt>{label}</dt><dd>{r ? r[i + 1].toString() : '…'}</dd></div>)}</dl>
-    <p className="profile-score"><span className="eyebrow">Score</span><strong>{fmtScore(r?.[0])}</strong> <span className="small">{SCORE_MEANING}</span></p>
-    {r && r[6] > 0 && <p className="small">{r[6]} judged thesis {r[6] === 1 ? 'win' : 'wins'}.</p>}
-    <Share card={{ kind: 'Author', title: `The record of ${short(address)}`, columns: [{ title: 'Wallet record · unclaimed', claim: r ? `${rate} hit rate · score ${fmtScore(r[0])}. ${r[2]} right / ${r[3]} wrong / ${r[4]} broken / ${r[5]} retracted. ${r[1]} posted.` : 'Record unavailable.', author: short(address), result: b ? `${b.holders.length} backers · ${b.supply.toString()} pages` : 'Backers unavailable', detail: 'Hit rate excludes open, thesis and no-data outcomes.' }], line: `Marginalia wallet ${short(address)}: ${r ? `${rate} hit rate, score ${fmtScore(r[0])}, ${counts}.` : 'record unavailable.'}`, filename: `marginalia-author-${address}` }} />
-
-    <h2>Open calls</h2>
-    {open.length ? <ul className="ledger">{open.map(n => <Entry key={n.id} n={n}><p className="small">Settles <Countdown until={n.timestamp + n.horizonDays * 86400} prefix="in " />; anyone may observe for six hours after that.</p></Entry>)}</ul> : feed && <p className="empty">No open call{feed.partial ? ' in the available history' : ''}.</p>}
-    <h2>Settled calls</h2>
-    {settled.length ? <ul className="ledger">{settled.map(n => <Entry key={n.id} n={n}><p className="small">Verdict: <StatusTag status={n.settlement?.status ?? n.status} />{n.settlement && <> · {fmtScore(n.settlement.scoreDelta)} score</>}</p></Entry>)}</ul> : feed && <p className="empty">No settled call{feed.partial ? ' in the available history' : ''}.</p>}
-    <h2>Theses</h2>
-    {theses.length ? <ul className="ledger">{theses.map(n => <Entry key={n.id} n={n} />)}</ul> : feed && <p className="empty">No thesis{feed.partial ? ' in the available history' : ''}.</p>}
-    {error && <Notice kind="bad"><p>Could not read the notes: {error}</p></Notice>}
-    <OpenDuels feed={feed} author={address} />
-
-    <h2 id="backers">{mine ? 'Your pages' : 'Backers'}</h2>
-    <p>{BACKING_COPY}</p>
-    {contracts.pages ? <>
-      <dl className="record-grid" aria-label="Backers">
-        <div><dt>Pages</dt><dd>{b ? b.supply.toString() : '…'}</dd></div>
-        <div><dt>Backers</dt><dd>{b ? b.holders.length.toString() : '…'}</dd></div>
-        <div><dt>{mine ? 'You earned' : 'Writer earned'}</dt><dd>{b ? <>{fmtAmount(b.earned)} IMD</> : '…'}</dd></div>
-      </dl>
-      {b && <p className="small"><UsdContext imd={b.earned}/> {b.trades} page trade{b.trades === 1 ? '' : 's'} read from Trade events{b.partial ? `; only blocks ${b.from.toString()}–${b.to.toString()} were readable, so older backers and earnings may be missing` : ''}.</p>}
-      {b && b.holders.length > 0 && <ul className="backer-list">{b.holders.map(h => <li key={h.address}><a className="mono" href={`#/author/${h.address}`}>{short(h.address)}</a> · {h.pages.toString()} page{h.pages === 1n ? '' : 's'}</li>)}</ul>}
-      {backers.error && <Notice kind="bad"><p>Backers could not be read. <button type="button" className="quiet" onClick={backers.refresh}>Retry backers</button></p></Notice>}
-      {backers.loading && !b && <p className="small" role="status">Reading page trades…</p>}
-      <PagesPanel author={address} feed={feed}/>
-    </> : <p className="small">Pages are not in the runtime manifest; backing is unavailable here.</p>}
-    {mine && <p className="small">Claim deposits and refunds from <a href="#/pools">Pools</a>. Seal a call at <a href="#/seal">Seal</a>.</p>}
-    <button type="button" className="quiet" disabled={loading} onClick={() => { rec.refresh(); backers.refresh(); refresh(); }}>{loading ? 'Reading…' : 'Refresh record'}</button>
-    <p className="small">Read at {new Date(now * 1000).toLocaleTimeString()}. Citations never establish identity; the posting wallet is the author.</p>
-  </>;
+  return <section className="profile">
+    <h1 className="visually-hidden">{mine ? 'Your profile' : 'Writer profile'}</h1>
+    <div className="profile-identity"><Person address={address} large/><span className="small">{mine ? 'Your record' : 'Writer'}</span></div>
+    <section className="profile-rate" aria-label="Hit rate"><span className="small">Hit rate</span><div><strong className="rate-large">{rate}</strong><span>{r ? `${r[2]} of ${settledCount(r)} settled` : 'Reading record…'}</span></div></section>
+    {rec.error && <Notice kind="bad"><p>Record unavailable. <button type="button" onClick={rec.refresh}>Retry record</button></p></Notice>}
+    <dl className="profile-stats"><div><dt>Backers</dt><dd>{b ? `${b.partial ? '≥ ' : ''}${b.holders.length}` : '…'}</dd></div><div><dt>Pages held</dt><dd>{b ? b.supply.toString() : '…'}</dd></div><div><dt>Theses</dt><dd>{feed ? `${feed.partial ? '≥ ' : ''}${theses.length}` : '…'}</dd></div></dl>
+    <div className="profile-actions"><button type="button" className="primary" disabled={!contracts.pages} onClick={() => { setBackOpen(true); requestAnimationFrame(() => backing.current?.scrollIntoView({ block: 'start' })); }}>Back this writer · {price.data && !price.error ? fmtAmount(price.data) : '…'} IMD</button>{counter ? <a className="button quiet" href={`#/call?counter=${counter.id}`}>Counter</a> : <button type="button" disabled title={mine ? 'Counter another writer’s call.' : 'No open call in the loaded record.'}>Counter</button>}</div>
+    <p className="small backing-copy">{BACKING_COPY}</p>
+    {mine && <div className="own-profile"><p>You earned <strong>{b ? `${b.partial ? 'at least ' : ''}${fmtAmount(b.earned)} IMD` : '…'}</strong></p><p className="small"><a href="#/pools">Claim refunds and deposits in Pools</a> · <a href="#/seal">Seal a call</a></p></div>}
+    {b?.partial && <Notice><p className="small">Page history has gaps. Backers and earnings cover only readable Trade events in blocks {b.from.toString()}–{b.to.toString()}.</p></Notice>}
+    {backers.error && <Notice kind="bad"><p>Page history unavailable. <button type="button" onClick={backers.refresh}>Retry backers</button></p></Notice>}
+    <details className="profile-backing" ref={backing} open={backOpen} onToggle={e => setBackOpen(e.currentTarget.open)}><summary>Backing controls</summary><PagesPanel author={address} feed={feed}/><p className="small">For a cited handle, <a href="#/scoreboard">open its Pages from the receipts index</a>.</p></details>
+    <div className="tabs profile-tabs" role="group" aria-label="Profile views">{(['Calls','Theses','Backers'] as const).map(t => <button type="button" key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>{t}</button>)}</div>
+    {tab !== 'Backers' ? <><ul className="ledger">{(tab === 'Calls' ? calls : theses).map(n => <Entry key={`${n.source}:${n.id}`} n={n}/>)}</ul>{feed && !(tab === 'Calls' ? calls : theses).length && <p className="empty">No {tab.toLowerCase()} in {feed.partial ? 'the available' : 'this'} record.</p>}</> : b ? <ul className="backer-list">{b.holders.map(h => <li key={h.address}><Person address={h.address}/><span>{h.pages.toString()} pages</span></li>)}{!b.holders.length && <li>{b.partial ? 'No backers found in readable history.' : 'No backers yet.'}</li>}</ul> : <p role="status">{backers.error ? 'Backers unavailable.' : 'Reading page trades…'}</p>}
+    {error && <Notice kind="bad"><p>Notes unavailable. {error}</p></Notice>}
+    <Share card={{ kind: 'Author', title: `The record of ${short(address)}`, columns: [{ title: 'Posting wallet', claim: r ? `${rate} hit rate · ${r[2]} of ${settledCount(r)} settled` : 'Record unavailable.', author: short(address), result: b ? `${b.partial ? 'At least ' : ''}${b.holders.length} backers · ${b.supply} pages held` : 'Backers unavailable' }], line: `Marginalia wallet ${short(address)}: ${r ? `${rate} hit rate · ${r[2]} of ${settledCount(r)} settled.` : 'record unavailable.'}`, filename: `marginalia-author-${address}` }}/>
+    <button type="button" className="quiet" disabled={loading} onClick={() => { void rec.refresh(); void backers.refresh(); void price.refresh(); refresh(); }}>{loading ? 'Reading…' : 'Refresh record'}</button>
+  </section>;
 }

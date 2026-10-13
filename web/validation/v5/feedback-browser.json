@@ -1,0 +1,94 @@
+{
+  "results": [
+    {
+      "name": "Feedback opens from the app top bar, fixed list precedes form, and board is empty with real service",
+      "result": "pass"
+    },
+    {
+      "name": "Real EIP-191 signature reaches Worker; exact JSON, handle normalization, saved entry",
+      "result": "pass"
+    },
+    {
+      "name": "UTF-8 counter validates bytes and focuses text; handle validation is local",
+      "result": "pass"
+    },
+    {
+      "name": "Disconnected connect, missing wallet and wrong chain need no transaction/switch",
+      "result": "pass"
+    },
+    {
+      "name": "Rejected signature preserves text and re-enables action",
+      "result": "pass"
+    },
+    {
+      "name": "Pending locks form; account change before signature returns prevents POST",
+      "result": "pass"
+    },
+    {
+      "name": "HTTP error, board retry and signature reuse preserve draft",
+      "result": "pass"
+    },
+    {
+      "name": "Rate-limit response is displayed without gas or approvals",
+      "result": "pass"
+    },
+    {
+      "name": "Picked order, verified note badge, self-reported handle and adopted shares render",
+      "result": "pass"
+    },
+    {
+      "name": "Long text/hashes, keyboard focus, dark mode and responsive layout",
+      "result": "pass"
+    }
+  ],
+  "metrics": [
+    {
+      "dark": false,
+      "width": 320,
+      "client": 320,
+      "scroll": 320
+    },
+    {
+      "dark": false,
+      "width": 390,
+      "client": 390,
+      "scroll": 390
+    },
+    {
+      "dark": false,
+      "width": 768,
+      "client": 768,
+      "scroll": 768
+    },
+    {
+      "dark": false,
+      "width": 1440,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "dark": true,
+      "width": 320,
+      "client": 320,
+      "scroll": 320
+    },
+    {
+      "dark": true,
+      "width": 390,
+      "client": 390,
+      "scroll": 390
+    },
+    {
+      "dark": true,
+      "width": 768,
+      "client": 768,
+      "scroll": 768
+    },
+    {
+      "dark": true,
+      "width": 1440,
+      "client": 1440,
+      "scroll": 1440
+    }
+  ]
+}

@@ -1,136 +1,86 @@
-import { NoteVenue } from '../note-venue';
-import { UsdContext } from '../price';
+import { useContext, useMemo, useState, type ReactNode } from 'react';
+import { type Address } from 'viem';
+import { readReceiptTrade } from '../trade-receipt';
+import { erc20Abi } from '../abi';
+import { useApp, useRead } from '../chain';
+import { describeTarget, fmtAmount, fmtDate, short, Status, validAddress } from '../lib';
+import { horizonEndOf, isThesis, type FeedData, type Note } from '../notes';
+import { Notice, Countdown } from '../ui';
+import { HistoryStatus } from '../history';
 import { Citation } from '../receipts';
 import { parseReceipt } from '../scoreboard';
-import { useMemo, useState, type ReactNode } from 'react';
-import { useApp } from '../chain';
-import { CLASS_LABEL, describeTarget, fmtAmount, fmtDate, short, Status, validAddress } from '../lib';
-import { isThesis, type FeedData, type Note } from '../notes';
-import { Notice, StatusTag } from '../ui';
-import { HistoryStatus } from '../history';
+import { Person } from '../identity';
+import { AuthorRate, ChildPosted, FeedContext, readBacked } from '../social';
+import { noteColumn, Share } from '../share';
 
-export interface FeedProps {
-  feed: FeedData | null;
-  error: string | null;
-  loading: boolean;
-  refresh: () => void;
+export interface FeedProps { feed: FeedData | null; error: string | null; loading: boolean; refresh: () => void }
+export function ageOf(timestamp: number, now: number) {
+  const seconds = Math.max(0, now - timestamp);
+  return seconds < 60 ? 'now' : seconds < 3600 ? `${Math.floor(seconds / 60)}m` : seconds < 86400 ? `${Math.floor(seconds / 3600)}h` : `${Math.floor(seconds / 86400)}d`;
 }
-
+function TradeAmount({ n }: { n: Note }) {
+  const { pub, cfg, contracts } = useApp();
+  const read = useRead(n.source !== 'annex' && n.classAtPost !== 1 ? () => readReceiptTrade(pub, cfg, contracts, n) : null, [n.id, n.tx]);
+  if (n.classAtPost === 1 || n.source === 'annex' || (n.classAtPost !== 0 && !read.data)) return null;
+  return <span>{read.data ? `traded ${read.data.approximate ? '≈ ' : ''}${fmtAmount(read.data.amount)} ${read.data.symbol}${read.data.symbol === 'WETH' ? ' · IMD equivalent unavailable' : ''}` : 'Trade amount unavailable'}</span>;
+}
 export function Entry({ n, tokenName, children }: { n: Note; tokenName?: string; children?: ReactNode }) {
-  const { contracts } = useApp();
-  const thesis = isThesis(n);
-  const token = tokenName ?? (n.x.toLowerCase() === contracts.marg.toLowerCase() ? 'MARG' : short(n.x));
-  return (
-    <li className="entry">
-      <div className="entry-head">
-        <StatusTag status={n.status} />
-        <span className="entry-claim">
-          {thesis ? (
-            <>Thesis</>
-          ) : (
-            <>
-              <a href={`#/note/${n.id}`} className="mono" title={n.x}>
-                {token}
-              </a>{' '}
-              {describeTarget(n.side, n.targetBps)} in {n.horizonDays} d
-            </>
-          )}
-        </span>
-        <a href={`#/note/${n.id}`} className="small mono">
-          {n.source==='annex' ? `Annex ${short(n.id,6,4)}` : `№ ${n.index.toString()}`}
-        </a>
-      </div>
-      <Citation text={n.text} />
-      <p className={`entry-text ${thesis ? 'clamp' : ''}`}>{n.text}</p>
-      {thesis && n.status === Status.ThesisOpen && n.children === 0 && <p className="small">needs its child call</p>}
-      <div className="entry-meta">
-        <span>
-          by <a href={`#/author/${n.author}`} className="mono">{short(n.author)}</a>
-        </span>
-        <span>{n.deposit > 0n ? `bond ${fmtAmount(n.deposit)} IMD` : 'Bond released or forfeited'} {n.deposit>0n && <UsdContext imd={n.deposit}/>}</span>
-        <span>{n.classLive===0 ? <span className="tag">Position proven by the swap</span> : CLASS_LABEL[n.classLive]}</span>
-        <span>{fmtDate(n.timestamp)}</span>
-        {n.settlement && n.settlement.status !== Status.Retracted && <span>settled at price {fmtAmount(n.settlement.settlePrice, 18, 6)} · outcome {describeOutcome(n.settlement.status)}</span>}
-        {n.parentId !== '0x0000000000000000000000000000000000000000000000000000000000000000' && (
-          <span>
-            ↳ <a href={`#/note/${n.parentId}`}>parent № {BigInt(n.parentId).toString()}</a>
-          </span>
-        )}
-      </div>
-      <NoteVenue n={n}/>
-      {children}
-    </li>
-  );
+  const { pub, contracts, wallet, now } = useApp();
+  const feed = useContext(FeedContext);
+  const thesis = isThesis(n), mine = wallet.account?.toLowerCase() === n.author.toLowerCase();
+  const metadata = useRead(!thesis && !tokenName && n.x.toLowerCase() !== contracts.marg.toLowerCase() ? () => pub.readContract({ address: n.x, abi: erc20Abi, functionName: 'symbol' }) : null, [n.x, tokenName, thesis]);
+  const token = tokenName ?? (n.x.toLowerCase() === contracts.marg.toLowerCase() ? 'MARG' : metadata.data?.slice(0, 24) || short(n.x));
+  const parent = feed?.notes.find(x => x.id.toLowerCase() === n.parentId.toLowerCase());
+  const canCounter = !mine && (thesis ? n.status === Status.ThesisOpen : n.status === Status.Open);
+  const verdict = thesis ? 'thesis' : ({0:'open',1:'right',2:'wrong',3:'broken',4:'no data',5:'retracted'} as Record<number,string>)[n.status] ?? 'closed';
+  return <li className="entry social-card" data-source={n.source ?? 'hook'}>
+    <div className="card-person"><Person address={n.author}/><time dateTime={new Date(n.timestamp * 1000).toISOString()} title={fmtDate(n.timestamp)}>{ageOf(n.timestamp, now)}</time></div>
+    <div className="card-rate"><AuthorRate address={n.author} revision={feed?.loadedAt}/><span className="small">hit rate</span></div>
+    <div className="card-claim"><span className="token-chip" title={n.x}>{thesis ? `thesis · week ${Math.floor(n.timestamp / 604800)}` : token}</span>{!thesis && <><strong>{describeTarget(n.side, n.targetBps)}</strong><span className="small">{n.horizonDays}d</span></>}<span className={`tag ${verdict.replace(' ', '-')}`}>{verdict}{n.status === Status.Open && <> · <Countdown until={horizonEndOf(n)}/></>}</span></div>
+    <a className="card-why" href={`#/note/${n.id}`} aria-label={`Read ${thesis ? 'thesis' : 'call'} ${n.source === 'annex' ? short(n.id) : 'No. ' + n.index}`}><p className="entry-text">{n.text}</p></a>
+    <Citation text={n.text}/>
+    <div className="entry-meta"><span>{n.deposit > 0n ? `${fmtAmount(n.deposit)} IMD bond` : 'Bond released or forfeited'}</span><TradeAmount n={n}/><a href={`#/note/${n.id}`}>{n.source === 'annex' ? `Annex ${short(n.id, 6, 4)}` : `No. ${n.index}`}</a></div>
+    {parent && <p className="small card-parent"><a href={`#/note/${parent.id}`}>{isThesis(parent) ? `under thesis No. ${parent.index}` : `counter to ${parent.source === 'annex' ? 'Annex ' + short(parent.id) : 'No. ' + parent.index}`}</a></p>}
+    {thesis && <div className="card-child"><ChildPosted n={n} feed={feed}/>{n.status === Status.ThesisOpen && n.children === 0 && !feed?.notes.some(c => c.parentId === n.id && c.author.toLowerCase() === n.author.toLowerCase()) && <span className="small">Needs its child call within 7 days.</span>}</div>}
+    <div className="card-actions">{thesis && <a href={`#/note/${n.id}`}>Read</a>}{canCounter ? <a href={thesis ? `#/thesis?rebut=${n.id}` : `#/call?counter=${n.id}`}>Counter</a> : <button type="button" disabled title={mine ? 'Choose another writer’s open call.' : 'Only open calls can be countered.'}>Counter</button>}
+      <Share href={`#/note/${n.id}`} compact card={{ kind: 'Note', title: thesis ? 'A thesis on the record' : `${token} · ${describeTarget(n.side, n.targetBps)}`, columns: [noteColumn(n, token)], line: `Marginalia ${thesis ? 'thesis' : 'call'} by ${short(n.author)}. ${verdict}.`, filename: `marginalia-note-${n.id}` }}/>
+      <a href={`#/author/${n.author}?back=1`}>Back</a>
+    </div>{children}
+  </li>;
 }
-
 export function describeOutcome(status: number): string {
-  return ({ 1: 'right', 2: 'wrong', 3: 'void (sold)', 4: 'void (no data)', 5: 'retracted', 7: 'thesis closed', 8: 'thesis forfeited' } as Record<number, string>)[status] ?? `status ${status}`;
+  return ({1:'right',2:'wrong',3:'broken',4:'no data',5:'retracted',7:'thesis closed',8:'thesis forfeited'} as Record<number,string>)[status] ?? `status ${status}`;
 }
-
 export function FeedPage({ feed, error, loading, refresh, embedded = false }: FeedProps & { embedded?: boolean }) {
-  const { contracts } = useApp();
-  const [token, setToken] = useState('');
-  const [author, setAuthor] = useState('');
-  const [kind, setKind] = useState<'all' | 'calls' | 'theses'>('all');
+  const { pub, contracts, wallet } = useApp();
+  const [token, setToken] = useState(''), [author, setAuthor] = useState('');
+  const [tab, setTab] = useState<'Latest'|'Settling soon'|'Theses'|'Backed'>('Latest');
   const cited = new URLSearchParams(window.location.hash.split('?')[1] || '').get('cites')?.toLowerCase();
-
+  const backed = useRead(tab === 'Backed' && wallet.account && contracts.pages && feed ? () => readBacked(pub, contracts.pages!, wallet.account!, [...new Set(feed.notes.map(n => n.author.toLowerCase()))] as Address[]) : null, [tab, wallet.account, contracts.pages, feed?.loadedAt]);
   const shown = useMemo(() => {
-    if (!feed) return [];
-    const t = token.trim().toLowerCase();
-    const a = author.trim().toLowerCase();
-    return feed.notes.filter((n) => {
+    const t = token.trim().toLowerCase(), a = author.trim().toLowerCase();
+    const notes = (feed?.notes ?? []).filter(n => {
       if (cited && parseReceipt(n.text)?.handle !== cited) return false;
-      if (kind === 'calls' && isThesis(n)) return false;
-      if (kind === 'theses' && !isThesis(n)) return false;
-      if (t && !(n.x.toLowerCase() === t || (t === 'marg' && n.x.toLowerCase() === contracts.marg.toLowerCase()))) return false;
-      if (a && n.author.toLowerCase() !== a) return false;
-      return true;
+      if (tab === 'Theses' && !isThesis(n)) return false;
+      if (tab === 'Settling soon' && (isThesis(n) || n.status !== Status.Open)) return false;
+      if (tab === 'Backed' && !backed.data?.held.has(n.author.toLowerCase())) return false;
+      if (t && !(n.x.toLowerCase() === t || t === 'marg' && n.x.toLowerCase() === contracts.marg.toLowerCase())) return false;
+      return !a || n.author.toLowerCase() === a;
     });
-  }, [feed, token, author, kind, contracts.marg, cited]);
-
-  return (
-    <>
-      <div className="section-head">{embedded ? <h2>The feed</h2> : <h1>Notes and theses</h1>}<span className="small">Prices, deadlines, bonds.</span></div>
-      {cited && <p>Receipts citing @{cited} · <a href="#/feed">Show all notes</a></p>}
-      <div className="filters">
-        <div>
-          <label htmlFor="f-token">Token</label>
-          <input id="f-token" className="mono" placeholder="0x… or MARG" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
-          {token.trim() && token.trim().toLowerCase() !== 'marg' && !validAddress(token) && <span className="hint">Not a valid address yet.</span>}
-        </div>
-        <div>
-          <label htmlFor="f-author">Author</label>
-          <input id="f-author" className="mono" placeholder="0x…" value={author} onChange={(e) => setAuthor(e.target.value)} autoComplete="off" />
-          {author.trim() && !validAddress(author) && <span className="hint">Not a valid address yet.</span>}
-        </div>
-      </div>
-      <div className="radio-row" role="radiogroup" aria-label="Kind">
-        {(['all', 'calls', 'theses'] as const).map((k) => (
-          <label key={k}>
-            <input type="radio" name="kind" checked={kind === k} onChange={() => setKind(k)} /> {k}
-          </label>
-        ))}
-        <button type="button" className="quiet" onClick={refresh} disabled={loading}>
-          {loading ? 'Reading…' : 'Refresh'}
-        </button>
-      </div>
-      {error && (
-        <Notice kind="bad">
-          <p>Could not read the feed from the public nodes: {error}</p>
-        </Notice>
-      )}
-      {!embedded && <HistoryStatus feed={feed} loading={loading} refresh={refresh} />}
-      <ul className="ledger" aria-live="polite">
-        {shown.map((n) => (
-          <Entry key={n.id} n={n} />
-        ))}
-      </ul>
-      {feed && shown.length === 0 && (
-        <p className="empty">
-          {feed.partial ? 'No matching entry in the available history. Older entries may be missing.' : feed.notes.length === 0 ? 'The margin is still blank. No note has been posted yet; the first one appears here.' : 'No note matches these filters. Clear a filter to see more.'}
-        </p>
-      )}
-      {!feed && !error && <p className="empty">Reading notes from Ethereum…</p>}
-    </>
-  );
+    return tab === 'Settling soon' ? notes.sort((a,b) => horizonEndOf(a) - horizonEndOf(b)) : notes;
+  }, [feed, token, author, tab, contracts.marg, cited, backed.data]);
+  return <section className="feed-view">
+    <div className="section-head">{embedded ? <h2>Feed</h2> : <h1>Feed</h1>}<button type="button" className="quiet" onClick={refresh} disabled={loading}>{loading ? 'Reading…' : 'Refresh'}</button></div>
+    <div className="feed-tabs tabs" role="group" aria-label="Feed views">{(['Latest','Settling soon','Theses','Backed'] as const).map(t => <button type="button" aria-pressed={tab === t} key={t} onClick={() => setTab(t)}>{t}</button>)}</div>
+    {cited && <p className="small">Receipts citing @{cited} · <a href="#/feed">Show all notes</a></p>}
+    <details className="feed-filters"><summary>Filter by token or writer</summary><div className="filters"><div><label htmlFor="f-token">Token</label><input id="f-token" placeholder="0x… or MARG" value={token} onChange={e => setToken(e.target.value)} />{token && token.toLowerCase() !== 'marg' && !validAddress(token) && <span className="hint">Enter a token address or MARG.</span>}</div><div><label htmlFor="f-author">Writer address</label><input id="f-author" placeholder="0x…" value={author} onChange={e => setAuthor(e.target.value)}/></div></div></details>
+    {error && <Notice kind="bad"><p>Could not read the feed. {error}</p><button type="button" onClick={refresh}>Retry feed</button></Notice>}
+    {tab === 'Backed' && !wallet.account && <p className="empty">Read the writers you back. <button type="button" onClick={wallet.connect}>Connect wallet</button></p>}
+    {tab === 'Backed' && (backed.error || !!backed.data?.missing) && <Notice kind="bad"><p>Some page holdings could not be read. This feed is incomplete.</p><button type="button" onClick={backed.refresh}>Retry holdings</button></Notice>}
+    {tab === 'Backed' && backed.loading && <p role="status">Reading your pages…</p>}
+    <ul className="ledger" aria-label="Notes and theses">{shown.map(n => <Entry key={`${n.source}:${n.id}`} n={n}/>)}</ul>
+    {feed && !shown.length && !(tab === 'Backed' && (!wallet.account || backed.loading || backed.error)) && <p className="empty">{feed.partial ? 'No matching notes in the available history.' : tab === 'Backed' ? 'No calls from your backed writers yet.' : tab === 'Theses' ? 'No theses yet.' : tab === 'Settling soon' ? 'No open calls awaiting settlement.' : 'No matching notes yet.'} <a href={tab === 'Theses' ? '#/thesis' : '#/call'}>{tab === 'Theses' ? 'Write a thesis' : 'Make a call'}</a></p>}
+    {!feed && !error && <p className="empty" role="status">Reading notes from Ethereum…</p>}
+    {!embedded && <HistoryStatus feed={feed} loading={loading} refresh={refresh}/>}
+  </section>;
 }

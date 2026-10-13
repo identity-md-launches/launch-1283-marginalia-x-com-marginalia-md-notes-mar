@@ -14,6 +14,8 @@ import { horizonEndOf, isThesis } from '../notes';
 import { Addr, Countdown, Notice, StatusTag, TxButton, TxLink } from '../ui';
 import { describeOutcome, Entry, type FeedProps } from './Feed';
 import { useThesisParent } from '../child-call';
+import { ChildPosted, postedChild } from '../social';
+import { Person } from '../identity';
 import { childCallHref } from '../thesis-parent';
 
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
@@ -68,8 +70,9 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
       <p className="entry-claim">
         {thesis ? 'Thesis' : <>{n.x.toLowerCase() === contracts.marg.toLowerCase() ? 'MARG' : <Addr a={n.x} />} {describeTarget(n.side, n.targetBps)} within {n.horizonDays} days</>}
       </p>
+      {thesis && <ChildPosted n={n} feed={feed}/>}
       {thesis && childParent.ready && childParent.parent && <div className="actions">
-        <a className="button primary" href={childCallHref(n.id)}>Post the child call</a>
+        <a className={n.children > 0 || postedChild(n, feed) ? "small" : "button primary"} href={childCallHref(n.id)}>{n.children > 0 || postedChild(n, feed) ? "Post another child call" : "Post the child call"}</a>
         <span className="small">Due {fmtDate(childParent.parent.graceEnd)}</span>
       </div>}
       <Citation text={n.text} />
@@ -84,7 +87,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
       <dl className="facts">
         <dt>Author</dt>
         <dd>
-          <a href={`#/author/${n.author}`} className="mono">{short(n.author)}</a> <Addr a={n.author} />
+          <Person address={n.author}/>
         </dd>
         <dt>Class</dt>
         <dd>{CLASS_LABEL[n.classLive]}</dd>
@@ -128,8 +131,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
           <>
             <dt>Outcome</dt>
             <dd>
-              {describeOutcome(n.settlement.status)}{n.settlement.status !== Status.Retracted && <> · settle price {fmtAmount(n.settlement.settlePrice, 18, 8)}</>} · score {n.settlement.scoreDelta >= 0n ? '+' : ''}
-              {(Number(n.settlement.scoreDelta) / 1e4).toFixed(2)}{n.settlement.status !== Status.Retracted && <> · settled by <Addr a={n.settlement.keeper} /></>}
+              {describeOutcome(n.settlement.status)}{n.settlement.status !== Status.Retracted && <> · settle price {fmtAmount(n.settlement.settlePrice, 18, 8)}</>}{n.settlement.status !== Status.Retracted && <> · settled by <Addr a={n.settlement.keeper} /></>}
             </dd>
           </>
         )}

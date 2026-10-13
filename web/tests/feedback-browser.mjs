@@ -62,7 +62,7 @@ async function open(patch={}){
       }
     };
   },{address:account.address,connected:mode.connected,chain:mode.chain,missing:mode.missing,reject:mode.reject});
-  await page.goto(url+'#/?tab=feedback');await page.locator('#feedback-text').waitFor();
+  await page.goto(url+'app/index.html#/feedback');await page.locator('#feedback-text').waitFor();
   await page.getByText('Reading this week’s feedback…',{exact:true}).waitFor({state:'hidden'});
 }
 async function fill(text='Put the next step beside the receipt.') { await page.locator('#feedback-text').fill(text); }
@@ -70,8 +70,8 @@ const action=()=>page.locator('.feedback-form button.primary');
 async function shot(name,fullPage=false){if(evidence)await page.screenshot({path:path.join(evidence,`${process.env.BROWSER||'chromium'}-${name}.png`),fullPage});}
 async function check(name,fn){try{await fn();assert.deepEqual(errors,[]);results.push({name,result:'pass'});console.log('PASS',name);}catch(error){results.push({name,result:'FAIL',error:error.stack});console.error('FAIL',name,error);process.exitCode=1;}}
 try{
-  await check('Feedback is fifth, fixed list precedes form, and board is empty with real service',async()=>{
-    await open();assert.equal(await page.locator('.composer-tabs button').nth(4).innerText(),'Feedback');
+  await check('Feedback opens from the app top bar, fixed list precedes form, and board is empty with real service',async()=>{
+    await open();assert.equal(await page.locator('.app-topbar a[href="#/feedback"]').innerText(),'Feedback');
     assert.equal(await page.locator('#feedback-fixed').innerText(),'Cannot change (immutable contracts)');
     assert(await page.locator('#feedback-fixed').evaluate(e=>!!(e.compareDocumentPosition(document.querySelector('.feedback-form'))&Node.DOCUMENT_POSITION_FOLLOWING)));
     await page.getByText('No entries this week. Tell us where you got stuck.').waitFor();

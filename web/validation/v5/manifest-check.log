@@ -1,0 +1,5 @@
+
+> marginalia-site@0.1.0 check
+> node scripts/check.mjs
+
+manifest check OK: 7 contracts, 22 assets

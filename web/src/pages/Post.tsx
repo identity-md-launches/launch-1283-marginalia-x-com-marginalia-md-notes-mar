@@ -7,7 +7,7 @@ import { useApp, useRead } from '../chain';
 import { CallFields, EMPTY_DRAFT, useDerivedParams, useVenueFinder, type CallDraft } from '../form';
 import { fmtAmount, fmtDate, NO_VENUE, parseAmount, sealHash, sealKey, sealSubject, utf8Length, parseTarget, validAddress, Status, type NoteParams } from '../lib';
 import { Checkpoint, useCheckpoint } from '../checkpoint';
-import { Countdown, Notice, TxButton } from '../ui';
+import { Countdown, Notice, TxButton, Hint, WalletAction, SendCaveat } from '../ui';
 import type { FeedProps } from './Feed';
 import { ChildCallContext, ThesisParentField, useThesisParent } from '../child-call';
 import { checkThesisParent, childCallHref } from '../thesis-parent';
@@ -38,13 +38,13 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
   const appliedCounter = useRef('');
   const [draft, setDraft] = useState<CallDraft>(() => ({ ...EMPTY_DRAFT, parentId: childId ?? '' }));
   const [thesisText, setThesisText] = useState('');
-  const [thesisParent, setThesisParent] = useState('');
+  const [thesisParent, setThesisParent] = useState(query.get('rebut') ?? '');
   const [bond, setBond] = useState('0.25');
   const [posted, setPosted] = useState<{ id: Hex; hash: Hex; graceEnd?: number; priced: boolean } | null>(null);
   const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null);
 
   useEffect(() => {
-    if (childId || counterId) return;
+    if (childId || counterId || initialMode === 'thesis') return;
     try {
       const raw = localStorage.getItem(PREFILL_KEY);
       if (raw) {
@@ -185,6 +185,20 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
 
   const counterOk = !counterId || !!counter && counter.status === Status.Open && counter.targetBps !== 0 && counter.author.toLowerCase() !== acct?.toLowerCase() && params?.parentId.toLowerCase() === counter.id.toLowerCase() && params?.x.toLowerCase() === counter.x.toLowerCase() && params?.side !== counter.side;
   const readyToPost = childParent.ready && counterOk && !!params && bondOk && imdIn !== null && allowance.data !== undefined && !needsApproval && enoughImd && (mode === 'thesis' && !requestedReveal || mode === 'call' && callReady) && minMargOut > 0n;
+
+  if (embedded && mode === 'thesis') return <section className="thesis-compose">
+    {posted?.graceEnd !== undefined && <Notice kind="ok"><p>Thesis recorded. Post one ordinary call under it within 7 days, due {fmtDate(posted.graceEnd)}, or lose the bond.</p><a className="button primary" href={childCallHref(posted.id)}>Post the child call</a><p><a href={`#/note/${posted.id}`}>Open the receipt</a></p></Notice>}
+    <label htmlFor="thesis">Thesis <span className="small">{tLen} / {L.thesisTextMax} bytes</span></label>
+    <textarea id="thesis" value={thesisText} onChange={e => setThesisText(e.target.value)} aria-invalid={tLen > L.thesisTextMax} placeholder="Write the argument behind your calls."/>
+    <p className="thesis-child-rule">Post your own child call within 7 days or lose the bond.</p>
+    <label htmlFor="bond">Bond · IMD</label><input id="bond" inputMode="decimal" value={bond} onChange={e => setBond(e.target.value)} aria-invalid={!bondOk}/>
+    <Hint label="Thesis bond rule">Bond {fmtAmount(L.bondMin)}–{fmtAmount(L.bondMax)} IMD and post a child call to qualify for judging.</Hint>
+    <p className="trade-cost">You pay {imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD · {bond} IMD of it is your bond, held by the hook.</p>
+    <WalletAction>{needsApproval ? <TxButton label={`Approve ${imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD to the router`} busyLabel="Approving…" primary disabled={!params || !bondOk || !enoughImd} onSend={sendApprove} onDone={allowance.refresh}/> : <TxButton label="Post the thesis" busyLabel="Posting…" primary disabled={!readyToPost} onSend={sendNote} onDone={onPosted}/>}</WalletAction>{!wallet.account && <SendCaveat/>}
+    {wallet.account && balance.data !== undefined && !enoughImd && <p className="status bad">Your IMD balance does not cover this thesis.</p>}
+    {tLen > L.thesisTextMax && <p role="alert">Shorten the thesis to {L.thesisTextMax} UTF-8 bytes.</p>}
+    <details className="trade-more"><summary>More</summary><label htmlFor="tparent">Rebuts (optional)</label><input id="tparent" value={thesisParent} onChange={e => setThesisParent(e.target.value)} placeholder="0x… thesis ID"/><Hint label="Thesis rebuttal rule">A rebuttal refers to another writer’s open thesis.</Hint><p className="small">{fmtAmount(L.stamp)} IMD stamp + {fmtAmount(L.margBuy)} IMD MARG allocation + bond; exact router approval, nonzero MARG minimum, 20-minute deadline.</p><Hint label="Thesis entry rule">Enter at most three theses per week; the contract admits at most 120.</Hint></details>
+  </section>;
 
   return (
     <>

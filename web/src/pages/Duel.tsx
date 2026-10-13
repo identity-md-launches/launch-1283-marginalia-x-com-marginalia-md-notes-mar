@@ -2,10 +2,10 @@ import { UsdContext } from '../price';
 import type { Hex } from 'viem';
 import { readRecord } from '../records';
 import { useApp, useRead } from '../chain';
-import { describeTarget, fmtAmount, fmtDate, fmtScore, noteIdFromIndex, short } from '../lib';
+import { describeTarget, fmtAmount, fmtDate, noteIdFromIndex, short } from '../lib';
 import { horizonEndOf } from '../notes';
 import { Citation } from '../receipts';
-import { duelVerdict, findDuels, formatRate, recordRate, type Duel } from '../scoreboard';
+import { duelVerdict, findDuels, formatRate, recordRate, settledCount, type Duel } from '../scoreboard';
 import { noteColumn, Share } from '../share';
 import { StatusTag } from '../ui';
 import type { FeedProps } from './Feed';
@@ -22,7 +22,7 @@ export function DuelPair({ duel, records = false }: { duel: Duel; records?: bool
     <Citation text={n.text} />
     <p className="small">{n.deposit > 0n ? `${fmtAmount(n.deposit)} IMD bonded` : 'Bond released or forfeited'} {n.deposit>0n && <UsdContext imd={n.deposit}/>}<br />Horizon {fmtDate(horizonEndOf(n))}</p>
     <StatusTag status={n.status} />
-    {records && <p className="small duel-record">{rec.error ? 'Record unavailable; reload to retry.' : rec.data ? <>Score {fmtScore(rec.data[i][0])} · {formatRate(recordRate(rec.data[i]))} hit rate<br />{rec.data[i][2]} right · {rec.data[i][3]} wrong · {rec.data[i][4]} broken</> : 'Reading record…'}</p>}
+    {records && <p className="small duel-record">{rec.error ? 'Record unavailable; reload to retry.' : rec.data ? <>{formatRate(recordRate(rec.data[i]))} hit rate · {rec.data[i][2]} of {settledCount(rec.data[i])} settled<br />{rec.data[i][2]} right · {rec.data[i][3]} wrong · {rec.data[i][4]} broken</> : 'Reading record…'}</p>}
   </article>)}</div>;
 }
 

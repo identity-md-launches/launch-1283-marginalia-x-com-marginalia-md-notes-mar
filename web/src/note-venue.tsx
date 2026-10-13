@@ -3,7 +3,6 @@ import { useApp, useRead } from './chain';
 import { AnnexAbi } from './annex-abi';
 import { TradeRouterAbi } from './trade-abi';
 import { MarginaliaRouterAbi } from './abi';
-import { LINKS } from './config';
 import { readMarket } from './market';
 import { fmtAmount, type NoteParams, type PoolKey } from './lib';
 import type { Note } from './notes';
@@ -24,5 +23,5 @@ export function NoteVenue({ n }: { n: Note }) {
   } : null,[n.id]);
   if (!n.targetBps) return null;
   const m=read.data;
-  return <p className="small venue-line">{m ? <>{fmtAmount(m.quoteDepth)} {m.venue.quote.toLowerCase()===c.imd.toLowerCase()?'IMD':'WETH / ETH'} {m.kind===3?'reserve':'active virtual quote liquidity'} <UsdContext imd={m.depthImd}/></> : read.error ? 'Venue liquidity unavailable' : 'Reading venue liquidity…'} · <a href={`${LINKS.radar}/launchpad/${n.x.toLowerCase()}`} target="_blank" rel="noreferrer">Token on IMD Radar</a></p>;
+  return <p className="small venue-line">{m ? <>{fmtAmount(m.quoteDepth)} {m.venue.quote.toLowerCase()===c.imd.toLowerCase()?'IMD':'WETH / ETH'} {m.kind===3?'reserve':'active virtual quote liquidity'} <UsdContext imd={m.depthImd}/></> : read.error ? 'Venue liquidity unavailable' : 'Reading venue liquidity…'}</p>;
 }

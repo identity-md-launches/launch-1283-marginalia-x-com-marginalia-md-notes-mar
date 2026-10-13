@@ -66,12 +66,12 @@ export async function renderShareCard(card: ShareCard): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not create the image. Copy the text below.')), 'image/png'));
 }
 
-export function Share({ card }: { card: ShareCard }) {
+export function Share({ card, href, compact = false }: { card: ShareCard; href?: string; compact?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [url, setUrl] = useState('');
   const currentUrl = useRef('');
-  const text = `${card.line}\n${window.location.href}`;
+  const text = `${card.line}\n${href ? new URL(href, window.location.href).href : window.location.href}`;
   useEffect(() => () => { if (currentUrl.current) URL.revokeObjectURL(currentUrl.current); }, []);
   const share = async () => {
     setBusy(true); setMessage('');
@@ -89,7 +89,7 @@ export function Share({ card }: { card: ShareCard }) {
     } catch (e) { setMessage((e as Error).message); }
     finally { setBusy(false); }
   };
-  return <div className="share">
+  return <div className={`share ${compact ? 'share-compact' : ''}`}>
     <button type="button" onClick={share} disabled={busy}>{busy ? 'Drawing card…' : 'Share'}</button>
     <span className="small" role="status">{message}</span>
     {message && <div className="share-result">

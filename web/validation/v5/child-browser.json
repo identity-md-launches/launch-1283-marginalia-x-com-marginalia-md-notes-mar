@@ -1,0 +1,90 @@
+[
+  {
+    "name": "Owner thesis CTA opens both composers with only the parent supplied",
+    "result": "pass"
+  },
+  {
+    "name": "CTA is hidden for other wallets, disconnected, closed and expired theses",
+    "result": "pass"
+  },
+  {
+    "name": "A child link discards unrelated saved trade and seal prefills",
+    "result": "pass"
+  },
+  {
+    "name": "trade: all three chain gates and nonexistent/malformed parents block posting",
+    "result": "pass"
+  },
+  {
+    "name": "call: all three chain gates and nonexistent/malformed parents block posting",
+    "result": "pass"
+  },
+  {
+    "name": "Just the call posts the author’s child on the same side with bounded calldata",
+    "result": "pass"
+  },
+  {
+    "name": "Trade child supports another token and either side, with combined/exact approval intact",
+    "result": "pass"
+  },
+  {
+    "name": "Trade child approval still sums IMD and caps the transaction deadline at grace end",
+    "result": "pass"
+  },
+  {
+    "name": "Live wallet change invalidates prior parent eligibility",
+    "result": "pass"
+  },
+  {
+    "name": "Grace expiry during editing disables the child action without real-time waiting",
+    "result": "pass"
+  },
+  {
+    "name": "trade: fresh preflight refuses a parent closed after the last UI read",
+    "result": "pass"
+  },
+  {
+    "name": "call: fresh preflight refuses a parent closed after the last UI read",
+    "result": "pass"
+  },
+  {
+    "name": "Failed chain reads stay disabled and recover with an explicit retry",
+    "result": "pass"
+  },
+  {
+    "name": "Parent reads work independently of missing event history",
+    "result": "pass"
+  },
+  {
+    "name": "Thesis confirmation uses its receipt block and links to its own child composer",
+    "result": "pass"
+  },
+  {
+    "name": "Home Write a thesis returns to the child composer even within the same route",
+    "result": "pass"
+  },
+  {
+    "name": "Feed needs-child label follows live children, including after a recorded child",
+    "result": "pass"
+  },
+  {
+    "name": "Counters retain other-author, same-token and opposite-side rules",
+    "result": "pass"
+  },
+  {
+    "name": "Annex composer never offers or submits a hook child parent",
+    "result": "pass"
+  },
+  {
+    "name": "Disconnected and wrong-chain child actions offer connect or add-chain before posting",
+    "result": "pass"
+  },
+  {
+    "name": "Child surfaces reflow at 320, 390 and 1440; keyboard and dark focus stay visible",
+    "result": "pass"
+  },
+  {
+    "name": "Loaded home Feedback preserves a draft across composer changes",
+    "result": "pass"
+  }
+]

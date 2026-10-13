@@ -23,6 +23,15 @@ const integrations = JSON.parse(fs.readFileSync(path.join(root, 'web', 'deployme
 const net = fs.existsSync(networkPath) ? JSON.parse(fs.readFileSync(networkPath, 'utf8')) : null;
 if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error('dist/index.html missing: run vite build first');
 
+// Two static entrypoints share one compiled tree and one runtime deployment file.
+// The app host serves app/index.html as /, with the shared dist assets at its root.
+fs.mkdirSync(path.join(dist, 'app'), { recursive: true });
+const landingHtml = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
+fs.writeFileSync(path.join(dist, 'app/index.html'), landingHtml
+  .replace('data-surface="landing"', 'data-surface="app"')
+  .replaceAll('"./assets/', '"../assets/')
+  .replace(/<title>.*?<\/title>/, '<title>Marginalia · Feed</title>'));
+
 // Agent documents are exact repository bytes, included in the final asset inventory.
 for (const [source, target] of [['llms.txt', 'llms.txt'], ['AGENTS.md', 'agents.md']]) {
   fs.copyFileSync(path.join(root, source), path.join(dist, target));
@@ -35,7 +44,7 @@ for (const name of ['loop.md', 'STATUS.md', 'CHANGELOG.md']) {
 
 // ABIs: the app ships every contract it talks to; the manifest binds the handoff's contracts to theirs.
 fs.mkdirSync(path.join(dist, 'abi'), { recursive: true });
-for (const name of ['Marginalia', 'MarginaliaHook', 'MarginaliaRouter', 'MarginaliaJudge', 'MarginaliaAnnex', 'MarginaliaPages', 'MarginaliaTreasury', 'MarginaliaPricer']) {
+for (const name of [...new Set(['Marginalia', 'MarginaliaHook', 'MarginaliaRouter', 'MarginaliaJudge', 'MarginaliaAnnex', 'MarginaliaPages', 'MarginaliaTreasury', 'MarginaliaPricer', ...integrations.contracts.map(c => c.name)])]) {
   const src = path.join(here, '..', 'public', 'abi', `${name}.json`);
   fs.copyFileSync(src, path.join(dist, 'abi', `${name}.json`));
 }

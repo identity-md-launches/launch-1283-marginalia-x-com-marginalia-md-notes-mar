@@ -1,0 +1,22 @@
+PASS Owner thesis CTA opens both composers with only the parent supplied
+PASS CTA is hidden for other wallets, disconnected, closed and expired theses
+PASS A child link discards unrelated saved trade and seal prefills
+PASS trade: all three chain gates and nonexistent/malformed parents block posting
+PASS call: all three chain gates and nonexistent/malformed parents block posting
+PASS Just the call posts the author’s child on the same side with bounded calldata
+PASS Trade child supports another token and either side, with combined/exact approval intact
+PASS Trade child approval still sums IMD and caps the transaction deadline at grace end
+PASS Live wallet change invalidates prior parent eligibility
+PASS Grace expiry during editing disables the child action without real-time waiting
+PASS trade: fresh preflight refuses a parent closed after the last UI read
+PASS call: fresh preflight refuses a parent closed after the last UI read
+PASS Failed chain reads stay disabled and recover with an explicit retry
+PASS Parent reads work independently of missing event history
+PASS Thesis confirmation uses its receipt block and links to its own child composer
+PASS Home Write a thesis returns to the child composer even within the same route
+PASS Feed needs-child label follows live children, including after a recorded child
+PASS Counters retain other-author, same-token and opposite-side rules
+PASS Annex composer never offers or submits a hook child parent
+PASS Disconnected and wrong-chain child actions offer connect or add-chain before posting
+PASS Child surfaces reflow at 320, 390 and 1440; keyboard and dark focus stay visible
+PASS Loaded home Feedback preserves a draft across composer changes

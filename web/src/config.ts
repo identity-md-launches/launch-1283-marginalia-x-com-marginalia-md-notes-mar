@@ -33,10 +33,10 @@ export const EXPECTED_UNIV3_FACTORY: Address = '0x1F98431c8aD98523631AE4a59f2673
 export const EXPECTED_UNIV2_FACTORY: Address = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f';
 export const EXPECTED_WETH: Address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const UNIV3_FEES = [100, 500, 3000, 10000] as const;
+export const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 
 export const LINKS = {
   x: 'https://x.com/marginalia_md',
-  radar: 'https://imdradar.site',
   launch: 'https://explorer.imd.fun/jobs/9060a248-29ce-4683-b5d1-54fbc83cd49d',
 };
 
@@ -94,6 +94,7 @@ export interface AppConfig {
   imd: Address;
   annex?: Address;
   pages?: Address;
+  identity?: { larp: Address; names: Address; links: Address };
   rpcUrls: string[];
   explorer: string;
   network: NetworkBlock;
@@ -102,11 +103,15 @@ export interface AppConfig {
 
 let cached: Promise<AppConfig> | null = null;
 
+// The app entry is one directory below the shared assets; on the app host ../ resolves to its root.
+export const assetBase = () => new URL(document.body.dataset.surface === 'app' ? '../' : './', document.baseURI);
+export const assetUrl = (path: string) => new URL(path, assetBase()).toString();
+
 /** Fetches `imd-deployment.json` next to index.html (relative, so it works under a gateway subpath). */
 export function loadDeployment(): Promise<AppConfig> {
   if (!cached) {
     cached = (async () => {
-      const res = await fetch(new URL('imd-deployment.json', document.baseURI).toString(), { cache: 'no-cache' });
+      const res = await fetch(assetUrl('imd-deployment.json'), { cache: 'no-cache' });
       if (!res.ok) throw new Error(`imd-deployment.json: HTTP ${res.status}`);
       const d = (await res.json()) as Deployment;
       const hook = d.contracts.find((c) => c.name === 'MarginaliaHook');
@@ -116,7 +121,7 @@ export function loadDeployment(): Promise<AppConfig> {
       const canonical = (v: unknown): string => v === null ? 'null' : Array.isArray(v) ? `[${v.map(canonical).join(',')}]` : typeof v === 'object' ? `{${Object.keys(v!).sort().map(k => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(',')}}` : JSON.stringify(v);
       await Promise.all(d.contracts.map(async contract => {
         if (!/^abi\/[A-Za-z0-9_-]+\.json$/.test(contract.abiPath)) throw new Error('Invalid deployment ABI path.');
-        const response = await fetch(new URL(contract.abiPath, document.baseURI));
+        const response = await fetch(assetUrl(contract.abiPath));
         if (!response.ok) throw new Error(`Could not load ${contract.name} ABI.`);
         const abi: unknown = await response.json();
         if (!Array.isArray(abi) || keccak256(toBytes(canonical(abi))).slice(2) !== contract.abiHash) throw new Error(`${contract.name} ABI does not match the deployment.`);
@@ -127,6 +132,11 @@ export function loadDeployment(): Promise<AppConfig> {
         hook: hook.address,
         annex: d.contracts.find(c => c.name === 'MarginaliaAnnex' || c.name === 'annex')?.address,
         pages: d.contracts.find(c => c.name === 'MarginaliaPages' || c.name === 'pages')?.address,
+        identity: ['LARP', 'IMDNames', 'LARPLinks'].every(name => d.contracts.some(c => c.name === name)) ? {
+          larp: d.contracts.find(c => c.name === 'LARP')!.address,
+          names: d.contracts.find(c => c.name === 'IMDNames')!.address,
+          links: d.contracts.find(c => c.name === 'LARPLinks')!.address,
+        } : undefined,
         marg: marg.address,
         imd: d.network.pairToken.address,
         rpcUrls: d.network.rpcUrls,

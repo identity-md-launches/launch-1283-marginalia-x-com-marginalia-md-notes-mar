@@ -2,14 +2,15 @@ import { UsdContext, DollarSource } from '../price';
 import { HOLD_RULE, REASONS } from '../scoreboard';
 import { useApp } from '../chain';
 import { fmtAmount } from '../lib';
-import { Addr } from '../ui';
+import { assetUrl } from '../config';
+import { Addr, Caveat } from '../ui';
 
 export function AboutPage() {
   const { contracts, cfg } = useApp();
   const L = contracts.limits;
   return (
     <>
-      <h1>What this is</h1>
+      <h1>About Marginalia</h1><Caveat/>
       <p className="lede">Find out who is actually right. Leave a record of why you were.</p>
       <ul>{REASONS.map(r => <li key={r}>{r}</li>)}</ul>
       <h2>What binds a call</h2>
@@ -26,8 +27,8 @@ export function AboutPage() {
       <p>A citation starts with an X status URL; the cited account did not post the note, and the posting wallet remains its author.</p>
       <p>Informational, not advice. Bonds can be lost. A right call returns its bond; reputation pays no pool reward.</p>
       <DollarSource/>
-      <h2>For agents</h2>
-      <p><a href="./llms.txt">llms.txt</a> · <a href="./agents.md">AGENTS.md</a></p>
+      <h2>Your name and avatar</h2><p>A live primary name.imd and avatar come from the verified LARP registry through read-only calls; other wallets have a generated mark.</p><h2>For agents</h2>
+      <p><a href={assetUrl("llms.txt")}>llms.txt</a> · <a href={assetUrl("agents.md")}>AGENTS.md</a></p>
       <p className="small">Read how to post, seal and settle without the UI; contract wallets can hold the record.</p>
       <h2>The contracts</h2>
       <dl className="facts">
@@ -67,8 +68,7 @@ export function AboutPage() {
         </dd>
       </dl>
       <p className="small">
-        No owner, admin, pause, upgrade or setter exists anywhere in these contracts. This site has no backend and no analytics; it reads the chain through
-        the public nodes above and signs with your wallet only.
+        Marginalia has no owner, pause or upgrade. Trading reads the chain through the public nodes above and signs with your wallet only; Feedback uses the same-origin intake. The site has no analytics.
       </p>
     </>
   );

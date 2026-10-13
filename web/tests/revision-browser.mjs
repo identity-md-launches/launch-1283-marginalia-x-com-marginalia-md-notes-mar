@@ -30,7 +30,7 @@ const other = '0x2222222222222222222222222222222222222222';
 const deploy = 26169583n, unit = 10n ** 18n;
 const hookAbi = JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaHook.json')));
 const abi = [...hookAbi, ...JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaRouter.json'))), ...JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaJudge.json'))), ...parseAbi([
-  'function symbol() view returns (string)', 'function decimals() view returns (uint8)', 'function balanceOf(address) view returns (uint256)', 'function allowance(address,address) view returns (uint256)', 'function approve(address,uint256) returns (bool)',
+  'function IDENTITY() view returns (address)', 'function LARP() view returns (address)', 'function NAMES() view returns (address)', 'function primaryOf(address) view returns (uint256,string,bool)', 'function faceURI(uint256) view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)', 'function balanceOf(address) view returns (uint256)', 'function allowance(address,address) view returns (uint256)', 'function approve(address,uint256) returns (bool)',
   'function getPool(address,address,uint24) view returns (address)', 'function getPair(address,address) view returns (address)', 'function getLiquidity(bytes32) view returns (uint128)',
 ])];
 const venueType = { type: 'tuple', components: [{ name: 'kind', type: 'uint8' }, { name: 'ref', type: 'bytes32' }, { name: 'quote', type: 'address' }, { name: 'xIsToken0', type: 'bool' }] };
@@ -66,6 +66,11 @@ function block(number) {
   return { number:toHex(n), hash:toHex(n,{size:32}), parentHash:toHex(n-1n,{size:32}), timestamp:toHex(time), nonce:'0x0000000000000000', difficulty:'0x0', totalDifficulty:'0x0', gasLimit:'0x1c9c380', gasUsed:'0x0', miner:zeroAddress, extraData:'0x', baseFeePerGas:'0x1', size:'0x1', transactions:[], uncles:[], logsBloom:`0x${'0'.repeat(512)}`, receiptsRoot:zeroHash, stateRoot:zeroHash, transactionsRoot:zeroHash, sha3Uncles:zeroHash, mixHash:zeroHash };
 }
 function value(fn, args, address) {
+  if(fn==='IDENTITY') return author;
+  if(fn==='LARP') return manifest.contracts.find(c=>c.name==='LARP').address;
+  if(fn==='NAMES') return manifest.contracts.find(c=>c.name==='IMDNames').address;
+  if(fn==='primaryOf') return [0n,'',false];
+
   const constants = { router, judge, treasury, imd, token:marg, UNIV3_FACTORY:v3, UNIV2_FACTORY:v2, WETH:weth, STAMP:unit/10n, MARG_BUY:unit/4n, BOND_MIN:unit/4n, BOND_MAX:10n*unit, SEAL_MIN:1800n, SEAL_MAX:21600n, SETTLE_WINDOW:21600n, THESIS_GRACE:604800n, SWEEP_AFTER:2419200n, TEXT_MAX:280n, THESIS_TEXT_MAX:8192n, MIN_TARGET_DELTA_BPS:1000, MAX_HORIZON_DAYS:90, KEEPER_BPS:1000n, JUDGE_THRESHOLD:2n*unit, poolId, getPoolKey:poolKey, margPriceInImd:unit, getLiquidity:unit, noteCount: f.notes ? 1n : 0n };
   if (fn in constants) return constants[fn];
   if (fn === 'symbol') return address.toLowerCase() === imd.toLowerCase() ? 'IMD' : f.symbol;
@@ -114,7 +119,7 @@ function rpc(r) {
 const mime = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml'};
 const server = createServer((req,res) => {
   let file = decodeURIComponent(req.url.split('?')[0]).replace(/^\/preview\//,'');
-  if (file === '') file='index.html';
+  if (file === '' || file.endsWith('/')) file += 'index.html';
   const p = path.join(dist,file);
   if (!p.startsWith(dist) || !fs.existsSync(p) || !fs.statSync(p).isFile()) { res.writeHead(404).end(); return; }
   res.setHeader('Content-Type',mime[path.extname(p)] || 'application/octet-stream'); res.end(fs.readFileSync(p));
@@ -163,7 +168,7 @@ async function open(route='/',patch={}) {
     else {external.push(u);await route.abort();}
   });
   page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(url+'#'+route);
+  await page.goto(url+'app/#'+route);
   await page.locator('main#main').waitFor({timeout:8000}).catch(async e=>{console.error('BOOT',await page.locator('body').innerText());throw e;});
   await page.getByRole('button',{name:'Refresh',exact:true}).waitFor({timeout:100}).catch(()=>{});
   await page.waitForTimeout(300);

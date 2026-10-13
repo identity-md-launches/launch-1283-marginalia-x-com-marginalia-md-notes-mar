@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { Person } from '../identity';
+import { sharedRecord } from '../social';
 import type { Address } from 'viem';
-import { readRecord } from '../records';
 import { MarginaliaHookAbi, MarginaliaJudgeAbi } from '../abi';
 import { useApp, useRead } from '../chain';
 import { HistoryStatus } from '../history';
-import { fmtAmount, fmtDate, fmtScore, short } from '../lib';
+import { fmtAmount, fmtDate, short } from '../lib';
 import { UsdContext } from '../price';
-import { citedAccounts, formatRate, rankAuthors, recordRate, REASONS, type RankedAuthor } from '../scoreboard';
+import { citedAccounts, formatRate, rankAuthors, recordRate, settledCount, REASONS, type RankedAuthor } from '../scoreboard';
 import { Caveat, Countdown, Notice, StatusTag } from '../ui';
-import { FeedPage, type FeedProps } from './Feed';
+import { type FeedProps } from './Feed';
 import { OpenDuels } from './Duel';
 
 /** The three sentences every screen is tested against. Verbatim from the owner's brief. */
@@ -36,9 +36,9 @@ export function Prize({ loadedAt }: { loadedAt?: number }) {
       <p className="prize-amount">{s ? fmtAmount(s.pool) : '…'} <span>IMD</span></p>
       <UsdContext imd={s?.pool} />
     </div>
-    <div className="prize-clock"><p className="small">Judging opens</p>
-      <p className="clock-value">{s ? <Countdown until={s.opens} prefix="in " /> : 'Reading the clock…'}</p>
-      {s && <p className="small">{fmtDate(s.opens)}</p>}
+    <div className="prize-clock"><p className="small">Entries close</p>
+      <p className="clock-value">{s ? <Countdown until={s.closes} prefix="in " /> : 'Reading the clock…'}</p>
+      {s && <p className="small">{fmtDate(s.closes)}</p>}
       {s && <p className="small">{s.eligible === 0 ? <>no thesis entered yet · <a href="#/thesis">Write a thesis</a></> : <>{s.eligible} eligible {s.eligible === 1 ? 'thesis' : 'theses'} · <a href="#/pools">View pools</a></>}</p>}
     </div>
     {read.error && <Notice kind="bad"><p>Prize unavailable. <button type="button" className="quiet" onClick={read.refresh}>Retry prize read</button></p></Notice>}
@@ -75,32 +75,30 @@ export function Doors({ loadedAt }: { loadedAt?: number }) {
 
 export function Leaderboards({ feed }: Pick<FeedProps, 'feed'>) {
   const { pub, contracts, cfg } = useApp();
-  const [order, setOrder] = useState<'score' | 'rate'>('rate');
+
   const records = useRead(feed ? async () => {
     const authors = [...new Set(feed.notes.map(n => n.author.toLowerCase()))] as Address[];
     const rows: RankedAuthor[] = [];
     let missing = 0;
     // Keep RPC fanout bounded even when the history grows.
     for (let i = 0; i < authors.length; i += 6) {
-      const batch = await Promise.allSettled(authors.slice(i, i + 6).map(async address => ({ address, record: await readRecord(pub,contracts,address) })));
+      const batch = await Promise.allSettled(authors.slice(i, i + 6).map(async address => ({ address, record: await sharedRecord(pub,contracts,address,feed?.loadedAt) })));
       for (const result of batch) { if (result.status === 'fulfilled') rows.push(result.value); else missing++; }
     }
     return { rows, missing };
   } : null, [feed?.loadedAt]);
-  const ranked = rankAuthors(records.data?.rows ?? [], order);
+  const ranked = rankAuthors(records.data?.rows ?? [], 'rate');
   const cited = citedAccounts(feed?.notes ?? []);
   return <div className="leaderboards">
     <section aria-labelledby="author-leaderboard"><div className="section-head"><h2 id="author-leaderboard">Who is right</h2><span className="eyebrow">Posting wallets</span></div>
-      <div className="tabs" role="group" aria-label="Rank authors"><button type="button" aria-pressed={order === 'rate'} onClick={() => setOrder('rate')}>By hit rate</button><button type="button" aria-pressed={order === 'score'} onClick={() => setOrder('score')}>By score</button></div>
       <ol className="ranking" aria-label="Author leaderboard">{ranked.map(({ address, record: r }, i) => <li key={address}>
-        <div className="rank-line"><span className="rank-number">{String(i + 1).padStart(2, '0')}</span><a className="mono" href={`#/author/${address}`}>{short(address)}</a><strong>{order === 'score' ? fmtScore(r[0]) : formatRate(recordRate(r))}</strong></div>
-        <p className="small">{r[1]} posted · {r[2]} right · {r[3]} wrong · {r[4]} broken · {r[5]} retracted</p>
-        <p className="small">{order === 'score' ? `${formatRate(recordRate(r))} hit rate` : `${fmtScore(r[0])} score`}</p>
+        <div className="rank-line"><span className="rank-number">{settledCount(r) ? String(i + 1).padStart(2, '0') : '·'}</span><Person address={address}/><div className="rank-rate"><strong>{formatRate(recordRate(r))}</strong><span className="small">{r[2]} of {settledCount(r)}</span></div></div>
+        {!settledCount(r) && <p className="small">no settled call yet</p>}
       </li>)}</ol>
       {(!feed || records.loading) && <p className="small" role="status">Reading wallet records…</p>}
       {feed && records.data && !ranked.length && !records.data.missing && <p className="empty">The record starts with a call. <a href="#/call">Make yours.</a></p>}
       {(records.error || !!records.data?.missing) && <Notice kind="bad"><p>{records.data?.missing ?? 'Some'} wallet records could not be read; ranking is incomplete.</p><button type="button" className="quiet" onClick={records.refresh}>Retry records</button></Notice>}
-      <details className="small metric-note"><summary>How to read the score</summary><p>Hit rate = right ÷ (right + wrong + broken + retracted); open calls, theses and no-data outcomes are excluded. Score accrues only on calls priced on the MARG launch pool; every other token's calls settle and count in the hit rate. Harder targets earn more weight. A dash means no counted result.</p></details>
+      <details className="small metric-note"><summary>How hit rate works</summary><p>Right ÷ (right + wrong + broken + retracted), with the settled count beside it; ties rank by settled count.</p></details>
     </section>
     <section aria-labelledby="cited-leaderboard"><div className="section-head"><h2 id="cited-leaderboard">Cited accounts</h2><span className="eyebrow">Receipts index</span></div>
       <p className="small">Ranked by right receipt notes. The cited account did not post the note; the posting wallet owns its bond and hold rule.</p>
@@ -117,7 +115,7 @@ export function Leaderboards({ feed }: Pick<FeedProps, 'feed'>) {
 export function Verdicts({ feed }: Pick<FeedProps, 'feed'>) {
   const settled = (feed?.notes ?? []).filter(n => n.settlement).sort((a, b) => a.settlement!.block > b.settlement!.block ? -1 : a.settlement!.block < b.settlement!.block ? 1 : 0).slice(0, 6);
   return <section className="verdicts" aria-label="Recent verdicts"><h2>Recent verdicts</h2>
-    <div className="verdict-strip">{settled.map(n => <a key={n.id} href={`#/note/${n.id}`} className="verdict-item"><StatusTag status={n.settlement!.status} /><span className="mono">{short(n.author)}</span><span className="small">{n.source==='annex'?short(n.id,8,6):`№ ${n.index.toString()}`} · {fmtScore(n.settlement!.scoreDelta)}</span></a>)}</div>
+    <div className="verdict-strip">{settled.map(n => <a key={n.id} href={`#/note/${n.id}`} className="verdict-item"><StatusTag status={n.settlement!.status} /><span className="mono">{short(n.author)}</span><span className="small">{n.source==='annex'?short(n.id,8,6):`№ ${n.index.toString()}`}</span></a>)}</div>
     {feed && !settled.length && <p className="small">No verdict recorded in the available history yet.</p>}
   </section>;
 }
@@ -131,8 +129,8 @@ export function HomePage(props: FeedProps) {
   </>;
 }
 export function Scoreboard(props: FeedProps & {embedded?:boolean}) {
-  return <section className="scoreboard">{!props.embedded && <h1>The public record</h1>}
-    <HistoryStatus {...props} /><Leaderboards feed={props.feed}/><Verdicts feed={props.feed}/><Prize loadedAt={props.feed?.loadedAt} /><OpenDuels feed={props.feed}/><FeedPage {...props} embedded/>
+  return <section className="scoreboard">{!props.embedded && <><h1>Record</h1><p className="small">Ranked by hit rate. Every result stays on the record.</p></>}
+    <Leaderboards feed={props.feed}/><HistoryStatus {...props} /><OpenDuels feed={props.feed}/>
     <ol className="reasons">{REASONS.map((reason,i)=><li key={reason}><span className="mono">0{i+1}</span><p>{reason}</p></li>)}</ol>
   </section>;
 }

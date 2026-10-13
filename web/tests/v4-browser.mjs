@@ -36,7 +36,7 @@ const other = '0x2222222222222222222222222222222222222222';
 const deploy = 26169583n, unit = 10n ** 18n;
 const hookAbi = JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaHook.json')));
 const abi = [...hookAbi,...JSON.parse(fs.readFileSync(path.join(dist,'abi/MarginaliaAnnex.json'))),...pagesAbi, ...JSON.parse(fs.readFileSync(path.join(dist,'abi/MarginaliaTreasury.json'))), ...JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaRouter.json'))), ...JSON.parse(fs.readFileSync(path.join(dist, 'abi/MarginaliaJudge.json'))), ...parseAbi([
-  'function symbol() view returns (string)', 'function decimals() view returns (uint8)', 'function balanceOf(address) view returns (uint256)', 'function allowance(address,address) view returns (uint256)', 'function approve(address,uint256) returns (bool)',
+  'function IDENTITY() view returns (address)', 'function LARP() view returns (address)', 'function NAMES() view returns (address)', 'function primaryOf(address) view returns (uint256,string,bool)', 'function faceURI(uint256) view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)', 'function balanceOf(address) view returns (uint256)', 'function allowance(address,address) view returns (uint256)', 'function approve(address,uint256) returns (bool)',
   'function slot0() view returns (uint160,int24,uint16,uint16,uint16,uint8,bool)', 'function getSlot0(bytes32) view returns (uint160,int24,uint24,uint24)', 'function tickBitmap(int16) view returns (uint256)', 'function getTickBitmap(bytes32,int16) view returns (uint256)', 'function ticks(int24) view returns (uint128,int128,uint256,uint256,int56,uint160,uint32,bool)', 'function getTickLiquidity(bytes32,int24) view returns (uint128,int128)', 'function token0() view returns (address)', 'function token1() view returns (address)', 'function tickSpacing() view returns (int24)', 'function liquidity() view returns (uint128)', 'function fee() view returns (uint24)', 'function deposit() payable', 'function priceOf(bytes32,address) view returns (uint256)', 'function observe(address,(uint8 kind,bytes32 ref,address quote,bool xIsToken0),address) view returns (uint256,uint256)',
   'function getPool(address,address,uint24) view returns (address)', 'function getPair(address,address) view returns (address)', 'function getLiquidity(bytes32) view returns (uint128)',
 ])];
@@ -86,6 +86,11 @@ function block(number) {
   return { number:toHex(n), hash:toHex(n,{size:32}), parentHash:toHex(n-1n,{size:32}), timestamp:toHex(time), nonce:'0x0000000000000000', difficulty:'0x0', totalDifficulty:'0x0', gasLimit:'0x1c9c380', gasUsed:'0x0', miner:zeroAddress, extraData:'0x', baseFeePerGas:'0x1', size:'0x1', transactions:[], uncles:[], logsBloom:`0x${'0'.repeat(512)}`, receiptsRoot:zeroHash, stateRoot:zeroHash, transactionsRoot:zeroHash, sha3Uncles:zeroHash, mixHash:zeroHash };
 }
 function value(fn, args, address) {
+  if(fn==='IDENTITY') return author;
+  if(fn==='LARP') return manifest.contracts.find(c=>c.name==='LARP').address;
+  if(fn==='NAMES') return manifest.contracts.find(c=>c.name==='IMDNames').address;
+  if(fn==='primaryOf') return [0n,'',false];
+
   const constants = { hook, pricer:treasury, router, judge, treasury, imd, token:marg, UNIV3_FACTORY:v3, UNIV2_FACTORY:v2, WETH:weth, STAMP:unit/10n, MARG_BUY:unit/4n, BOND_MIN:unit/4n, BOND_MAX:10n*unit, SEAL_MIN:1800n, SEAL_MAX:21600n, SETTLE_WINDOW:21600n, THESIS_GRACE:604800n, SWEEP_AFTER:2419200n, TEXT_MAX:280n, THESIS_TEXT_MAX:8192n, MIN_TARGET_DELTA_BPS:1000, MAX_HORIZON_DAYS:90, KEEPER_BPS:1000n, ISSUER_BPS:8000n, FEE_BPS:1000n, JUDGE_THRESHOLD:2n*unit, poolId, getPoolKey:poolKey, margPriceInImd:unit, getLiquidity:1000000n*unit, noteCount: f.notes ? 1n : 0n };
   if (fn in constants) return constants[fn];
   if (fn === 'symbol') return address.toLowerCase() === imd.toLowerCase() ? 'IMD' : f.symbol;
@@ -186,13 +191,13 @@ function rpc(r) {
 const mime = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml'};
 const server = createServer((req,res) => {
   let file = decodeURIComponent(req.url.split('?')[0]).replace(/^\/preview\//,'');
-  if (file === '') file='index.html';
+  if (file === '' || file.endsWith('/')) file+='index.html';
   const p = path.join(dist,file);
   if (!p.startsWith(dist) || !fs.existsSync(p) || !fs.statSync(p).isFile()) { res.writeHead(404).end(); return; }
   res.setHeader('Content-Type',mime[path.extname(p)] || 'application/octet-stream'); res.end(fs.readFileSync(p));
 });
 await new Promise(r => server.listen(0,'127.0.0.1',r));
-const url = `http://127.0.0.1:${server.address().port}/preview/`;
+const url = `http://127.0.0.1:${server.address().port}/preview/app/`;
 const browser = await (process.env.BROWSER === 'webkit' ? webkit : chromium).launch({headless:true,timeout:30000});
 const reports=[];
 const metrics={};
@@ -256,40 +261,31 @@ const PROMISE=['Build your trader reputation on-chain.','Write your notes and th
 const after=async(a,b)=>page.evaluate(([x,y])=>!!(document.querySelector(x).compareDocumentPosition(document.querySelector(y))&Node.DOCUMENT_POSITION_FOLLOWING),[a,b]);
 const noOverflow=async(route,widths=[320,390])=>{for(const width of widths){await page.setViewportSize({width,height:844});await page.waitForTimeout(80);const scroll=await page.evaluate(()=>document.documentElement.scrollWidth);assert(scroll<=width,`${route} overflow ${scroll} at ${width}`);}};
 try {
- await check('First screen: the promise, the caveat under it, three doors with one primary button each, secondary link and wallet line',async()=>{
-  await open('/',{wallet:false,gallery:true});
-  const h1=await page.locator('main h1').first().innerText();for(const line of PROMISE)assert(h1.includes(line),line);
-  assert(await after('.promise','.caveat'));assert(await after('.caveat','.doors'));assert(await after('.doors','.scoreboard'));
-  assert.match(await page.locator('.caveat').first().innerText(),/Built, audited and deployed by the identity.md swarm/);
-  const doors=page.locator('.door');assert.equal(await doors.count(),3);
-  assert.deepEqual(await doors.locator('h2').allInnerTexts(),['Make a call','Write a thesis','Your pages']);
-  assert.equal(await page.locator('.door a.button.primary[href="#/call"]').count(),1);assert.equal(await page.locator('.door a.button.primary[href="#/thesis"]').count(),1);
-  assert.equal(await page.locator('.door button.primary').innerText(),'Connect to open your pages');
-  assert.match(await doors.nth(1).innerText(),/pot: 1 IMD|Pot unavailable|Reading the pot/);
-  assert.equal(await page.locator('.door-secondary a[href="#/scoreboard"]').innerText(),'See who is right');
-  assert.equal(await page.locator('.wallet-line').innerText(),'You are your wallet. No account, no handle, no name unless you want one.');
-  assert.equal(await page.locator('.tabs button[aria-pressed="true"]').first().innerText(),'By hit rate');
-  assert(await after('.leaderboards','.verdicts'));assert(await after('.verdicts','.feed, .ledger'));
-  const main=await text();assert(!/!/.test(main.replace(/!==/g,'')),'exclamation mark on the first screen');assert(!/\bbuy\b/i.test(main),'buy outside the pages panel');
-  for(const width of [320,390]){await page.setViewportSize({width,height:844});await page.waitForTimeout(80);const m=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,buttons:[...document.querySelectorAll('.door .button, .door button')].map(b=>b.getBoundingClientRect().bottom),caveat:document.querySelector('.caveat').getBoundingClientRect().bottom}));assert(m.scroll<=width,JSON.stringify(m));if(width===390){assert(m.buttons.every(b=>b<=844),JSON.stringify(m));assert(m.caveat<=844);}metrics[`home-${width}`]=m;await shot(`home-${width}`);}
-  assert.equal(await page.locator('footer a[href="#/feedback"]').innerText(),'Feedback');
+ await check('First screen: v4 promise and caveat retained on the v5 landing with Launch app',async()=>{
+  await open('/',{gallery:true,wallet:false});await page.goto(url.replace('/app/','/'));await page.locator('.landing').waitFor();
+  const body=await page.locator('body').innerText();for(const line of PROMISE)assert(body.includes(line),line);
+  assert.match(await page.locator('.caveat').innerText(),/Built, audited and deployed by the identity.md swarm/);
+  const launch=page.getByRole('link',{name:'Launch app',exact:true});assert.equal(await launch.getAttribute('href'),'./app/');
+  assert(!/!/.test(body));assert(!/\bbuy\b/i.test(body));
+  await noOverflow('landing');await page.setViewportSize({width:390,height:844});assert((await launch.boundingBox()).y+(await launch.boundingBox()).height<=844);await shot('landing-390');
  });
- await check('Doors route to the call flow, the thesis flow and the connected wallet profile',async()=>{
-  await open('/',{gallery:true});await page.locator('.door a.button.primary[href^="#/author/"]').waitFor();assert.equal((await page.locator('.door a.button.primary[href^="#/author/"]').getAttribute('href')).toLowerCase(),`#/author/${author}`);
-  await page.locator('.door a[href="#/call"]').click();await page.locator('#trade-token').waitFor();assert.equal(await page.locator('main h1').innerText(),'Make a call');
-  await page.goto(url+'#/thesis');await page.locator('#thesis').waitFor();assert.equal(await page.locator('main h1').innerText(),'Write a thesis');assert.match(await text(),/A thesis counts only after you post one ordinary call under it within 7 days/);
+ await check('App navigation routes to the call sheet, thesis sheet and connected profile',async()=>{
+  await open('/',{gallery:true});await page.locator('.bottom-bar a[href^="#/author/"]').waitFor();
+  assert.equal((await page.locator('.bottom-bar a[href^="#/author/"]').getAttribute('href')).toLowerCase(),`#/author/${author}`);
+  await page.locator('.compose-trigger').click();await page.locator('#trade-token').waitFor();assert.equal(await page.locator('dialog h1').innerText(),'Make a call');
+  await page.getByRole('link',{name:'Thesis instead'}).click();await page.locator('#thesis').waitFor();assert.match(await page.locator('dialog').innerText(),/Post your own child call within 7 days or lose the bond/);
   assert(await after('.prize','#thesis'));assert(await after('.prize','#bond'));
  });
  await check('One call flow: defaults, visible fields, one button, advanced behind More, trade-it-too on when the wallet holds IMD',async()=>{
   await open('/call');await page.locator('#trade-token').waitFor();await tradeReady();
   assert.equal((await page.locator('#trade-token').inputValue()).toLowerCase(),marg.toLowerCase());
-  assert.equal(await page.locator('.preset-line button[aria-pressed="true"]').innerText(),'+25%');assert.equal(await page.locator('.preset-line select').inputValue(),'7');
+  assert.equal(await page.locator('.preset-line:not(.horizon-presets) button[aria-pressed="true"]').innerText(),'+25%');assert.equal(await page.locator('.horizon-presets button[aria-pressed="true"]').innerText(),'7 days');
   assert.equal(await page.locator('#conviction').inputValue(),'0.25');assert.equal(await page.locator('#trade-toggle').isChecked(),true);
   assert.equal(await page.locator('details.trade-more').evaluate(d=>d.open),false);
   for(const id of ['conviction','trade-venue','manual-key','trade-parent','trade-slippage','trade-deadline','custom-target','custom-days'])assert(await page.locator(`details.trade-more #${id}`).count()===1,id);
   assert.equal(await page.locator('.trade-action button').count(),1);
-  const cost=await page.locator('.trade-cost').innerText();assert.match(cost,/You pay 1 IMD .*\+ 0.6 IMD/);assert.match(cost,/0.25 IMD of it is your bond, held by the hook \(0xf045/);
-  assert.equal(await page.locator('.rule-bond').innerText(),'Returned if right, lost if wrong.');assert.match(await page.locator('.rule-hold').innerText(),/An upward call's wallet must hold through the horizon/);
+  const cost=await page.locator('.trade-cost').innerText();assert.match(cost,/You pay 1.6 IMD/);assert.match(cost,/0.25 IMD of it is your bond, held by the hook/);
+  assert.equal(await page.locator('.rule-bond').innerText(),'Returned if right, lost if wrong.');assert.match(await page.locator('.rule-hold').innerText(),/Hold the token through the horizon or lose the bond/);
   await page.getByRole('button',{name:'-25%',exact:true}).click();assert.equal(await page.locator('.rule-hold').count(),0);await page.getByRole('button',{name:'+25%',exact:true}).click();
   await page.getByText('More',{exact:true}).click();assert.equal(await page.locator('details.trade-more').evaluate(d=>d.open),true);assert.equal(await page.locator('#trade-deadline').inputValue(),'10');assert.equal(await page.locator('#trade-slippage').inputValue(),'1');
   await noOverflow('/call');await shot('call-390');
@@ -315,43 +311,36 @@ try {
   await page.goto(url+'#/call?token='+other);await page.waitForTimeout(500);assert.equal((await page.locator('#trade-token').inputValue()).toLowerCase(),other.toLowerCase());
  });
  await check('Baseline rule is explained where it bites: warm-up with countdown, ready, and the warm-up button',async()=>{
-  await open('/call',{checkpointAge:1800});await page.locator('#trade-token').waitFor();await page.locator('.baseline-status').filter({hasText:'Ready in'}).waitFor();
-  const s=await page.locator('.baseline-status').innerText();assert.match(s,/Your call is measured against the hour of prices before you; this pool needs a one-hour warm-up first, we saved your draft\. Ready in \d+ min/);assert(await page.locator('.trade-action button').isDisabled());
-  await open('/call',{checkpointAge:null,reject:false});await page.locator('#trade-why').fill('Warm-up draft');const b=page.locator('.trade-action button').filter({hasText:'Start the one-hour warm-up'});await waitEnabled(b);await b.click();await page.locator('.baseline-status').filter({hasText:'Ready in'}).waitFor();const c=await sent('checkpointVenue');assert.equal(c.args[0].text,'');assert.match(await page.evaluate(()=>localStorage.getItem('marginalia.trade.v3')),/Warm-up draft/);
+  await open('/call',{checkpointAge:1800});await page.locator('#trade-token').waitFor();await page.locator('.baseline-status').filter({hasText:'Baseline ready in'}).waitFor();
+  const s=await page.locator('.baseline-status').innerText();assert.match(s,/Baseline ready in \d+ min/);assert(await page.locator('.trade-action button').isDisabled());
+  await open('/call',{checkpointAge:null,reject:false});await page.locator('#trade-why').fill('Warm-up draft');const b=page.locator('.trade-action button').filter({hasText:'Start the one-hour warm-up'});await waitEnabled(b);await b.click();await page.locator('.baseline-status').filter({hasText:'Baseline ready in'}).waitFor();const c=await sent('checkpointVenue');assert.equal(c.args[0].text,'');assert.match(await page.evaluate(()=>localStorage.getItem('marginalia.trade.v3')),/Warm-up draft/);
   await open('/call',{checkpointAge:7200});await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();
  });
  await check('Thesis flow states the 7-day child rule before the bond and again on the receipt with the button',async()=>{
   await open('/thesis',{allowance:100n*unit,reject:false,thesisPost:true});await page.locator('#thesis').waitFor();
-  assert(await page.evaluate(()=>{const hint=[...document.querySelectorAll('.hint')].find(e=>e.textContent.includes('A thesis counts only after you post one ordinary call under it within 7 days'));return !!hint&&!!(hint.compareDocumentPosition(document.querySelector('#bond'))&Node.DOCUMENT_POSITION_FOLLOWING);}));
+  assert(await page.evaluate(()=>{const hint=[...document.querySelectorAll('.thesis-child-rule')].find(e=>e.textContent.includes('Post your own child call within 7 days or lose the bond'));return !!hint&&!!(hint.compareDocumentPosition(document.querySelector('#bond'))&Node.DOCUMENT_POSITION_FOLLOWING);}));
   await page.locator('#thesis').fill('A thesis with an argument.');const p=page.getByRole('button',{name:'Post the thesis',exact:true});await waitEnabled(p);await p.click();
-  await page.getByText('Thesis recorded.',{exact:false}).waitFor();assert.match(await page.locator('.notice.ok').first().innerText(),/A thesis counts only after you post one ordinary call under it within 7 days, due/);
+  await page.getByText('Thesis recorded.',{exact:false}).waitFor();assert.match(await page.locator('.notice.ok').first().innerText(),/Post one ordinary call under it within 7 days, due/);
   assert.equal(await page.locator('.notice.ok a.button.primary').innerText(),'Post the child call');const note=await sent('note');assert.equal(note.args[0].targetBps,0);
   await noOverflow('/thesis');
  });
- await check('Profile page: wallet, hit rate large, counts, score meaning, open/settled/theses, backers, share card and the Pages panel',async()=>{
-  await open('/author/'+author,{gallery:true,wallet:false});await page.locator('.rate-large').waitFor();
-  assert.equal(await page.locator('main h1').innerText().then(t=>t.replace(/\s*copy$/,'').trim()),author);
-  await page.locator('.rate-large').filter({hasText:'40.0%'}).waitFor();
-  // The fixture answers records() identically for the hook and the Annex; readRecord sums both.
-  assert.deepEqual(await page.locator('.record-grid[aria-label="Record counts"] dd').allInnerTexts(),['10','4','2','2','2']);
-  assert.match(await page.locator('.profile-score').innerText(),/Score accrues only on calls priced on the MARG launch pool; every other token's calls settle and count in the hit rate/);
-  assert.deepEqual(await page.locator('main h2').allInnerTexts().then(a=>a.filter(h=>['Open calls','Settled calls','Theses','Backers'].includes(h))),['Open calls','Settled calls','Theses','Backers']);
-  assert.match(await text(),/No open call/);assert.match(await page.locator('.ledger').first().innerText(),/Verdict:/);
+ await check('Profile page: wallet, hit rate with count, calls/theses/backers and Pages controls; score removed',async()=>{
+  await open('/author/'+author,{gallery:true,wallet:false});await page.locator('.rate-large').filter({hasText:'40%'}).waitFor();
+  assert.match(await page.locator('.profile-rate').innerText(),/4 of 10 settled/);assert.equal(await page.locator('.profile-score').count(),0);
+  assert.deepEqual(await page.locator('.profile-tabs button').allInnerTexts(),['Calls','Theses','Backers']);assert.equal(await page.locator('.profile .social-card').count(),2);
   assert.match(await text(),/Readers back a writer by holding their pages\. 8% of every page trade goes to the writer\. Holders can sell back to the curve at any time\./);
-  assert.deepEqual(await page.locator('.record-grid[aria-label="Backers"] dd').allInnerTexts().then(a=>a.map(s=>s.split('\n')[0])),['0','0','0 IMD']);
-  assert.equal(await page.locator('#pages-heading').innerText(),'Back this writer');assert.equal(await page.locator('.share').count(),1);
-  assert(!/early access|rooms|returns/i.test(await text()));
-  await noOverflow('/author');await shot('author-390');
+  assert.deepEqual(await page.locator('.profile-stats dd').allInnerTexts(),['0','0','0']);
+  await page.getByRole('button',{name:/Back this writer/}).click();assert.equal(await page.locator('#pages-heading').innerText(),'Back this writer');assert(await page.locator('.share').count()>0);
+  assert(!/early access|rooms|returns/i.test(await text()));await noOverflow('/author');await shot('author-390');
  });
- await check('Own profile shows Your pages and earnings; Feedback opens from the footer and the old tab link',async()=>{
-  await open('/author/'+author,{gallery:true});await page.locator('.rate-large').waitFor();assert.equal(await page.locator('main h2').filter({hasText:'Your pages'}).count(),1);assert.match(await text(),/You earned/);
-  await page.locator('footer a[href="#/feedback"]').click();await page.locator('#feedback-text').waitFor();assert.equal(await page.locator('main h1').innerText(),'Feedback');
+ await check('Own profile shows earnings; Feedback opens from top bar and the old tab alias',async()=>{
+  await open('/author/'+author,{gallery:true});await page.locator('.rate-large').waitFor();assert.match(await text(),/You earned/);
+  await page.locator('.app-topbar a[href="#/feedback"]').click();await page.locator('#feedback-text').waitFor();assert.equal(await page.locator('main h1').innerText(),'Feedback');
   await page.goto(url+'#/?tab=feedback');await page.locator('#feedback-text').waitFor();await noOverflow('/feedback');
  });
  await check('Every v4 route reflows at 320 and 390 in dark mode with focus visible',async()=>{
-  await page.emulateMedia({colorScheme:'dark'});
   for(const route of ['/','/call','/thesis','/author/'+author,'/feedback','/scoreboard','/post','/seal','/pools','/about','/pages/market_reader']){await open(route,{gallery:true});await page.emulateMedia({colorScheme:'dark'});await noOverflow(route);}
-  await open('/call');await page.setViewportSize({width:320,height:844});await page.emulateMedia({colorScheme:'dark'});await page.locator('#trade-token').focus();await page.keyboard.press('Tab');const focus=await page.evaluate(()=>({tag:document.activeElement.tagName,style:getComputedStyle(document.activeElement).outlineStyle,width:document.documentElement.scrollWidth}));assert.equal(focus.tag,'BUTTON');assert.notEqual(focus.style,'none');assert(focus.width<=320);await shot('call-dark-320');
+  await open('/call');await page.setViewportSize({width:320,height:844});await page.emulateMedia({colorScheme:'dark'});await page.waitForTimeout(150);await page.locator('#trade-token').focus();await page.keyboard.press('Tab');const focus=await page.evaluate(()=>({tag:document.activeElement.tagName,style:getComputedStyle(document.activeElement).outlineStyle,width:document.documentElement.scrollWidth}));assert.equal(focus.tag,'BUTTON');assert.notEqual(focus.style,'none');assert(focus.width<=320);await shot('call-dark-320');
  });
 } finally {
  if(evidence){fs.writeFileSync(path.join(evidence,'results.json'),JSON.stringify(reports,null,2));fs.writeFileSync(path.join(evidence,'metrics.json'),JSON.stringify(metrics,null,2));}

@@ -11,6 +11,27 @@
       "address": "0xf69ccb8f46049248c59522b21a04cc193729d8fa",
       "abiHash": "0d5e0eb325d547d7f67a13e48230649a55d2dc987292ab711de1d1d12e098a1f",
       "abiPath": "abi/MarginaliaPages.json"
+    },
+    {
+      "name": "LARP",
+      "address": "0x69000A4A9FA561Dd6b313741bf1F79F4aDE4adAF",
+      "abiHash": "8d4a29122cc5a3f23d47df9fb3bd854546ff88320617fad37a11bd9a9a48f827",
+      "sourceCommit": "0ef5649c67e948c75bf432d619dbf0613648cb8d",
+      "launch": 1436
+    },
+    {
+      "name": "IMDNames",
+      "address": "0x690084D1331F7a6509EeD32e7d34ffAcB377d807",
+      "abiHash": "084bfb95693364a98f439bcd285a32c4b23bbeb4fb2e6e58f2eedff2f2012af3",
+      "sourceCommit": "0ef5649c67e948c75bf432d619dbf0613648cb8d",
+      "launch": 1436
+    },
+    {
+      "name": "LARPLinks",
+      "address": "0x69005EdeC64B8586EC8d5E32f757a818b5d493C0",
+      "abiHash": "bd66b81cc3ec153f2b119b09cadf06e53fba32c31e6ebcbf80101b7ab675544a",
+      "sourceCommit": "0ef5649c67e948c75bf432d619dbf0613648cb8d",
+      "launch": 1436
     }
   ]
 }

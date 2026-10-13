@@ -1,0 +1,17 @@
+{
+  "source": "https://ethereum-rpc.publicnode.com",
+  "chainId": 1,
+  "blocks": [
+    "26185629",
+    "26185629"
+  ],
+  "manifestAbiHashesVerified": 7,
+  "applicationBootPassed": true,
+  "venueFinderSafe": true,
+  "identityVerified": true,
+  "week": 2962,
+  "potWei": "507645840223181205005",
+  "entriesClose": 1792022400,
+  "primaryNameForPublicHook": null,
+  "transactionsSent": 0
+}

@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { encodeAbiParameters, encodeEventTopics, toHex, zeroAddress, zeroHash, type PublicClient } from 'viem';
+import { xTradedAbi, readReceiptTrade } from '../src/trade-receipt';
+import { MarginaliaHookAbi } from '../src/abi';
+import type { Note } from '../src/notes';
+import type { Contracts } from '../src/chain';
+import type { AppConfig } from '../src/config';
+const address=(n:number)=>toHex(n,{size:20});
+const c={router:address(1),hook:address(2),imd:address(3),weth:address(4),univ3Factory:address(5),poolKey:{}} as Contracts;
+const n={id:toHex(1,{size:32}),author:address(6),x:address(7),side:0,tx:toHex(22,{size:32}),block:100n} as Note;
+function event(abi:any,name:string,emitter:string,args:any){const e=abi.find((a:any)=>a.type==='event'&&a.name===name);return{address:emitter,topics:encodeEventTopics({abi:[e],eventName:name,args}),data:encodeAbiParameters(e.inputs.filter((i:any)=>!i.indexed),e.inputs.filter((i:any)=>!i.indexed).map((i:any)=>args[i.name]))};}
+const note=(id=n.id,author=n.author)=>event(MarginaliaHookAbi,'NotePosted',c.hook,{id,author,x:n.x,class:0,side:0,targetBps:12500,horizonDays:7,parentId:zeroHash,text:'https://x.com/not_the_author/status/1'});
+const trade=(patch:any={})=>event(xTradedAbi,'XTraded',c.router,{trader:n.author,kind:1,xIn:c.imd,xOut:n.x,spent:10n**18n,received:2n*10n**18n,...patch});
+let logs:any[]=[]; const blocks:bigint[]=[];
+const pub={getTransactionReceipt:async()=>({logs}),readContract:async(p:any)=>{blocks.push(p.blockNumber);return zeroAddress;}} as unknown as PublicClient;
+const run=()=>readReceiptTrade(pub,{} as AppConfig,c,n);
+logs=[trade(),note()];assert.deepEqual(await run(),{amount:10n**18n,symbol:'IMD'});
+logs=[trade({trader:address(8)}),note()];assert.equal(await run(),null);
+logs=[{...trade(),address:address(8)},note()];assert.equal(await run(),null);
+logs=[trade(),note(toHex(2,{size:32})),note()];assert.equal(await run(),null);
+logs=[trade(),note(n.id,address(8))];assert.equal(await run(),null);
+logs=[trade({xIn:c.weth}),note()];assert.deepEqual(await run(),{amount:10n**18n,symbol:'WETH'});assert(blocks.every(b=>b===100n));
+logs=[note(),trade()];assert.equal(await run(),null);
+console.log('PASS receipt trade: exact IMD, authenticated router/author, note association, no cited identity, WETH historical-read fallback, no unrelated preceding or later leg.');

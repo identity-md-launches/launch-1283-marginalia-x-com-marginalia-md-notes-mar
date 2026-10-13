@@ -3,6 +3,7 @@ import { recoverMessageAddress, stringToHex, type Address, type Hex } from 'viem
 import { BRIEF, KINDS, MAX_BYTES, SITE, feedbackMessage, utf8Bytes, weekOf, type AdoptedLedger, type FeedbackEntry, type FeedbackKind, type WeeklyDocument } from '../shared/feedback.js';
 import { useRead, type Wallet } from './chain';
 import { fmtDate, short } from './lib';
+import { SendCaveat } from './ui';
 
 type Signed = { message: string; signature: Hex; address: Address };
 // Preserve unsent text when Ethereum finishes booting or a composer tab changes.
@@ -116,7 +117,7 @@ export function Feedback({ wallet, now }: { wallet: Wallet; now: number }) {
         <label htmlFor="feedback-handle">X handle (optional)</label><input ref={handleRef} id="feedback-handle" autoComplete="off" autoCapitalize="none" spellCheck={false} value={handle} onChange={event => setHandle(event.target.value)} aria-invalid={fieldError === 'handle'} aria-describedby={fieldError === 'handle' ? 'feedback-error' : 'feedback-handle-help'} placeholder="@handle"/>
         <p id="feedback-handle-help" className="small">A handle does not verify your identity.</p>
         <details className="feedback-signature"><summary>Preview the exact message</summary><pre>{message}</pre></details>
-        <button className="primary" type="submit" disabled={!!pending || wallet.connecting}>{pending === 'sign' ? 'Sign in your wallet…' : pending === 'send' ? 'Posting feedback…' : !wallet.account ? 'Connect wallet to give feedback' : signed ? 'Retry posting feedback' : 'Sign and post feedback'}</button>
+        <button className="primary" type="submit" disabled={!!pending || wallet.connecting}>{pending === 'sign' ? 'Sign in your wallet…' : pending === 'send' ? 'Posting feedback…' : !wallet.account ? 'Connect wallet to give feedback' : signed ? 'Retry posting feedback' : 'Sign and post feedback'}</button><SendCaveat/>
       </fieldset>
       <div role="status" className="feedback-result">{receipt && <p>Feedback saved. Entry <span className="mono">{receipt}</span>. The public board can take a minute to update.</p>}</div>
       {(error || wallet.error) && <p id="feedback-error" role="alert" className="status bad">{error || wallet.error}</p>}

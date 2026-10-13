@@ -18,12 +18,18 @@ export function hitRate(right: number, wrong: number, broken: number, retracted:
   return finished ? right / finished : null;
 }
 export const recordRate = (r: AuthorRecord) => hitRate(r[2], r[3], r[4], r[5]);
-export const formatRate = (v: number | null) => v === null ? '—' : `${(v * 100).toFixed(1)}%`;
+export const formatRate = (v: number | null) => v === null ? '—' : `${Math.round(v * 100)}%`;
+export const settledCount = (r: AuthorRecord) => r[2] + r[3] + r[4] + r[5];
 export function rankAuthors(rows: RankedAuthor[], order: 'score' | 'rate'): RankedAuthor[] {
   return [...rows].sort((a, b) => {
     if (order === 'rate') {
-      const rate = (recordRate(b.record) ?? -1) - (recordRate(a.record) ?? -1);
-      if (rate) return rate;
+      const ac = settledCount(a.record), bc = settledCount(b.record);
+      if (!ac || !bc) return bc - ac || a.address.toLowerCase().localeCompare(b.address.toLowerCase());
+      // Compare exact fractions; large counter values must not become false floating-point ties.
+      const left = BigInt(a.record[2]) * BigInt(bc), right = BigInt(b.record[2]) * BigInt(ac);
+      if (left !== right) return left > right ? -1 : 1;
+      const settled = bc - ac;
+      return settled || a.address.toLowerCase().localeCompare(b.address.toLowerCase());
     }
     if (a.record[0] !== b.record[0]) return a.record[0] > b.record[0] ? -1 : 1;
     return a.address.toLowerCase().localeCompare(b.address.toLowerCase());
@@ -77,6 +83,6 @@ export function weightedWins(notes: Note[]): bigint {
 export const HOLD_RULE = "An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns";
 export const REASONS = [
   "Receipts for every call: a price, a deadline, a bond, and the chain's verdict",
-  'Prove it: a difficulty-weighted score, public duels, a weekly prize',
+  'Prove it with settled calls, public duels and a weekly prize',
   "Keep the receipt: the posting wallet owns the call and the cited account does not",
 ];

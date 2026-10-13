@@ -1,0 +1,9 @@
+{
+  "feedbackWorkerGroups": {
+    "passed": 18,
+    "failed": 0
+  },
+  "feedbackNoted": "passed",
+  "feedbackLedger": "passed",
+  "source": "Node tests/feedback-worker.mjs, feedback-noted.mjs and feedback-ledger.mjs executed with unchanged service code; generated test identities only."
+}

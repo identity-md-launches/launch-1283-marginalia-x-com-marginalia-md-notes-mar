@@ -28,9 +28,39 @@
       "address": "0xf69ccb8f46049248c59522b21a04cc193729d8fa",
       "abiHash": "0d5e0eb325d547d7f67a13e48230649a55d2dc987292ab711de1d1d12e098a1f",
       "abiPath": "abi/MarginaliaPages.json"
+    },
+    {
+      "name": "LARP",
+      "address": "0x69000A4A9FA561Dd6b313741bf1F79F4aDE4adAF",
+      "abiHash": "8d4a29122cc5a3f23d47df9fb3bd854546ff88320617fad37a11bd9a9a48f827",
+      "abiPath": "abi/LARP.json"
+    },
+    {
+      "name": "IMDNames",
+      "address": "0x690084D1331F7a6509EeD32e7d34ffAcB377d807",
+      "abiHash": "084bfb95693364a98f439bcd285a32c4b23bbeb4fb2e6e58f2eedff2f2012af3",
+      "abiPath": "abi/IMDNames.json"
+    },
+    {
+      "name": "LARPLinks",
+      "address": "0x69005EdeC64B8586EC8d5E32f757a818b5d493C0",
+      "abiHash": "bd66b81cc3ec153f2b119b09cadf06e53fba32c31e6ebcbf80101b7ab675544a",
+      "abiPath": "abi/LARPLinks.json"
     }
   ],
   "assets": [
+    {
+      "path": "abi/IMDNames.json",
+      "sha256": "593756ecee07b2fa486cf47c41256a739762ff6d0f4f4f06341886c666f61178"
+    },
+    {
+      "path": "abi/LARP.json",
+      "sha256": "25a77b234f94e1c2729048685b6d42532a6b45f911923a7676968f780256f4ea"
+    },
+    {
+      "path": "abi/LARPLinks.json",
+      "sha256": "5d1debb62e62d0625c071dc57a732b2da46b5ac605f929c3802d55a172d8e9ef"
+    },
     {
       "path": "abi/Marginalia.json",
       "sha256": "7fc44a8cb387754c3653ae749e5d7a72b5f5487dd6c1ed485f27a54be5568dc6"
@@ -65,27 +95,31 @@
     },
     {
       "path": "agents.md",
-      "sha256": "873b1b6acca28aaa24d89fb344e01091d35bc0d13a8b921593a8e6e507b3b09e"
+      "sha256": "bedce6bf7f32f28033be3ac41e1678493adf35306e9bc2ae323cd44c70cd0000"
     },
     {
-      "path": "assets/ccip-DUuTix_9.js",
-      "sha256": "a9915be5ee389bab6afec354d046e6d6166cf0f8b0bb5a010098ebadcd565016"
+      "path": "app/index.html",
+      "sha256": "6be7e6034629552767edf2092819648cfdd2ab0dd5a92a06186682ad9c34092d"
     },
     {
-      "path": "assets/index-BX_ln7Lv.css",
-      "sha256": "68ee7f749e308ab97ab2d9dd48cc135e7b1d1250bf3da2de973c1e8311442ce4"
+      "path": "assets/ccip-Dh04DNoa.js",
+      "sha256": "8989d3b67997961dc7e1d276b22272fa4d1c78314f46f5ed0d991b43e2502b81"
     },
     {
-      "path": "assets/index-TYDLwswr.js",
-      "sha256": "3539f0fa1bb1a36a064cf64d201f930c477775250d54acb9fe36db0005e98f10"
+      "path": "assets/index-CtUZzSHE.css",
+      "sha256": "f9db356d0de8028f6f9f227ed4766549a83f8b32419bfe573d62d3d489a2bea8"
+    },
+    {
+      "path": "assets/index-DoUFokx3.js",
+      "sha256": "03fc005a289cb260cd972a83ab35fff56472de0f1cf5b40fd61d6690f98e7021"
     },
     {
       "path": "docs/CHANGELOG.md",
-      "sha256": "0041b442bdaedef0661daddedc9d879c10b72df7e836f16f136a5f567c7bf560"
+      "sha256": "95faedea26f4a56f7d9cfcd6d875e3116fd71b0cbdeb1e9b8162ef09fe4f79f3"
     },
     {
       "path": "docs/STATUS.md",
-      "sha256": "6cf0c97c84a6583d1979ea4c877a782424e42159b0a13c78ec6e6115d7b6aa6c"
+      "sha256": "38cec1265d1bc0debb222ff1d38495025098e09d416d97aacec996c403cd1832"
     },
     {
       "path": "docs/loop.md",
@@ -93,11 +127,11 @@
     },
     {
       "path": "index.html",
-      "sha256": "1b32cafdda74c2bf3d69f2621c1da1337fe2d8fb9f68d2da3347f37e381b6158"
+      "sha256": "5c64c9aef24a2fa84bcf133150bad83d615ade5ff0f3e770e2741ec2c85edf3e"
     },
     {
       "path": "llms.txt",
-      "sha256": "2049d505bbb08c372be4a7b04e28f1cbfda9df0526c6fc8f06c3f55d6a26af89"
+      "sha256": "8c7e009384d701eafc8c33f0480a6cc65e681cc0a62cbc6e2fdbf80eeb0e51a8"
     },
     {
       "path": "share-card.png",

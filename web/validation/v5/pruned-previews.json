@@ -1,0 +1,137 @@
+{
+  "reason": "Historic generated browser previews are not runtime assets; retain test code and textual records under the 8 MiB source bundle budget.",
+  "removed": [
+    {
+      "path": "web/validation/feed-dark-keyboard.png",
+      "bytes": 92947
+    },
+    {
+      "path": "web/validation/history-dark-focus.png",
+      "bytes": 95171
+    },
+    {
+      "path": "web/validation/empty-390.png",
+      "bytes": 87522
+    },
+    {
+      "path": "web/validation/history-partial-390.png",
+      "bytes": 93050
+    },
+    {
+      "path": "web/validation/author-1440.png",
+      "bytes": 105034
+    },
+    {
+      "path": "web/validation/history-details-390.png",
+      "bytes": 124016
+    },
+    {
+      "path": "web/validation/feed-390.png",
+      "bytes": 93494
+    },
+    {
+      "path": "web/validation/history-partial-webkit-390.png",
+      "bytes": 133755
+    },
+    {
+      "path": "web/validation/author-320.png",
+      "bytes": 100846
+    },
+    {
+      "path": "web/validation/note-evidence.png",
+      "bytes": 174734
+    },
+    {
+      "path": "web/validation/v3.2/feedback-board-390.png",
+      "bytes": 78015
+    },
+    {
+      "path": "web/validation/v3.2/home-390.png",
+      "bytes": 67733
+    },
+    {
+      "path": "web/validation/v3.2/feedback-focus-dark-320.png",
+      "bytes": 41660
+    },
+    {
+      "path": "web/validation/v3.2/feedback-rules-390.png",
+      "bytes": 87425
+    },
+    {
+      "path": "web/validation/v2/duel-390.png",
+      "bytes": 114509
+    },
+    {
+      "path": "web/validation/v2/home-390.png",
+      "bytes": 315717
+    },
+    {
+      "path": "web/validation/v2/home-1440.png",
+      "bytes": 334655
+    },
+    {
+      "path": "web/validation/v2/author-390.png",
+      "bytes": 187732
+    },
+    {
+      "path": "web/validation/v2/post-390.png",
+      "bytes": 203859
+    },
+    {
+      "path": "web/validation/v2/share-duel.png",
+      "bytes": 18653
+    },
+    {
+      "path": "web/validation/v3.1/child-error-dark-320.png",
+      "bytes": 52902
+    },
+    {
+      "path": "web/validation/v3.1/home-mock-final-390.png",
+      "bytes": 173851
+    },
+    {
+      "path": "web/validation/v3.1/child-focus-dark-320.png",
+      "bytes": 56044
+    },
+    {
+      "path": "web/validation/v3.1/child-trade-390.png",
+      "bytes": 75035
+    },
+    {
+      "path": "web/validation/v3.1/thesis-note-390.png",
+      "bytes": 50816
+    },
+    {
+      "path": "web/validation/v3/dark-long-values-mock-320.png",
+      "bytes": 69331
+    },
+    {
+      "path": "web/validation/v3/home-mock-390.png",
+      "bytes": 71368
+    },
+    {
+      "path": "web/validation/v3/home-live-390.png",
+      "bytes": 182962
+    },
+    {
+      "path": "web/validation/v4/call-390.png",
+      "bytes": 66371
+    },
+    {
+      "path": "web/validation/v4/home-390.png",
+      "bytes": 77896
+    },
+    {
+      "path": "web/validation/v4/author-390.png",
+      "bytes": 41449
+    },
+    {
+      "path": "web/validation/v4/call-dark-320.png",
+      "bytes": 66185
+    },
+    {
+      "path": "web/validation/v4/taste-390.png",
+      "bytes": 201062
+    }
+  ]
+}

@@ -52,4 +52,4 @@ export async function checkThesisParent(pub: PublicClient, hook: Address, id: He
   return parent.graceEnd;
 }
 
-export const childCallHref = (id: Hex) => `#/?child=${id}`;
+export const childCallHref = (id: Hex) => `#/call?child=${id}`;
