@@ -1,0 +1,16 @@
+{
+  "limitBytes": 8388608,
+  "prospectiveTreeBytes": 6744251,
+  "exportBytes": 1146102,
+  "exportFiles": 23,
+  "inventoriedAssets": 22,
+  "boundContractAbis": 7,
+  "currentBrowserScenarios": 104,
+  "browserPassed": 104,
+  "typescriptUnitSuitesPassed": 9,
+  "feedbackServiceSuitesPassed": 3,
+  "protectedPathsChanged": [],
+  "dependenciesBuildConfigAndIgnoreFilesUnchanged": true,
+  "submissionHasNoCachesArchivesOrGitlinks": true,
+  "measurement": "Uncompressed bytes of existing tracked files plus nonignored new files, excluding deleted files and task scratch/inputs. Contributor worker creates the submission commit."
+}

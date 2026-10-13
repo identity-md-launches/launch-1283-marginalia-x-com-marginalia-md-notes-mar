@@ -3,9 +3,10 @@
 Build your trader reputation on-chain. Write your notes and theses with your trades. Let readers back you by holding your pages.
 
 - [Landing](./): promise, three steps, full swarm caveat, live weekly pot and entry deadline, Launch app.
-- [App](./app/): feed first, Latest / Settling soon / Theses / Backed; top pot and Feedback; bottom Feed / Record / + / Pots / Me.
+- [App](./app/): feed first, Latest / Settling soon / Theses / Backed; top pot and Feedback; bottom Feed / Pages / + / Record / Me. The weekly pot chip opens Pots.
 - [Make a call](./app/#/call): one compose sheet, five targets, horizons, Why, Trade it too; More holds bond, venue, PoolKey, parent, slippage and deadline. `?token=`, `?child=`, `?counter=` prefill.
 - [Thesis](./app/#/thesis): weekly pot, deadline and the 7-day own-child rule before the bond and on the receipt.
+- [Pages](./app/#/pages): find an X handle (with or without @) or wallet; subjects ranked by current verified backers then supply, with next-page cost. Your pages shows connected-wallet holdings and sell-back. Full deployment-window chunked Trade scans disclose missing ranges; balances and supply share a fixed block; failed reads stay unknown.
 - [Record](./app/#/scoreboard): hit rate = right / (right + wrong + broken + retracted), with settled count; ties use settled count; untested wallets follow ranked wallets.
 - Profile route: `./app/#/author/<wallet-address>`, with hit rate, backers, pages held, theses and backing. The own profile adds earnings, Pools claims and Seal.
 - [Post](./app/#/post): exact-parameter form for reveals and counters. [Seal](./app/#/seal), [Pots](./app/#/pools), [Feedback](./app/#/feedback), [About](./app/#/about).
@@ -18,6 +19,12 @@ Readers back a writer by holding their pages. 8% of every page trade goes to the
 
 Names and avatars use read-only LARP launch 1436, pinned source 0ef5649c67e948c75bf432d619dbf0613648cb8d. LARP, IMDNames and LARPLinks addresses and canonical ABI hashes are bound in the manifest; boot checks code and cross-contract bindings. Only a live primary name.imd is shown. Other wallets use addresses and generated marks. Sanitized images never execute code; identity reads cannot sign, approve, transfer or write. All spending stays in the existing exact router, Annex, Pages and hook-stamp flows; WETH deposit approves nothing.
 
-Swarm-built, unpatchable, can break. Not advice. Read the full unchanged caveat on the landing and in About. This owner-directed v5 build has no credits file or attestation. Feedback keeps the same-origin EIP-191 message and intake; see agents.md for exact bytes and docs/loop.md for future weekly continuations.
+Contracts can't change; the site gets rebuilt. Can break. Not advice. The contracts cannot be changed; the site is rebuilt by the swarm, never hot-fixed. Read the full caveat on the landing and in About. This owner-directed v6 build has no credits file or attestation. Feedback keeps the same-origin EIP-191 message and intake; see agents.md for exact bytes and docs/loop.md for future weekly continuations.
 
 Thesis-child calls require a router venue: automatic Annex resolution keeps the parent visible and blocks the action. Profile backers are discovered from Trade events and verified with pagesOf at the supply snapshot; history gaps stay explicit and failed balance reads make the count unknown. Annex receipt pages show the full argument; feed cards keep the three-line excerpt.
+
+Handle pages show unclaimed escrow and its 90-day recycle date, or the claimed payee. Before trading they explain the writer’s 8% escrow, one-tweet claim, unclaimed escrow going to thesis pools and selling back either way. Backing defaults to one page and shows receive amounts, fee and the ten-page holding cap.
+
+Claim sequence: the exact on-chain claimMessage(wallet) sentence and Post on X, tweet URL or ID (extract only the numeric status ID), exact 0.5 IMD approval to Pages when needed, then requestClaim. The live oracle fee and claim/payee state are rechecked before each signature; a different fee blocks the flow. Pending claims refresh every 15 seconds until a payee or deadline; abandonClaim is offered after the deadline. The writer may delete the tweet once answered. No automated post is sent to X. Existing recycle/burn controls, transaction simulation and wallet/network checks remain.
+
+Thesis share text uses the first sentence (at most 140 characters) followed by status. Call shares retain their target and status. No score is displayed, and LARP remains read-only.

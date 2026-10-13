@@ -151,3 +151,32 @@ summary { cursor:pointer; min-height:44px; padding-block:.6rem; }
 @media (max-width:350px) { .app-topbar { padding-inline:.75rem; gap:.35rem; flex-wrap:wrap; } .app-topbar .brand { font-size:var(--text-body); } .pot-chip { padding-inline:.45rem; } .app-main { padding:.75rem; } .social-card { padding:.75rem; } .compose-sheet { padding-inline:.8rem; } .profile-actions { flex-wrap:wrap; } .profile-actions .primary { flex-basis:100%; } .card-rate { margin-inline-start:0; } }
 @media (min-width:740px) { .app-frame { border-inline:1px solid var(--rule); } .app-main { padding:1.5rem; } .landing { padding-top:3rem; } .compose-sheet { inset:5vh 0 auto; border-radius:16px; max-height:90dvh; } }
 @media (forced-colors:active) { .avatar { outline-color:CanvasText; } .bottom-bar [aria-current] { border-bottom:2px solid Highlight; } }
+
+/* v6 Pages discovery reuses the app's type, controls and paper surfaces. */
+.pot-chip { overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.pot-narrow { display:none; }
+.pages-search { margin:1rem 0 1.5rem; }
+.pages-search > div { display:flex; align-items:stretch; gap:.5rem; }
+.pages-search input { min-width:0; flex:1; width:0; }
+.pages-search button { flex-shrink:0; }
+.page-subjects, .page-holdings { list-style:none; padding:0; margin:0 0 1.5rem; }
+.page-subjects > li, .page-holdings > li { padding:1rem 0; border-bottom:1px solid var(--rule); }
+.page-handle { display:inline-flex; align-items:center; min-height:44px; font-size:var(--text-section); font-weight:600; overflow-wrap:anywhere; }
+.page-subject-stats { display:flex; flex-wrap:wrap; gap:.3rem 1rem; margin-top:.5rem; font-size:var(--text-small); color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+.pages-gaps { margin-bottom:1rem; }
+.pages-directory .section-head { flex-wrap:wrap; }
+.pages-directory .section-head h2 { margin:0; }
+.handle-escrow { border-inline-start:3px solid var(--rule); padding-inline-start:1rem; margin-block:1rem; }
+.handle-state { font-weight:600; }
+.claim-steps { padding-inline-start:1.5rem; }
+.claim-steps > li { margin-block:1.25rem; }
+.claim-steps h3 { font-size:var(--text-body); margin-bottom:.5rem; }
+.claim-pending { padding-block:.5rem; }
+@media (max-width:600px) { .pot-wide { display:none; } .pot-narrow { display:inline; } }
+
+.app-topbar { flex-wrap:wrap; }
+.app-topbar .brand, .feedback-link { flex-shrink:0; white-space:nowrap; }
+.pot-chip { min-width:0; max-width:100%; }
+/* Keep browser focus scrolling above the fixed app navigation. */
+html { scroll-padding-block-end:calc(6rem + env(safe-area-inset-bottom)); }
+.handle-claim :is(input, textarea, button, a) { scroll-margin-block:1rem 6rem; }

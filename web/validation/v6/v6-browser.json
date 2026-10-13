@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Pages tab order, active state, pot destination and handle/address search",
+    "result": "pass"
+  },
+  {
+    "name": "Directory ranks by verified backers then supply and shows names, counts and next cost",
+    "result": "pass"
+  },
+  {
+    "name": "Your pages sells one page with bounded output and no approval or eligibility gate",
+    "result": "pass"
+  },
+  {
+    "name": "Directory discloses missing log ranges and unknown balances, refresh recovers",
+    "result": "pass"
+  },
+  {
+    "name": "Directory empty and disconnected states retain search and wallet action",
+    "result": "pass"
+  },
+  {
+    "name": "Handle explanation, escrow and clock precede controls; default one and receive lines",
+    "result": "pass"
+  },
+  {
+    "name": "Claim exact message and X composer, URL parsing, exact approval then request, pending lock",
+    "result": "pass"
+  },
+  {
+    "name": "Claim rejects hostile URL and changed live fee without a wallet request",
+    "result": "pass"
+  },
+  {
+    "name": "Pending claim polls to answered payee and allows tweet deletion",
+    "result": "pass"
+  },
+  {
+    "name": "Pending deadline exposes abandon; answer without payee can retry",
+    "result": "pass"
+  },
+  {
+    "name": "Claim wallet rejection remains recoverable",
+    "result": "pass"
+  },
+  {
+    "name": "Claim wallet changes reset tweet and preserve the exact new payee sentence",
+    "result": "pass"
+  },
+  {
+    "name": "Weekly pot fixed decimals and responsive label; exact caveats",
+    "result": "pass"
+  },
+  {
+    "name": "Thesis share uses first sentence and status; call keeps target and status",
+    "result": "pass"
+  },
+  {
+    "name": "Annex call share retains target and status",
+    "result": "pass"
+  },
+  {
+    "name": "Pages rendered contrast, normal phone first screen and focus in both themes",
+    "result": "pass"
+  },
+  {
+    "name": "Claim field and request stay clear of phone navigation when focused",
+    "result": "pass"
+  },
+  {
+    "name": "Changed screens reflow at 320/390/1440 in both themes, keyboard focus and long pot",
+    "result": "pass"
+  }
+]

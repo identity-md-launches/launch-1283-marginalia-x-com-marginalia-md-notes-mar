@@ -1,4 +1,4 @@
-# Marginalia site v5
+# Marginalia site v6
 
 React 19, TypeScript, Vite and viem, retaining the project's existing dependency lock and build configuration. The repository-root `dist/` is the complete static export. The landing is `dist/index.html`; the app is `dist/app/index.html`. Both use one compiled component tree, local bundled scripts and `dist/imd-deployment.json`. No wallet key, provider key or WalletConnect project ID is required. Visitors sign with an injected EIP-1193 wallet.
 
@@ -46,7 +46,8 @@ All existing transaction paths remain: exact router/Annex/Pages allowances, hook
 | `#/post` | Exact-parameter form, seal reveals, thesis/counter/child aliases retained |
 | `#/seal` | Private local draft, public checkpoint, exact hook stamp, seal and timed reveal |
 | `#/pools` | Deposits/refunds, sweep, judging request/payment/abandonment, treasury drip |
-| `#/pages/<handle>` | Handle registration/trades, claim sentence, abandon, recycle and deferred burn |
+| `#/pages` | Search handle or wallet, subjects ranked by verified backers then supply, next-page quote, Your pages and sell-back |
+| `#/pages/<handle>` | Handle registration/trades, escrow and recycle date, exact sentence → URL/ID → 0.5 IMD approval → claim request → pending/answer/deadline; abandon, recycle and deferred burn |
 | `#/feedback`, `#/?tab=feedback` | Unchanged signed Feedback intake and board |
 | `#/about` | Full caveat, mechanics, identity explanation, contracts and agent documents |
 
@@ -57,6 +58,7 @@ Hit rate excludes no-data outcomes and always has its settled sample beside it. 
 From `web/`, with Playwright installed outside the repository and Chromium available:
 
 ```sh
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v6 node tests/v6-browser.mjs
 PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v5 node tests/v5-browser.mjs
 PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v4 node tests/v4-browser.mjs
 PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v3 node tests/v3-browser.mjs
@@ -74,3 +76,11 @@ TypeScript unit files in tests can be bundled with the locked esbuild (`--bundle
 ## v5 review revision
 
 The extended `tests/v5-browser.mjs` includes the reported Annex child-parent, selected PoolKey, expanded receipt, gapped backer and admission-hint regressions. Run that production-browser suite with `TEST_FILTER=Revision` for only these cases. `tests/backers-unit.ts` uses deterministic fixed-block reads to cover missing buys/sells, failed balances and bounded candidate verification; bundle and run it like the retained unit suites above. Current revision evidence and limitations are appended in `VALIDATION.md`.
+
+## v6 continuation
+
+This is the owner's Pages product brief, with no credits or attestation. The v5 theme, routes, function-to-home map and approvals remain. The bottom bar is Feed / Pages / + / Record / Me; the pot chip opens Pots. Search remains usable during a failed chain boot, while contract actions wait for verification. The full-window Pages scan is chunked; gaps, failed balances and missing handle preimages stay explicit. Refresh repeats discovery; sell quotes refresh every 15 seconds and after confirmation. A failed holding read never becomes a zero holding.
+
+`tests/v6-unit.ts` covers search and tweet parsing, full log coverage, fixed-block verification, rank order, unknown values, fixed-decimal pots and share text. `tests/v6-browser.mjs` drives the production export for discovery, sell-back, claim sequence and URL parsing, pending polling/payee/deadline, wallet changes/rejection, exact approvals, copy and responsive layouts. `tests/v6-live.ts` is an optional read-only smoke check: bundle it like the units, then pass the authorized RPC URL and the absolute manifest path. It prints public-source evidence without recording the supplied RPC URL and sends no transaction. The live oracle fee is checked before each claim signature; a value other than the brief's 0.5 IMD disables this flow.
+
+Dependency and build configuration remain unchanged. This task installed the existing lockfile in a temporary mirror under `/tmp/`, built there, and copied the production export back, avoiding edits to repository node_modules or package files. Build, typecheck, browser, manifest and pinned-design results are in VALIDATION.md; publication remains pending.

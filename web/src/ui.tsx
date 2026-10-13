@@ -252,10 +252,10 @@ export function WalletAction({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 export function Caveat() {
-  return <p className="caveat">Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.</p>;
+  return <p className="caveat">Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side. The contracts cannot be changed; the site is rebuilt by the swarm, never hot-fixed. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.</p>;
 }
 
-export function SendCaveat() { return <p className="send-caveat">Swarm-built, unpatchable, can break. Not advice.</p>; }
+export function SendCaveat() { return <p className="send-caveat">Contracts can't change; the site gets rebuilt. Can break. Not advice.</p>; }
 export function Hint({ label, children }: { label: string; children: ReactNode }) {
   return <details className="rule-hint"><summary aria-label={label}>?</summary><span>{children}</span></details>;
 }

@@ -424,9 +424,9 @@ try {
  });
  await check('App shell: Feed first, pot, Feedback, five bottom controls and Me connect',async()=>{
   await open('/',{...social,wallet:false});await page.locator('.social-card').first().waitFor();
-  assert.equal(await page.locator('main h1').innerText(),'Feed');assert.deepEqual(await page.locator('.bottom-bar').locator('a,button').allTextContents(),['Feed','Record','+','Pots','Me']);
+  assert.equal(await page.locator('main h1').innerText(),'Feed');assert.deepEqual(await page.locator('.bottom-bar').locator('a,button').allTextContents(),['Feed','Pages','+','Record','Me']);
   assert.equal(await page.locator('.feed-tabs button').count(),4);await page.getByRole('button',{name:'Me · Connect wallet'}).click();await page.getByRole('alert').filter({hasText:'No browser wallet found'}).waitFor();
-  assert.match(await page.locator('.pot-chip').innerText(),/1 IMD/);await page.getByRole('link',{name:'Feedback',exact:true}).click();await page.locator('#feedback-text').waitFor();
+  assert.match(await page.locator('.pot-chip').innerText(),/1\.0 IMD/);await page.getByRole('link',{name:'Feedback',exact:true}).click();await page.locator('#feedback-text').waitFor();
  });
  await check('Feed cards: hook and Annex, identity fallback, counts, age, claims and Counter Share Back',async()=>{
   await open('/',social);await page.locator('.social-card').first().waitFor();await page.locator('.social-card').filter({hasText:'Supply is falling'}).locator('.author-rate').filter({hasText:'%'}).waitFor();
@@ -465,7 +465,7 @@ try {
   await page.locator('.profile-backing summary').first().click();await page.getByRole('button',{name:'Theses',exact:true}).click();assert.equal(await page.locator('.social-card').count(),1);
  });
  await check('Compose: defaults and tap hints, last token, one action, caveat and modal keyboard',async()=>{
-  await open('/call');await tradeReady();assert.equal(await page.locator('[aria-label="Target presets"] [aria-pressed="true"]').innerText(),'+25%');assert.equal(await page.locator('[aria-label="Horizon presets"] [aria-pressed="true"]').innerText(),'7 days');assert(await page.locator('#trade-toggle').isChecked());assert.equal(await page.locator('#conviction').inputValue(),'0.25');assert.equal(await page.locator('.trade-action button').count(),1);assert.match(await page.locator('.trade-action .send-caveat').innerText(),/Swarm-built, unpatchable, can break. Not advice./);
+  await open('/call');await tradeReady();assert.equal(await page.locator('[aria-label="Target presets"] [aria-pressed="true"]').innerText(),'+25%');assert.equal(await page.locator('[aria-label="Horizon presets"] [aria-pressed="true"]').innerText(),'7 days');assert(await page.locator('#trade-toggle').isChecked());assert.equal(await page.locator('#conviction').inputValue(),'0.25');assert.equal(await page.locator('.trade-action button').count(),1);assert.match(await page.locator('.trade-action .send-caveat').innerText(),/Contracts can't change; the site gets rebuilt. Can break. Not advice./);
   await page.getByLabel('Target rule',{exact:true}).click();assert.match(await page.locator('.rule-hint[open]').innerText(),/baseline/);assert.equal(await page.locator('.trade-more').evaluate(e=>e.open),false);
   await page.locator('#trade-token').fill(other);await page.getByRole('button',{name:'Close compose'}).click();await page.getByRole('link',{name:'Make a call',exact:true}).click();assert.equal(await page.locator('#trade-token').inputValue(),other);
   await page.keyboard.press('Escape');assert.equal(await page.locator('dialog').count(),0);assert(await page.locator('.compose-trigger').evaluate(e=>e===document.activeElement),'Compose restores focus to its trigger');await page.getByRole('link',{name:'Make a call',exact:true}).click();await page.getByRole('button',{name:'Close compose'}).focus();await page.keyboard.press('Shift+Tab');assert(await page.evaluate(()=>!!document.activeElement.closest('dialog')));

@@ -10,6 +10,7 @@ import { TradeForm } from './trade';
 import { DollarProvider } from './price';
 import { AnnexNote } from './annex';
 import { PagesPanel } from './pages/Pages';
+import { PagesDirectory, PagesSearch } from './pages/PagesDirectory';
 import { Prize, Scoreboard } from './pages/Home';
 import { DuelPage } from './pages/Duel';
 import { FeedPage } from './pages/Feed';
@@ -95,7 +96,7 @@ export default function App() {
   // The shell and Feedback remain reachable while verified chain reads are unavailable.
   if (!cfg || !pub || !contracts || bootError) return <Shell route={route} wallet={wallet}>
     <main id="main" tabIndex={-1} className="app-main">
-      {feedbackRoute ? <><h1>Feedback</h1><Feedback wallet={wallet} now={now}/></> : route.startsWith('/about') ? <><h1>About Marginalia</h1><Caveat/><p>Calls, theses and backing, recorded on Ethereum.</p></> : <>
+      {route.startsWith('/pages') ? <><h1>Pages</h1><p>Back a writer by holding their pages.</p><PagesSearch/><p role="status">{bootError ? 'Pages reads unavailable. Retry to load holdings and enable backing.' : 'Verifying Pages and reading Ethereum…'}</p>{bootError && <button onClick={() => window.location.reload()}>Retry connection</button>}</> : feedbackRoute ? <><h1>Feedback</h1><Feedback wallet={wallet} now={now}/></> : route.startsWith('/about') ? <><h1>About Marginalia</h1><Caveat/><p>Calls, theses and backing, recorded on Ethereum.</p></> : <>
         <div className="section-head"><h1>Feed</h1><button type="button" className="quiet" onClick={wallet.connect} disabled={wallet.connecting}>{wallet.account ? 'Wallet connected' : 'Connect wallet'}</button></div>
         <div className="feed-tabs tabs" aria-label="Feed views">{['Latest', 'Settling soon', 'Theses', 'Backed'].map(t => <button type="button" key={t} disabled>{t}</button>)}</div>
         <p className="empty" role="status">{bootError ? 'Ethereum reads unavailable. Retry to load the record and enable calls.' : 'Checking the deployment and reading Ethereum…'}</p>
@@ -130,7 +131,8 @@ export default function App() {
   else if (route.startsWith('/seal')) page = <SealPage {...feedState} />;
   else if (route.startsWith('/pools')) page = <PoolsPage {...feedState} />;
   else if (route.startsWith('/scoreboard')) { page = <Scoreboard {...feedState} />; isFeedPage = true; }
-  else if (cfg.pages && (seg = m(/^\/pages\/([a-zA-Z0-9_]{1,15})$/))) page = <PagesPanel handle={seg[1]} feed={feed}/>;
+  else if (m(/^\/pages\/?$/)) page = <PagesDirectory/>;
+  else if (cfg.pages && (seg = m(/^\/pages\/([a-zA-Z0-9_]{1,15})$/))) page = <PagesPanel key={seg[1].toLowerCase()} handle={seg[1]} feed={feed}/>;
   else if (route.startsWith('/about')) page = <AboutPage />;
   else { page = <FeedPage key={route} {...feedState} />; isFeedPage = true; }
 

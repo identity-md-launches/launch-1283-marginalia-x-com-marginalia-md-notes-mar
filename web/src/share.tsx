@@ -5,6 +5,13 @@ import { parseReceipt } from './scoreboard';
 
 export interface CardColumn { title: string; claim: string; author: string; result: string; detail?: string }
 export interface ShareCard { kind: 'Note' | 'Duel' | 'Author'; title: string; columns: CardColumn[]; line: string; filename: string }
+export function noteShareLine(n: Note): string {
+  const sentence = n.text.trim().replace(/\s+/g, ' ').match(/^.*?[.!?](?=\s|$)|^.+$/u)?.[0] ?? '';
+  const claim = isThesis(n) ? Array.from(sentence).slice(0, 140).join('') : describeTarget(n.side, n.targetBps);
+  const stop = /[.!?]$/.test(claim) ? '' : '.';
+  const title = n.source === 'annex' ? 'Marginalia Annex call' : `Marginalia note No. ${n.index}`;
+  return `${title} by ${short(n.author)}: ${claim}${stop} ${STATUS_LABEL[n.status]}.`;
+}
 export function noteColumn(n: Note, token: string): CardColumn {
   const citation = parseReceipt(n.text);
   const rationale = citation ? n.text.trimStart().replace(/^\S+\s*/, '') : n.text;

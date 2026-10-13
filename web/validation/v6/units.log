@@ -1,0 +1,141 @@
+
+  ../../../../../../tmp/marginalia-v6-backers-unit.mjs  64.2kb
+
+⚡ Done in 210ms
+
+backers-unit.ts
+PASS A sell in an unreadable range cannot leave a former holder in the list
+PASS Every candidate is checked, including net-zero and sell-only histories
+PASS Failed balance reads are excluded and marked independently of history gaps
+PASS Complete history uses current balances, deduplicates candidates and sorts holdings
+PASS Bounded history discloses undiscovered holders but verifies sell-only candidates
+PASS Candidate balances are read in bounded batches and failures do not hide verified holders
+
+  ../../../../../../tmp/marginalia-v6-child-call-unit.mjs  90.0kb
+
+⚡ Done in 234ms
+
+child-call-unit.ts
+PASS child-call: ID/existence, ThesisOpen, author, inclusive grace, chain clock, fixed-block reads and fresh preflight rejection.
+
+  ../../../../../../tmp/marginalia-v6-history-unit.mjs  79.5kb
+
+⚡ Done in 214ms
+
+history-unit.ts
+PASS Fresh browser recovers the reviewer’s historical note from deployment
+PASS Returning browser retrieves the served gap after a 9,000-block absence
+PASS Historical cursor advances across bounded batches and all six event types join
+PASS Refused history cannot starve later ranges; recovery retries only remaining holes
+PASS Successful coverage survives a failed overlap and a later successful replacement
+PASS Old v1 tail-only caches migrate without dropping logs and coverage
+PASS A changed block anchor discards reorganized historical logs
+7 history scenarios passed
+
+  ../../../../../../tmp/marginalia-v6-revision-unit.mjs  194.4kb
+
+⚡ Done in 232ms
+
+revision-unit.ts
+PASS exact approval totals
+PASS priced calls cannot encode zero or overflow uint32
+PASS remaining refund share: integer rounding, cap, empty/count-zero
+PASS pricer revert is readable by name and selector
+PASS initial events persisted
+PASS refresh reads only overlap and tail, retains historical note
+PASS old cached note survives refused ranges, 90-day scan bounded to four recent plus four historical chunks
+PASS recent failed ranges recover without losing historical-gap disclosure
+PASS changed anchor invalidates cache and discards reorganized events
+9 unit scenarios passed
+
+  ../../../../../../tmp/marginalia-v6-trade-receipt-unit.mjs  139.0kb
+
+⚡ Done in 247ms
+
+trade-receipt-unit.ts
+PASS receipt trade: exact IMD, authenticated router/author, note association, no cited identity, WETH historical-read fallback, no unrelated preceding or later leg.
+
+  ../../../../../../tmp/marginalia-v6-v2-unit.mjs  42.0kb
+
+⚡ Done in 265ms
+
+v2-unit.ts
+PASS Only leading status URLs on exact X/Twitter hosts are receipts
+PASS Cited accounts count note verdicts without mutating authorship
+PASS Duels require same token, opposite sides and different posting wallets
+PASS Rates expose empty samples and rank without losing bigint score precision
+PASS Weighted wins come only from positive RIGHT settlement deltas
+5 v2 logic groups passed.
+
+  ../../../../../../tmp/marginalia-v6-v3-unit.mjs  157.7kb
+
+⚡ Done in 319ms
+
+v3-unit.ts
+PASS v3: exact approvals (including overlapping IMD), baseline bounds, v2 math, TickMath boundaries/monotonicity, pinned ABI subsets/hashes, router+Annex calldata and Pages v0.10 surface.
+
+  ../../../../../../tmp/marginalia-v6-v5-unit.mjs  232.3kb
+
+⚡ Done in 242ms
+
+v5-unit.ts
+PASS v5: sanitized avatars, live primary names and no-name fallback, view-only pinned calls, fixed-block identity/code gates, hit-rate ties/zero samples, child authorship, live backed holdings.
+
+  ../../../../../../tmp/marginalia-v6-v6-unit.mjs  169.2kb
+
+⚡ Done in 259ms
+
+v6-unit.ts
+PASS search, tweet URL security, pot precision and thesis/call share text
+PASS full chunk coverage, name integrity, current balances, deduplication, ranking and disclosed failures
+PASS EIP-191 recovers the exact signing wallet without a network call
+PASS ID uses abi.encode(address,uint256,string), case-independent address
+PASS Altered signer, signature and signed text are rejected
+PASS Canonical JSON binds order, site, kind, text, handle and week
+PASS 600 UTF-8 bytes accepted, 601 rejected; empty/malformed Unicode rejected
+PASS POST persists signed evidence, public entry and KV rate
+PASS Valid 600-byte text survives JSON expansion beyond the KV metadata cap
+PASS Concurrent different entries enforce one per rolling hour
+PASS Identical retry is idempotent; changed kind/handle cannot rewrite same ID
+PASS One hour boundary, weekly tenth entry and next week reset
+PASS Rolling hour does not reset at the Unix week boundary
+PASS KV failure preserves durable outbox and retries without double-counting
+PASS Alarm flushes an accepted outbox after a failed request
+PASS Current document has exactly the oracle shape; newest first and paginated KV complete
+PASS Pick and adopted ledger round trip, with exact picked order and shares
+PASS Bad picks/credits fail visibly instead of showing fabricated or empty data
+PASS Same-origin CORS, malformed body, size cap, method and unconfigured routes
+PASS A cached positive chain result grants badge; handle alone does not
+{
+  "passed": 18,
+  "checks": [
+    "EIP-191 recovers the exact signing wallet without a network call",
+    "ID uses abi.encode(address,uint256,string), case-independent address",
+    "Altered signer, signature and signed text are rejected",
+    "Canonical JSON binds order, site, kind, text, handle and week",
+    "600 UTF-8 bytes accepted, 601 rejected; empty/malformed Unicode rejected",
+    "POST persists signed evidence, public entry and KV rate",
+    "Valid 600-byte text survives JSON expansion beyond the KV metadata cap",
+    "Concurrent different entries enforce one per rolling hour",
+    "Identical retry is idempotent; changed kind/handle cannot rewrite same ID",
+    "One hour boundary, weekly tenth entry and next week reset",
+    "Rolling hour does not reset at the Unix week boundary",
+    "KV failure preserves durable outbox and retries without double-counting",
+    "Alarm flushes an accepted outbox after a failed request",
+    "Current document has exactly the oracle shape; newest first and paginated KV complete",
+    "Pick and adopted ledger round trip, with exact picked order and shares",
+    "Bad picks/credits fail visibly instead of showing fabricated or empty data",
+    "Same-origin CORS, malformed body, size cap, method and unconfigured routes",
+    "A cached positive chain result grants badge; handle alone does not"
+  ]
+}
+PASS note badges: hook OR Annex posted records, fixed block, configured RPC, canonical ABI/SHA, code/chain/hook binding, positive cache, absent/unverified fail closed.
+PASS credit schema, full ranked disposition, actual authors, fractions/sum, synthesis, request/week, duplicate adoption, full commit and append without mutation.
+
+Final v6 search/claim/share rerun after accepting 0x-prefixed handles:
+
+  ../../../../../../tmp/marginalia-v6-unit.mjs  169.3kb
+
+⚡ Done in 420ms
+PASS search, tweet URL security, pot precision and thesis/call share text
+PASS full chunk coverage, name integrity, current balances, deduplication, ranking and disclosed failures

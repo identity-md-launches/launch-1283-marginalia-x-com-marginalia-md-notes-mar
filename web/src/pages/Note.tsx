@@ -2,7 +2,7 @@ import { sendChecked } from '../transactions';
 import { NoteVenue } from '../note-venue';
 import { UsdContext } from '../price';
 import { Citation } from '../receipts';
-import { noteColumn, Share } from '../share';
+import { noteColumn, noteShareLine, Share } from '../share';
 import { findDuels } from '../scoreboard';
 import { formatUnits, maxUint256, type Hex } from 'viem';
 import { useState } from 'react';
@@ -83,7 +83,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
         {!thesis && n.status === Status.Open && !mine && <a className="button" href={`#/post?counter=${n.id}`}>Counter this call</a>}
         {findDuels(feed.notes).filter(d => d.counter.id === n.id || d.target.id === n.id).map(d => <a className="button" key={d.counter.id} href={`#/duel/${d.counter.id}`}>View duel № {d.counter.index.toString()}</a>)}
       </div>
-      <Share card={{ kind: 'Note', title: thesis ? 'A thesis on the record' : `${token?.symbol ?? short(n.x)} · ${describeTarget(n.side, n.targetBps)}`, columns: [noteColumn(n, token?.symbol ?? short(n.x))], line: `Marginalia note № ${n.index} by ${short(n.author)}: ${thesis ? 'thesis' : describeTarget(n.side, n.targetBps)}. ${STATUS_LABEL[n.status]}.`, filename: `marginalia-note-${n.index}` }} />
+      <Share card={{ kind: 'Note', title: thesis ? 'A thesis on the record' : `${token?.symbol ?? short(n.x)} · ${describeTarget(n.side, n.targetBps)}`, columns: [noteColumn(n, token?.symbol ?? short(n.x))], line: noteShareLine(n), filename: `marginalia-note-${n.index}` }} />
       <dl className="facts">
         <dt>Author</dt>
         <dd>

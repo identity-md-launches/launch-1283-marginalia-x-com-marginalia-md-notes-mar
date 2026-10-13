@@ -1,0 +1,22 @@
+PASS Trade first, caveat visible, no Pages without manifest; mobile and desktop fit
+PASS Absent wallet gives actionable feedback
+PASS Wrong chain precedes signing; unknown chain receives exact add-chain parameters
+PASS Exact combined IMD approval, confirmation, then bounded tradeAndNote simulation and signing
+PASS Wallet rejection recovers and no double submission during pending approval
+PASS Missing checkpoint saves draft and exposes countdown without real-time waiting
+PASS Young checkpoint matures using a controlled clock
+RPC fixture error: Slippage: simulated output is below the minimum
+RPC fixture error: Slippage: simulated output is below the minimum
+PASS Text byte limit and failed simulation disable or reject before wallet signing
+PASS Side presets select SELL and its input token; amount minima are retained
+PASS Annex tab uses its own approval and positive 3% baseline bound
+PASS Original guided call, thesis and seal routes remain usable
+PASS Pages are enabled only by manifest; handle registration precedes first trade
+PASS Pages sell remains available without eligibility; exact claim sentence and burn recovery
+PASS WETH shortage wraps exactly the missing amount before ERC-20 trade
+PASS Unavailable USD stays explicit and does not block token-denominated posting
+PASS Annex admission validates the batch and approves only the current panel fee
+PASS Annex note lifecycle uses the Annex and current horizon
+PASS Judging and treasury controls use fresh pool state and configured companions
+PASS All primary routes and secondary composer tabs reflow at 320 and 390
+PASS Keyboard focus, dark mode and long values remain within 320px

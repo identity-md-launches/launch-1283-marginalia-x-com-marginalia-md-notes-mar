@@ -1,0 +1,36 @@
+{
+  "source": "https://ethereum-rpc.publicnode.com",
+  "chainId": 1,
+  "blockNumber": "26186708",
+  "pages": "0xf69ccb8f46049248c59522b21a04cc193729d8fa",
+  "bindingsVerified": true,
+  "claimWindow": "7776000",
+  "answerDeadline": "259200",
+  "oracleCost": "500000000000000000",
+  "directory": {
+    "rows": [
+      {
+        "subject": "0x000000000000000000000000c6579c593b34916fcc7f3f2750e8b56749bf0808",
+        "author": "0xC6579C593b34916fCC7F3f2750E8b56749bF0808",
+        "supply": "10",
+        "next": "605000000000000000",
+        "backers": 1,
+        "holdingsFailed": 0,
+        "holding": "0"
+      },
+      {
+        "subject": "0xea201eb5cf2c8d4da367a02bde04fb5c63f4ac23ec5cab0a1957f02628abd5cf",
+        "handle": "marginalia_md",
+        "supply": "1",
+        "next": "110000000000000000",
+        "backers": 1,
+        "holdingsFailed": 0,
+        "holding": "0"
+      }
+    ],
+    "from": "26180753",
+    "to": "26186708",
+    "gaps": []
+  },
+  "transactionsSent": 0
+}

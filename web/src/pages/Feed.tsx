@@ -11,7 +11,7 @@ import { Citation } from '../receipts';
 import { parseReceipt } from '../scoreboard';
 import { Person } from '../identity';
 import { AuthorRate, ChildPosted, FeedContext, readBacked } from '../social';
-import { noteColumn, Share } from '../share';
+import { noteColumn, noteShareLine, Share } from '../share';
 
 export interface FeedProps { feed: FeedData | null; error: string | null; loading: boolean; refresh: () => void }
 export function ageOf(timestamp: number, now: number) {
@@ -43,7 +43,7 @@ export function Entry({ n, tokenName, children, expanded = false }: { n: Note; t
     {parent && <p className="small card-parent"><a href={`#/note/${parent.id}`}>{isThesis(parent) ? `under thesis No. ${parent.index}` : `counter to ${parent.source === 'annex' ? 'Annex ' + short(parent.id) : 'No. ' + parent.index}`}</a></p>}
     {thesis && <div className="card-child"><ChildPosted n={n} feed={feed}/>{n.status === Status.ThesisOpen && n.children === 0 && !feed?.notes.some(c => c.parentId === n.id && c.author.toLowerCase() === n.author.toLowerCase()) && <span className="small">Needs its child call within 7 days.</span>}</div>}
     <div className="card-actions">{thesis && <a href={`#/note/${n.id}`}>Read</a>}{canCounter ? <a href={thesis ? `#/thesis?rebut=${n.id}` : `#/call?counter=${n.id}`}>Counter</a> : <button type="button" disabled title={mine ? 'Choose another writer’s open call.' : 'Only open calls can be countered.'}>Counter</button>}
-      <Share href={`#/note/${n.id}`} compact card={{ kind: 'Note', title: thesis ? 'A thesis on the record' : `${token} · ${describeTarget(n.side, n.targetBps)}`, columns: [noteColumn(n, token)], line: `Marginalia ${thesis ? 'thesis' : 'call'} by ${short(n.author)}. ${verdict}.`, filename: `marginalia-note-${n.id}` }}/>
+      <Share href={`#/note/${n.id}`} compact card={{ kind: 'Note', title: thesis ? 'A thesis on the record' : `${token} · ${describeTarget(n.side, n.targetBps)}`, columns: [noteColumn(n, token)], line: noteShareLine(n), filename: `marginalia-note-${n.id}` }}/>
       <a href={`#/author/${n.author}?back=1`}>Back</a>
     </div>{children}
   </li>;

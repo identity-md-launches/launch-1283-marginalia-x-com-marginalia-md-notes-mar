@@ -11,7 +11,7 @@ import { Addr, Countdown, Hint, Notice, TxButton, WalletAction } from './ui';
 import type { FeedProps } from './pages/Feed';
 import { Entry } from './pages/Feed';
 import type { Note } from './notes';
-import { noteColumn, Share } from './share';
+import { noteColumn, noteShareLine, Share } from './share';
 
 export function Admission() {
   const app = useApp(); const { contracts: c, pub, wallet, now } = app;
@@ -56,7 +56,7 @@ export function AnnexNote({ n, refresh }: { n: Note; refresh: FeedProps['refresh
   const observeReady = !!s && s.view.status === Status.Open && now >= end && now <= end+21600 && (!last || s.block.number >= last.blockNumber+20n);
   return <><h1>Launched-token receipt</h1><p className="small">Annex · {short(n.id,10,6)}</p><ul className="ledger"><Entry expanded n={s ? {...n,status:s.view.status,deposit:s.view.deposit} : n}/></ul>
     {!mine && s?.view.status===Status.Open && <a className="button" href={`#/post?counter=${n.id}`}>Counter this call</a>}
-    <Share card={{ kind:'Note',title:'A call on the record',columns:[noteColumn(n,short(n.x))],line:`Marginalia Annex call by ${short(n.author)}.`,filename:`marginalia-annex-${n.id}` }} />
+    <Share card={{ kind:'Note',title:'A call on the record',columns:[noteColumn(n,short(n.x))],line:noteShareLine(s ? {...n,status:s.view.status} : n),filename:`marginalia-annex-${n.id}` }} />
     {live.error && <Notice kind="bad"><p>Live note state unavailable.</p><button type="button" onClick={live.refresh}>Retry note</button></Notice>}
     <dl className="facts"><dt>Contract</dt><dd><Addr a={c.annex!}/></dd><dt>Horizon</dt><dd>{s ? fmtDate(end) : 'Reading…'} {s && now < end && <Countdown until={end}/>}</dd><dt>Bond</dt><dd>{s ? fmtAmount(s.view.deposit) : '…'} IMD <UsdContext imd={s?.view.deposit}/></dd><dt>Baseline</dt><dd>{s ? fmtAmount(s.view.postPrice,18,8) : '…'} IMD per 1e18 units of X <UsdContext imd={s?.view.postPrice}/></dd></dl>
     <h2>Observe and settle</h2><p className="small">Three readings, at least 20 blocks apart and spanning one hour, in the six hours after the horizon. The least favorable price decides.</p>

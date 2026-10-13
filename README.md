@@ -1,8 +1,8 @@
 # Marginalia — notes in the margin of every trade
 
-## Static site v5
+## Static site v6
 
-The landing and social app are delivered in `web/` and repository-root `dist/`. Open `dist/index.html` through a static server for the landing or `dist/app/index.html` for the feed. The app keeps every existing contract control, adds read-only LARP identity and ranks records only by hit rate with settled count. The child-call suite is ported to app routes. No contract is deployed by this job.
+The landing and social app are delivered in `web/` and repository-root `dist/`. Open `dist/index.html` through a static server for the landing or `dist/app/index.html` for the feed. The app keeps every existing contract control, adds read-only LARP identity and ranks records only by hit rate with settled count. The Pages tab adds handle/wallet search, ranked subjects and your sellable holdings. Handle claims follow the exact sentence, tweet URL/ID, exact approval, request and pending/answered states; caveats distinguish immutable contracts from the rebuilt site. The child-call suite remains ported to app routes. No contract is deployed by this job.
 
 See [frontend setup and hosting](web/README.md), [worker validation](web/VALIDATION.md), [design](DESIGN.md), [function-to-home map](docs/STATUS.md) and [LARP provenance](docs/integrations/larp.md). Publication, funded wallet actions and production Feedback mounting remain operator steps.
 

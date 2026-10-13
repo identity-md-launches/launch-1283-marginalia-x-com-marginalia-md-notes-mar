@@ -1,0 +1,15 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "field": {
+    "top": 813.140625,
+    "height": 44
+  },
+  "nav": {
+    "top": 775.8125,
+    "height": 68.1875
+  },
+  "result": "reproduced: focused field obscured by bottom navigation; fixed by scroll padding and margins"
+}

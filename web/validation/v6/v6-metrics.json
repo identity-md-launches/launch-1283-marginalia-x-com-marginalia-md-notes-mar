@@ -1,0 +1,132 @@
+{
+  "contrast-light": {
+    ".page-handle": {
+      "foreground": "rgb(166, 60, 24)",
+      "background": "rgb(246, 241, 231)",
+      "contrast": 5.685760461413468
+    },
+    ".page-subject-stats": {
+      "foreground": "rgb(90, 81, 70)",
+      "background": "rgb(246, 241, 231)",
+      "contrast": 6.908741208089827
+    },
+    ".pages-search button": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(185, 71, 31)",
+      "contrast": 5.271165514423459
+    }
+  },
+  "contrast-dark": {
+    ".page-handle": {
+      "foreground": "rgb(241, 162, 129)",
+      "background": "rgb(21, 19, 15)",
+      "contrast": 9.033471666933785
+    },
+    ".page-subject-stats": {
+      "foreground": "rgb(180, 169, 149)",
+      "background": "rgb(21, 19, 15)",
+      "contrast": 7.995025955241697
+    },
+    ".pages-search button": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(185, 71, 31)",
+      "contrast": 5.271165514423459
+    }
+  },
+  "claimFocus320": {
+    "field": {
+      "x": 36,
+      "y": 717.140625,
+      "width": 272,
+      "height": 44
+    },
+    "action": {
+      "x": 36,
+      "y": 392.328125,
+      "width": 125.09375,
+      "height": 44
+    },
+    "nav": {
+      "x": 0,
+      "y": 775.8125,
+      "width": 320,
+      "height": 68.1875
+    }
+  },
+  "claimFocus390": {
+    "field": {
+      "x": 40,
+      "y": 717.140625,
+      "width": 334,
+      "height": 44
+    },
+    "action": {
+      "x": 40,
+      "y": 388.328125,
+      "width": 125.09375,
+      "height": 44
+    },
+    "nav": {
+      "x": 0,
+      "y": 775.8125,
+      "width": 390,
+      "height": 68.1875
+    }
+  },
+  "/pages light": [
+    {
+      "width": 320,
+      "scroll": 320
+    },
+    {
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "width": 1440,
+      "scroll": 1440
+    }
+  ],
+  "/pages/market_reader light": [
+    {
+      "width": 320,
+      "scroll": 320
+    },
+    {
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "width": 1440,
+      "scroll": 1440
+    }
+  ],
+  "/pages dark": [
+    {
+      "width": 320,
+      "scroll": 320
+    },
+    {
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "width": 1440,
+      "scroll": 1440
+    }
+  ],
+  "/pages/market_reader dark": [
+    {
+      "width": 320,
+      "scroll": 320
+    },
+    {
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "width": 1440,
+      "scroll": 1440
+    }
+  ]
+}
