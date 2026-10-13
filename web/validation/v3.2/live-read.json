@@ -1,0 +1,23 @@
+{
+  "block": "26181241",
+  "rpc": "https://eth.drpc.org",
+  "result": "Read-only v3-live.ts completed: chain, contract code, companion/pool bindings, ABI subsets and canonical hashes, seal encoding, Annex binding/admission and local quotes checked. No transaction sent.",
+  "router": "0xa3579D7c59A2C0c742fC4e5BB18AF93241D1d263",
+  "judge": "0xa9e1891d76553195B4Cbcd0F8Db290C8C0FA28B9",
+  "treasury": "0x3e00372cc4967D2bd006Ca882c51dAf45a9810C8",
+  "noteCount": "4",
+  "quotes": [
+    {
+      "input": "IMD",
+      "localOutput": "477739406381657042308",
+      "quoterOutput": "477739406381657042308",
+      "match": true
+    },
+    {
+      "input": "MARG",
+      "localOutput": "197994979190",
+      "quoterOutput": "197994979190",
+      "match": true
+    }
+  ]
+}

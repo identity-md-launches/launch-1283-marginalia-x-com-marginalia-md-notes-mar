@@ -40,7 +40,7 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
   const [thesisText, setThesisText] = useState('');
   const [thesisParent, setThesisParent] = useState('');
   const [bond, setBond] = useState('0.25');
-  const [posted, setPosted] = useState<{ id: Hex; hash: Hex; graceEnd?: number } | null>(null);
+  const [posted, setPosted] = useState<{ id: Hex; hash: Hex; graceEnd?: number; priced: boolean } | null>(null);
   const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null);
 
   useEffect(() => {
@@ -174,7 +174,7 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
         if (ev.eventName === 'NotePosted') {
           const id = (ev.args as { id: Hex }).id;
           if (params) rememberVenue(id, params);
-          setPosted({ id, hash, graceEnd: ev.args.targetBps === 0 ? Number(block.timestamp) + L.thesisGrace : undefined });
+          setPosted({ priced: ev.args.targetBps !== 0, id, hash, graceEnd: ev.args.targetBps === 0 ? Number(block.timestamp) + L.thesisGrace : undefined });
         }
       } catch {
         /* other event */
@@ -323,8 +323,7 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
           {posted && (
             <Notice kind="ok">
               <p>
-                Posted as <a href={`#/note/${posted.id}`}>note № {BigInt(posted.id).toString()}</a>. The venue you chose is not stored on chain; this browser
-                keeps it so you can settle or seal against it later.
+                Posted as <a href={`#/note/${posted.id}`}>note № {BigInt(posted.id).toString()}</a>.{posted.priced && <> The venue you chose is not stored on chain; this browser keeps it so you can settle or seal against it later.</>}
               </p>
             </Notice>
           )}

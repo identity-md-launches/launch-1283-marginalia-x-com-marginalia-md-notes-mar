@@ -1,4 +1,29 @@
-# Marginalia site v3.1
+# Marginalia site v3.2
+
+This continuation adds the fifth **Feedback** composer tab and the operator's weekly build loop. It preserves the existing trade, calls, theses, child calls, seals, Annex, hidden Pages and runtime verification. Feedback signs exact EIP-191 JSON and uses a same-origin intake route; it never approves or moves tokens. The immutable/open lists appear before the form. Text is capped at 600 UTF-8 bytes; the connected wallet, exact message and self-reported handle are explicit. The form remains usable during an RPC outage. Unsent drafts survive composer changes in page memory only; no drafts or signatures are saved to browser storage.
+
+`web/worker/feedback.js` is the Cloudflare module to mount beside existing assets. Bind FEEDBACK KV, FEEDBACK_WRITES (the exported durable writer for strict concurrent rate limits) and ASSETS. See [worker/README.md](worker/README.md) for mounting, signature/ID encoding, public document schemas, the pick key and the one-line adopted-ledger append. This job delivers service code; production mounting and publication remain operator steps. On a plain static/IPFS host without the route, the app explains the unavailable service rather than inventing entries.
+
+Read [../docs/loop.md](../docs/loop.md), [../docs/STATUS.md](../docs/STATUS.md) and [../docs/CHANGELOG.md](../docs/CHANGELOG.md) before every continuation and append to STATUS/CHANGELOG before delivering. These three documents also ship under `dist/docs/`; `agents.md` links them. No bootstrap ranking, oracle request, adopted build or credit is fabricated.
+
+The post-success venue notice now depends on the confirmed NotePosted target: target-zero theses omit it, priced calls retain it. Existing child-call follow-up remains intact.
+
+## Feedback validation
+
+Alongside the existing build/typecheck/manifest commands below, run these from `web/` with its unchanged dependencies installed:
+
+```sh
+node tests/feedback-worker.mjs
+node tests/feedback-noted.mjs
+node tests/feedback-ledger.mjs
+./node_modules/.bin/esbuild worker/feedback.js --bundle --format=esm --platform=browser --outfile=/tmp/marginalia-feedback-worker.js
+MINIFLARE_MODULE=/absolute/path/to/miniflare/dist/src/index.js WORKER_BUNDLE=/tmp/marginalia-feedback-worker.js node tests/feedback-runtime.mjs
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/feedback node tests/feedback-browser.mjs
+```
+
+Miniflare 4 and Playwright are optional test tools installed outside this repository, not application dependencies. `BROWSER=webkit` runs the same interactions in WebKit. The browser test serves the production export at a subpath, runs the actual intake against test storage and signs with fresh ephemeral accounts, while rejecting all external chain calls. The workerd test exercises the actual durable object and KV APIs. The note-badge test verifies code/chain/ABI/binding failures with deterministic RPC fixtures. Test accounts and entries never ship in `dist/`. The worker validation report distinguishes local tests from unperformed live signing/deployment.
+
+## Retained v3.1 behavior
 
 Trade it. Say why. The chain keeps the receipt. This version continues the existing React 19 / TypeScript / Vite / viem ledger, with the trade composer first and the scoreboard below it. Publish repository-root `dist/` as plain files. Relative Vite assets and hash routes support a gateway subpath without server rewrites.
 
@@ -26,7 +51,7 @@ The named IMD/USDC v3 reference, canonical factories/WETH and deployment scan bl
 
 | Route | Purpose and primary controls |
 | --- | --- |
-| `#/` | Trade and post; just the call; thesis; launched-token call; checkpoint; exact approvals; WETH wrap; Annex hook admission; scoreboard below |
+| `#/` | Trade and post; just the call; thesis; launched-token call; Feedback; checkpoint; exact approvals; WETH wrap; Annex hook admission; scoreboard below |
 | `#/scoreboard` | Prize/clock, combined hook + Annex wallet records, cited accounts, duels, verdicts, feed |
 | `#/feed` | Filter notes, including `?cites=handle`; venue liquidity and token Radar links |
 | `#/note/<hex-id>` | Receipt, share, counter, own-thesis child call, observe, settle, retract, thesis forfeiture, deposit/refund claim; Annex actions target the Annex |
@@ -77,13 +102,13 @@ npm run check
 npm run preview
 ```
 
-`manifest` runs after the production build and inventories every exported file except itself with SHA-256. It also binds canonical ABI Keccaks and copies root `AGENTS.md` / `llms.txt` verbatim. `check` verifies those files, exact handoff/network, the explicit Annex extension, relative assets and export completeness. Regenerate after any export change. The source, unchanged package manifest/lockfile and final static export travel together.
+`manifest` runs after the production build, copies the three continuation-memory documents into `dist/docs/`, and inventories every exported file except itself with SHA-256. It also binds canonical ABI Keccaks and copies root `AGENTS.md` / `llms.txt` verbatim. `check` verifies those files, exact handoff/network, the explicit Annex extension, relative assets and export completeness. Regenerate after any export change. The source, unchanged package manifest/lockfile and final static export travel together.
 
 The assignment forbids writing dependency paths, so this worker installed the same lockfile in `/tmp/marginalia-child/build/web`, copied source/public/scripts/tests plus root documents there, built/checked there and copied only `dist/` back. No dependency directory, registry archive, submodule, ignore-file edit or build-configuration change is delivered.
 
 ## Validation
 
-See `VALIDATION.md`, `validation/v3.1/` and root `DESIGN.md` (older evidence remains in `validation/v3/`). From `web/` with dependencies installed:
+See `VALIDATION.md`, `validation/v3.2/` (current) and `validation/v3.1/` (historical) and root `DESIGN.md` (older evidence remains in `validation/v3/`). From `web/` with dependencies installed:
 
 ```sh
 for name in v2-unit revision-unit history-unit v3-unit child-call-unit; do

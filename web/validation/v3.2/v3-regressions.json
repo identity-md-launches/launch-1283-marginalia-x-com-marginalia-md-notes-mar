@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Trade first, caveat visible, no Pages without manifest; mobile and desktop fit",
+    "result": "pass"
+  },
+  {
+    "name": "Absent wallet gives actionable feedback",
+    "result": "pass"
+  },
+  {
+    "name": "Wrong chain precedes signing; unknown chain receives exact add-chain parameters",
+    "result": "pass"
+  },
+  {
+    "name": "Exact combined IMD approval, confirmation, then bounded tradeAndNote simulation and signing",
+    "result": "pass"
+  },
+  {
+    "name": "Wallet rejection recovers and no double submission during pending approval",
+    "result": "pass"
+  },
+  {
+    "name": "Missing checkpoint saves draft and exposes countdown without real-time waiting",
+    "result": "pass"
+  },
+  {
+    "name": "Young checkpoint matures using a controlled clock",
+    "result": "pass"
+  },
+  {
+    "name": "Text byte limit and failed simulation disable or reject before wallet signing",
+    "result": "pass"
+  },
+  {
+    "name": "Side presets select SELL and its input token; amount minima are retained",
+    "result": "pass"
+  },
+  {
+    "name": "Annex tab uses its own approval and positive 3% baseline bound",
+    "result": "pass"
+  },
+  {
+    "name": "Original guided call, thesis and seal routes remain usable",
+    "result": "pass"
+  },
+  {
+    "name": "Pages are enabled only by manifest; handle registration precedes first trade",
+    "result": "pass"
+  },
+  {
+    "name": "Pages sell remains available without eligibility; exact claim sentence and burn recovery",
+    "result": "pass"
+  },
+  {
+    "name": "WETH shortage wraps exactly the missing amount before ERC-20 trade",
+    "result": "pass"
+  },
+  {
+    "name": "Unavailable USD stays explicit and does not block token-denominated posting",
+    "result": "pass"
+  },
+  {
+    "name": "Annex admission validates the batch and approves only the current panel fee",
+    "result": "pass"
+  },
+  {
+    "name": "Annex note lifecycle uses the Annex and current horizon",
+    "result": "pass"
+  },
+  {
+    "name": "Judging and treasury controls use fresh pool state and configured companions",
+    "result": "pass"
+  },
+  {
+    "name": "All primary routes and secondary composer tabs reflow at 320 and 390",
+    "result": "pass"
+  },
+  {
+    "name": "Keyboard focus, dark mode and long values remain within 320px",
+    "result": "pass"
+  }
+]

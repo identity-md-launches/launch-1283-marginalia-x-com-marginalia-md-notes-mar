@@ -1,3 +1,75 @@
+# Marginalia v3.2: Feedback and weekly-loop validation
+
+Checked on 2026-10-13 UTC. Complete for the stated implementation scope, with the deployment and manual/live limitations below. These are local worker observations, not independent certification. No funded transaction, oracle request, contract deployment, Worker publication or DNS/IPFS update was performed.
+
+## Delivered behavior and important decisions
+
+The fifth composer tab follows Launched tokens. The immutable/open lists precede a Site / Mechanics / Idea form with a 600 UTF-8-byte counter, optional unverified X handle, explicit signing wallet, exact compact JSON preview and signature-only action. The browser uses only `personal_sign`, verifies the recovered wallet locally, rechecks the selected account/week, and POSTs the exact message/signature/address. It neither switches chain for feedback nor requests a transaction, approval or token movement. Pending disables fields; rejection, service errors and rate limits preserve the draft. Identical retries reuse the signature while mounted. Unsent text survives composer/boot remounts in page memory, not local storage.
+
+`web/worker/feedback.js` supplies the same-origin API, local viem recovery, deterministic abi.encode ID, KV storage, rolling-hour and Unix-week limits, exact today.json, picks and adopted ledger. A per-wallet Durable Object is additionally required to close KV's distributed read/write race; a KV-only mount refuses POST with 503. A transactional outbox plus alarms preserves accepted submissions through KV failures. `noted.js` uses manifest-specified assets/RPCs and on-chain posted counters whose increment accompanies NotePosted in both pinned contracts. Positive-only badge caching does not infer identity from handles or fabricate a negative history result on RPC failure.
+
+The weekly loop, fixed continuation header, credits/actual-diff review, no-token/no-regression rejection gates and six delivered-job history are in docs. No bootstrap attestation, feedback entries or credits were invented. Sunday selection uses the specified current Unix week; the Thursday week boundary and post-pick cutoff are explicitly documented. The thesis success notice now follows the confirmed event's target, omitting the venue notice for theses and retaining it for priced calls.
+
+## Checks and evidence
+
+| Check | Result |
+| --- | --- |
+| Dependency install | Passed with the unchanged web lockfile in `/tmp/marginalia-feedback/web`; no repository dependency/cache/config/lockfile edits |
+| `npm run typecheck` / `npm run build` | Passed, strict TypeScript and production Vite export; relative base; main JS 723.54 kB / 210.69 kB gzip. Existing >500 kB chunk advisory remains; no build-config change |
+| `npm run manifest` / `npm run check` | Passed: 3 bound contracts, 18 listed assets, complete SHA-256 inventory, canonical ABI Keccaks, exact handoff/network/wallet parameters and agent-doc copies. Loop/STATUS/CHANGELOG exported under `dist/docs/` |
+| `node tests/feedback-worker.mjs` | **18/18 groups**: offline EIP-191, ID encoding, altered data/signer, canonical payload, Unicode/600-byte boundary, persisted evidence, JSON-escaping/KV-metadata overflow, concurrent requests, hourly/weekly boundaries, duplicate/rewrite policy, KV failure/outbox/alarm, list pagination, exact today shape, pick/adoption, CORS/body/method errors and badge cache. `validation/v3.2/worker-results.txt` |
+| `node tests/feedback-noted.mjs` | Passed: hook OR Annex posted record, fixed block, manifest RPC only, chain/code/ABI SHA and Keccak/Annex hook-binding gates, positive cache and fail-closed absence. RPC responses are fixtures, not live author claims |
+| `node tests/feedback-ledger.mjs` | Passed: request/week/author, complete ranked dispositions, shares, synthesis, duplicate adoption, full commit format, immutable old prefix. Semantic correspondence to a future diff remains a mandatory reviewer gate |
+| `node tests/feedback-runtime.mjs` | Passed in actual local **workerd**, Miniflare 4, with real KV metadata and Durable Object transaction/alarm APIs: recovered signature, accepted/idempotent posts, concurrent hourly rejection, stored counters, exact document and empty ledger. No Cloudflare account/login/deployment needed |
+| `tests/feedback-browser.mjs` | **10/10 scenarios each in Chromium and WebKit** against the production export and actual Worker logic with test storage. Fresh ephemeral EOA signatures are real local cryptography; wallet/RPC interactions are mocked. `feedback-chromium.json`, `feedback-webkit.json` |
+| Retained `tests/child-call-browser.mjs` | **22/22 each in Chromium and WebKit**. Includes new assertions for thesis notice suppression, priced-call notice retention and feedback draft preservation; existing own-child eligibility/calldata/grace/counter/receipt behavior stays intact. `child-chromium.json`, `child-webkit.json` |
+| Retained `tests/v3-browser.mjs` | **20/20 Chromium scenarios**: trade/approval, summed IMD, unknown-chain recovery, pending/rejection, checkpoints, call/thesis/seal, Annex, hidden/conditional Pages, lifecycle, judging/treasury and mobile/dark states. `v3-regressions.json` |
+| Retained unit suites | v2 (5 groups), revision (9), history (7), v3 arithmetic/ABI/calldata and child-call gates all passed |
+| Read-only live `tests/v3-live.ts` | Passed at Ethereum block **26181241** through configured `https://eth.drpc.org`: chain/code, hook-derived companions, pool/venue/seal encoding, ABI hashes, Annex binding/admission and both local launch-pool quote outputs equal to the configured quoter. `live-read.json`; no transaction sent |
+| Pinned taste probe | Final production export measured at 320/390/1440 and reduced motion. Render, layout, targets, contrast, type, metadata and motion pass. **14/16**, with two retained-copy exceptions below; `taste-checks.json` |
+| Assigned browser tool | Opened production `/preview/`, selected Feedback, edited text, traversed textarea → handle by keyboard and inspected the actual screenshot at 390. Width 390 / scrollWidth 390. This browser received public-RPC 400/403 responses; Feedback still worked in the boot/failure view. On this plain-file preview, API 404s produce the explicit service-unavailable/retry state, not a fabricated empty board |
+
+The feedback browser scenarios cover rule ordering/fifth tab, real exact-message signing and posting, byte/handle validation, disconnected/missing wallet, wrong-chain signature-only success, rejection/retry, pending/account changes, service/board retry and signature reuse, hourly errors, picked/badge/adopted rendering, full hashes and 600-character strings, light/dark, keyboard focus and 320/390/768/1440 widths. Every unexpected transaction/switch/approval method is rejected by the fixture. External RPC requests are intercepted; no test broadcasts a transaction.
+
+The browser runners serve a gateway-like `/preview/` subpath while the API stays same-origin at `/api/feedback`. Tooling and dependencies remain in `/tmp` (Playwright also supplied under `/opt`). WebKit uses temporary system libraries with an explicit Mesa EGL vendor file; Playwright's ldconfig-only host precheck was bypassed because those libraries are provided through LD_LIBRARY_PATH, then the real engine/interaction tests ran successfully. The initial latest-Miniflare harness API/date/path mismatches were repaired by using Miniflare 4, a supported compatibility date and an explicit modulesRoot; the final workerd test passes from `web/`.
+
+## Better Interface: six-domain review
+
+Visual idea: retain the paper-and-ink receipt ledger, adding a public product-feedback margin within the existing composer. The immutable rules stay expanded as requested; the default home trade action remains on the first phone screen. No new font, color scheme, hero, token control or decorative animation was added.
+
+| Domain | Coverage, evidence and limits |
+| --- | --- |
+| Accessibility | Native pressed buttons, labels/select/textarea/input/details, text-associated validation/focus, disabled pending fieldset, status/error announcements and visible focus checked. Keyboard form sequence and both engine roles/states exercised. Physical-device and screen-reader sessions were not performed |
+| Layout | Default home primary action within 390×844; feedback rules/form/board, long unbroken input/JSON/addresses/IDs at 320/390/768/1440 in both themes and engines without document overflow. Representative screenshots retained; no browser-native 200% zoom or full RTL localization claim |
+| Writing | Short action/error/empty/retry copy, exact requested signature disclaimer and ranking-zero warning, full immutable/open list, author-vs-handle and badge-read limitations. No new purchase/price promotion or chart links. Existing caveat and contract-flow copy preserved |
+| Typography | Existing five roles / three weights, system serif prose and mono data. Inputs remain 1rem; exact JSON pre-wraps; full addresses/IDs remain reachable and selectable. No remote fonts |
+| Colors | Reused semantic light/dark/focus/error tokens. Probe measured sampled home solid-background text at required 4.5:1 (3:1 large). Rendered Feedback measurements also pass: text/field 17.05:1 light and 13.82:1 dark; secondary/field 7.65:1 and 7.47:1; white/primary 5.27:1 in both. See `feedback-contrast.json`; viewed light/dark form and focus screenshots. Not a claim of full accessibility certification |
+| UI | Loading, empty, pending, success, error, rejected signature, unavailable intake, retry and account-change states exercised; flat rules and rows, one filled form action, native disclosure, no new motion/modal/icon library |
+
+## Findings and fixes
+
+| Severity / source | Finding, change and evidence |
+| --- | --- |
+| High · `web/worker/feedback.js:124` | KV alone cannot serialize cross-location counters. Added the durable per-wallet reservation and outbox, required binding/fail-closed response, concurrent unit + workerd tests. The deployment README makes the extra binding explicit |
+| High · `web/worker/feedback.js:165` | A transient KV failure must not erase an accepted post or consume a second credit on retry. Persisted the original signed outbox, idempotent re-publication and recurring alarm. Failure/retry/alarm tests pass |
+| Medium · `web/src/App.tsx:88`, `web/src/feedback.tsx:26` | A signature-only form should not disappear during an Ethereum outage. Feedback is available in boot/failure state without contract context; both-browser outage fixtures post successfully |
+| Medium · `web/src/feedback.tsx:8` | Switching composer tabs/finishing chain boot could drop unsent text. Kept draft fields in page memory, never browser storage; loaded-home tab regression passes in both browsers |
+| Medium · `web/worker/feedback.js:130` | A valid 600-byte text containing many quotes can exceed KV’s 1 KiB JSON metadata limit. Store the full value and omit oversized metadata, with a read fallback. A 600-quote round trip passes both the unit fixture and actual workerd |
+| Medium · `web/src/feedback.tsx:72` | A wallet change while awaiting signature could misattribute submission. Recheck accounts before signing and before POST, recover signer locally; delayed-signature/account-change browser test prevents POST |
+| Medium · `web/src/pages/Post.tsx:177`, `web/src/pages/Post.tsx:326` | Thesis confirmation incorrectly mentioned an on-chain venue. Store priced-ness from confirmed NotePosted and condition the sentence; both thesis and priced-call assertions pass, child follow-up preserved |
+| Medium · `web/src/styles.css:348` | Adding a fifth tab could create a third row and push the trade action below the fold. Used two grid rows (3 then 2) with wrapping labels; first-screen and narrow-width regression/probe pass |
+| Preserved copy exceptions · `web/src/ui.tsx` / `web/src/pages/Home.tsx` | The probe flags the pre-existing repeated swarm caveat and 64 mobile prose words against its 60-word bar. The task explicitly retains the caveat and other copy; both remain unchanged. These are documented scope exceptions, not hidden passing measurements |
+
+## Reproduce / deployment boundaries
+
+See `web/README.md` for build and new test commands, and `web/worker/README.md` for the production mount. All shared fields, service code, operator tools, tests, docs, the unchanged package manifest/lock and final static assets are delivered. FEEDBACK KV, FEEDBACK_WRITES durable migration and ASSETS must be configured by the site's operator; no namespace ID, signer, attestation ID, Pages address or new CID was invented. The weekly oracle operation and manual ledger append were documented, not performed.
+
+No real injected-wallet signature, production Cloudflare propagation/load test, long-running alarm outage, funded on-chain transaction, oracle request, screen-reader session, physical iPhone, native browser zoom or independent publication check was performed. EIP-1271 contract-wallet feedback signatures are not part of this local-recovery route. RPC failure hides unconfirmed badges and is disclosed; a missing badge is not a verified negative. Public board propagation may lag a returned post receipt. The operator must review future credits against actual behavior; schema validation alone cannot certify credit entitlement or absence of semantic regressions.
+
+`DESIGN.md` describes the implemented source. `validation/v3.2/submission.json` records final integrity and byte-budget checks. A redundant older v2 dark-home screenshot was removed to leave space for current evidence; all source, ABIs, runtime assets, share cards and necessary dependencies/lockfiles remain intact. No ignore file, protected configuration/dependency path, Git internals or GitHub path was edited. No local commit is made because the assignment forbids `.git/` writes; the prepared tree is collected by the contributor submission mechanism. Historical reports below describe their own releases and checks, not additional checks performed by v3.2.
+
+---
+
 # Marginalia v3.1: child-call worker validation
 
 Checked on 2026-10-13 UTC. Complete for the stated frontend scope. These are local worker results, not independent certification or an on-chain audit. No real wallet signature, funded transaction, contract deployment or publication occurred.

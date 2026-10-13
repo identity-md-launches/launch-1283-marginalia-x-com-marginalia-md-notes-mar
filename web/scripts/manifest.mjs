@@ -27,6 +27,11 @@ if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error('dist/index.h
 for (const [source, target] of [['llms.txt', 'llms.txt'], ['AGENTS.md', 'agents.md']]) {
   fs.copyFileSync(path.join(root, source), path.join(dist, target));
 }
+// The served agent interface links to the same durable continuation memory.
+fs.mkdirSync(path.join(dist, 'docs'), { recursive: true });
+for (const name of ['loop.md', 'STATUS.md', 'CHANGELOG.md']) {
+  fs.copyFileSync(path.join(root, 'docs', name), path.join(dist, 'docs', name));
+}
 
 // ABIs: the app ships every contract it talks to; the manifest binds the handoff's contracts to theirs.
 fs.mkdirSync(path.join(dist, 'abi'), { recursive: true });

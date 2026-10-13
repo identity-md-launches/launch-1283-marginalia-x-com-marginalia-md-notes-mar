@@ -345,6 +345,35 @@ input[type="range"] { padding:0; min-height:24px; height:24px; accent-color:var(
 }
 @media (forced-colors:active) { :focus-visible { outline-color:Highlight; } button[aria-pressed="true"] { border-color:Highlight; } }
 .trade-intro + .caveat { margin-block:.5rem .75rem; }
+/* Feedback shares the ledger's tokens, native controls and two-row composer. */
+.composer-tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.composer-tabs button { grid-column: span 2; }
+.composer-tabs button:nth-child(n+4) { grid-column: span 3; }
+.feedback { min-width: 0; }
+.feedback h2 { font-size: var(--text-section); margin-top: var(--space-6); }
+.feedback-rules { padding-inline-start: 1.1rem; }
+.feedback-rules li { margin-bottom: var(--space-2); }
+.feedback-form { padding-block: var(--space-2) var(--space-4); border-block: 1px solid var(--rule); }
+.feedback-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.feedback-form label { margin-top: var(--space-3); }
+.feedback-form select { margin-bottom: var(--space-2); }
+.feedback-form textarea { min-height: 8rem; resize: vertical; }
+.feedback-form p.small { margin-top: var(--space-1); }
+.feedback-form .primary { width: 100%; justify-content: center; }
+.feedback-signature { margin-block: var(--space-3); }
+.feedback summary { min-height: 44px; padding-block: .6rem; cursor: pointer; }
+.feedback pre { white-space: pre-wrap; overflow-wrap: anywhere; font: var(--text-small)/1.5 var(--font-mono); }
+.feedback-entries, .feedback-picked-list { list-style: none; padding: 0; margin: 0; }
+.feedback-entry { padding-block: var(--space-4); border-bottom: 1px solid var(--rule); }
+.feedback-entry h3 { margin-top: 0; }
+.feedback-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; margin-bottom: var(--space-2); }
+.feedback-text { white-space: pre-wrap; }
+.feedback-entry p { margin-bottom: var(--space-2); }
+.feedback-identity { font-size: var(--text-small); }
+.feedback-result:not(:empty) { padding-top: var(--space-3); }
+.feedback-result .mono { display: block; }
+.feedback-pick { padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+.feedback-picked-list li { margin-bottom: var(--space-3); }
 @media (max-width:420px) {
  .trade-intro + .caveat { font-size: var(--text-small); line-height:1.3; }
  .composer-tabs button { min-height:34px; }

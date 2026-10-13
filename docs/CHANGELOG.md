@@ -1,0 +1,14 @@
+# Delivered jobs
+
+Dates below are delivery commit dates, from the pinned project history and this checkout's Git log; job-opening dates can differ. Append one dated line per delivered job. Never rewrite the history to represent an unshipped feature as live.
+
+- **2026-10-11 · Hook launch** — Fixed-supply MARG, immutable hook, companion router/judge/treasury, bonded calls/theses, fees, seals and lifecycle; launch reviewed and mainnet contracts delivered. Commit `f99868c781b4844b1e45837932ad73c790f7b288` (job `9060a248-29ce-4683-b5d1-54fbc83cd49d`, PR #1).
+- **2026-10-12 · Site v1** — Static React/TypeScript/Vite wallet frontend, feed/author/note, post/seal/pools, runtime deployment verification, agent documents and share assets; live launch connected with transaction prerequisites and error states. Commit `be207a07c0872f89ff17e5a66133d01070d853b9` (job `1a751f97-4657-4c3b-989c-cb1f3ab02c66`, PR #2).
+- **2026-10-12 · Site v2** — Reader/writer scoreboard, hit-rate/score records, cited receipts, duels, verdicts, guided posting and share cards; wallet authorship kept separate from cited handles and partial history disclosed. Commit `6b84a94e849c4c98cd1591bc56bed56c31ef9ff0` (job `d89b2921-8c80-4361-bd23-f03cdc8eae4f`, PR #3).
+- **2026-10-13 · Site v3** — Trade-and-post home composer, client pool quotes, summed exact IMD approval, WETH wrapping, IMD/USDC context, live Annex and gated Pages v0.10; supplied pinned Annex/Pages interfaces resolved the prior missing-input block. Commit `50d30c6c8b6ca85c787a34ac47446ad14365feda` (job `6d73f9eb-1d0a-44f6-8773-d6d8e5fe3fb3`, PR #4).
+- **2026-10-13 · Site v3.1** — Own-thesis child-call CTA, parent validation in both hook composers, fresh preflight/grace deadlines, thesis receipt handoff and child reminder; fixed inability to meet the author's seven-day requirement. Commit `4629fdd2da0b4be6663c668a12d3ad971ac09ed7` (job `7deb4144-5498-49eb-b419-f3837845e2a6`, PR #5).
+- **2026-10-13 · Site v3.2 (this delivery)** — Fifth Feedback tab, immutable/open brief, exact EIP-191 signatures, KV intake with durable rate enforcement, public board/picks/adoption, weekly oracle/credits/review loop and project memory; thesis confirmation no longer claims a venue. Commit is assigned by the contributor submission after this tree is collected; its parent is `4629fdd2da0b4be6663c668a12d3ad971ac09ed7`. Worker mounting and next site CID are pending publication, not claimed live.
+
+The initial v3 job `e2ce6907-6c80-475f-b337-8a4ad2e9bbab` was blocked on missing pinned inputs and has no delivery commit. It is not a delivered job. The earlier v3.2 attempt reported `runtime_error` / workspace out of credits; this task started from v3.1, with none of that attempt's files retained.
+
+The next continuation records the submitter-assigned v3.2 commit in a new provenance line once it is available; no self-referential commit hash is invented here.

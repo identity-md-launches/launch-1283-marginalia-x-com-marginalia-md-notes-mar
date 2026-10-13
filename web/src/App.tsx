@@ -18,6 +18,7 @@ import { PoolsPage } from './pages/Pools';
 import { PostPage } from './pages/Post';
 import { SealPage } from './pages/Seal';
 import { Caveat, Footer, Masthead, WalletBar } from './ui';
+import { Feedback } from './feedback';
 
 function useRoute(): string {
   const [route, setRoute] = useState(() => window.location.hash.replace(/^#/, '') || '/');
@@ -44,6 +45,7 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const wallet = useWallet(cfg);
   const now = useNow();
+  const [bootFeedback, setBootFeedback] = useState(() => new URLSearchParams(window.location.hash.split('?')[1]).get('tab') === 'feedback');
   useEffect(() => { if (route !== 'main') document.getElementById('main')?.focus({ preventScroll: true }); }, [route]);
 
   useEffect(() => {
@@ -83,14 +85,15 @@ export default function App() {
   if (!cfg || !pub || !contracts || bootError) return <div className="page page-wide">
     <Masthead route={route} utility={<button type="button" className="quiet" onClick={wallet.connect} disabled={wallet.connecting}>{wallet.account ? 'Wallet connected' : 'Connect wallet'}</button>} />
     <main id="main"><div className="trade-intro"><h1>Trade it. Say why.</h1><p>The chain keeps the receipt.</p></div>
-      <section className="trade-shell"><div className="composer-tabs"><button disabled>Trade and post</button><button disabled>Just the call</button><button disabled>Write a thesis</button><button disabled>Launched tokens</button></div>
+      <section className="trade-shell"><div className="composer-tabs" role="group" aria-label="Ways to post"><button disabled>Trade and post</button><button disabled>Just the call</button><button disabled>Write a thesis</button><button disabled>Launched tokens</button><button type="button" aria-pressed={bootFeedback} onClick={()=>setBootFeedback(value=>!value)}>Feedback</button></div>
+        {bootFeedback ? <Feedback wallet={wallet} now={now}/> : <>
         <label htmlFor="boot-token">Token</label><input id="boot-token" placeholder="Paste a token address" disabled/>
         <label htmlFor="boot-amount">You pay</label><input id="boot-amount" placeholder="0.00" disabled/>
         <label htmlFor="boot-why">Why</label><input id="boot-why" placeholder="Make the call." disabled/>
         <div className="actions"><button className="primary" disabled>Trade and post</button></div>
         <p className="small" role="status">{bootError ? 'Ethereum reads unavailable. Trading is disabled.' : 'Checking deployment and reading Ethereum…'}</p>
         {bootError && <button type="button" className="quiet" onClick={()=>window.location.reload()}>Retry connection</button>}
-        {wallet.error && <p className="status bad" role="alert">{wallet.error}</p>}
+        {wallet.error && <p className="status bad" role="alert">{wallet.error}</p>}</>}
       </section><Caveat />{bootError && <details><summary>Connection details</summary><p className="small">{bootError}</p></details>}
     </main>
   </div>;

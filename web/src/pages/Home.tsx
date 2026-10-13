@@ -8,6 +8,7 @@ import { fmtAmount, fmtDate, fmtScore, short } from '../lib';
 import { UsdContext } from '../price';
 import { citedAccounts, formatRate, rankAuthors, recordRate, REASONS, type RankedAuthor } from '../scoreboard';
 import { TradeForm } from '../trade';
+import { Feedback } from '../feedback';
 import { PostPage } from './Post';
 import { Caveat, Countdown, Notice, StatusTag } from '../ui';
 import { FeedPage, type FeedProps } from './Feed';
@@ -89,13 +90,13 @@ export function Verdicts({ feed }: Pick<FeedProps, 'feed'>) {
 }
 
 export function HomePage(props: FeedProps) {
-  const [tab,setTab] = useState('trade');
+  const [tab,setTab] = useState(new URLSearchParams(window.location.hash.split('?')[1]).get('tab') === 'feedback' ? 'feedback' : 'trade');
   const childId = new URLSearchParams(window.location.hash.split('?')[1] || '').get('child');
-  const { cfg } = useApp();
+  const { cfg, wallet, now } = useApp();
   return <><div className="trade-intro"><h1>Trade it. Say why.</h1><p>The chain keeps the receipt.</p></div><Caveat/>
     <section className={`trade-shell ${tab==='trade'||tab==='annex'?'':'writing-shell'}`}>
-      <div className="composer-tabs" role="group" aria-label="Ways to post">{[['trade','Trade and post'],['call','Just the call'],['thesis','Write a thesis'],...(cfg.annex?[['annex','Launched tokens']]:[])].map(([id,label])=><button key={id} type="button" aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}</div>
-      {tab==='trade'||tab==='annex' ? <TradeForm key={tab} annex={tab==='annex'} childId={tab==='trade' ? childId : null} refresh={props.refresh}/> : <>{tab==='thesis' && <><p className="thesis-intro">Feeling strongly? Add a long-form thesis and compete for the week's pot.</p><Prize loadedAt={props.feed?.loadedAt}/></>}<PostPage key={tab} {...props} initialMode={tab==='thesis'?'thesis':'call'} embedded/></>}
+      <div className="composer-tabs" role="group" aria-label="Ways to post">{[['trade','Trade and post'],['call','Just the call'],['thesis','Write a thesis'],...(cfg.annex?[['annex','Launched tokens']]:[]),['feedback','Feedback']].map(([id,label])=><button key={id} type="button" aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}</div>
+      {tab==='feedback' ? <Feedback wallet={wallet} now={now}/> : tab==='trade'||tab==='annex' ? <TradeForm key={tab} annex={tab==='annex'} childId={tab==='trade' ? childId : null} refresh={props.refresh}/> : <>{tab==='thesis' && <><p className="thesis-intro">Feeling strongly? Add a long-form thesis and compete for the week's pot.</p><Prize loadedAt={props.feed?.loadedAt}/></>}<PostPage key={tab} {...props} initialMode={tab==='thesis'?'thesis':'call'} embedded/></>}
     </section>
     <Scoreboard {...props} embedded/>
   </>;

@@ -1,0 +1,45 @@
+{
+  "scope": "SITE v3.2 Feedback and weekly loop",
+  "limitBytes": 8388608,
+  "sourceFilesExcludingBudgetReport": 648,
+  "sourceBytesExcludingBudgetReport": 8366713,
+  "snapshotGzipBytesExcludingBudgetReport": 4260924,
+  "exportFiles": 19,
+  "exportBytes": 981140,
+  "manifestSha256": "7fd2a39492634b3871163af368b79b33adb01b26a93b795b66ac2365a63f031b",
+  "allExportHashesMatch": true,
+  "allExportFilesInventoried": true,
+  "handoffAndNetworkUnchanged": true,
+  "protectedPathsUnchanged": true,
+  "noDependencyCachesArchivesOrSubmodules": true,
+  "agentAndMemoryExportsMatchSource": true,
+  "typecheck": "pass",
+  "productionBuild": "pass",
+  "manifestAndAbiCheck": "pass",
+  "workerUnitGroups": 18,
+  "workerRuntime": "local workerd / Miniflare 4: pass, including escaped 600-byte text beyond KV metadata cap",
+  "noteBadgeGates": "pass",
+  "creditLedgerValidation": "pass",
+  "feedbackBrowserScenarios": {
+    "chromium": 10,
+    "webkit": 10
+  },
+  "childRegressionScenarios": {
+    "chromium": 22,
+    "webkit": 22
+  },
+  "retainedV3BrowserScenarios": 20,
+  "retainedUnitSuites": "v2, revision, history, v3, child-call passed",
+  "pinnedProbe": {
+    "passed": 14,
+    "checks": 16,
+    "exceptions": [
+      "preserved required caveat repetition",
+      "preserved mobile prose budget: 64 / 60"
+    ]
+  },
+  "liveReadBlock": "26181241",
+  "deployment": "not performed; Worker bindings/mount and next site CID are operator/publication steps",
+  "gitWrites": false,
+  "completeSnapshotGzipBytesLessThan": 4300000
+}

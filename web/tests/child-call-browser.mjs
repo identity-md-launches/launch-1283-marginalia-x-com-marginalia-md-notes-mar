@@ -220,6 +220,7 @@ async function open(route='/',patch={}) {
   },{wallet:f.wallet,account:f.account,chain:f.chain,sealed:f.sealAge!==null,hash,draft,savedTrade:f.savedTrade});
   await context.route('**/*',async route=>{
     const u=route.request().url();
+    if(u.startsWith(new URL(url).origin+'/api/feedback/')) return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Feedback intake not mounted in this contract fixture.'})});
     if(manifest.network.rpcUrls.some(r=>u===r||u===r+'/')) {
       const req=JSON.parse(route.request().postData());
       const respond = r => {
@@ -339,7 +340,7 @@ try {
     await waitEnabled(await childAction('call'));await (await childAction('call')).click();
     await page.getByText(/Posted as/).waitFor();
     const call=await sent('note');assert.equal(call.to.toLowerCase(),router.toLowerCase());
-    assert.equal(call.args[0].parentId,id);assert.equal(call.args[0].side,0);
+    assert.equal(call.args[0].parentId,id);assert((await text()).includes('The venue you chose is not stored on chain'));assert.equal(call.args[0].side,0);
     assert.equal(call.args[4],BigInt(f.now+100));assert(call.args[3]>0n);
     assert(f.rpc.some(r=>r.method==='eth_call'&&r.params[0].data===call.data));
     assert.equal(f.children,1);
@@ -398,6 +399,7 @@ try {
     await open('/post?kind=thesis',{reject:false});await page.locator('#thesis').fill('An argument that needs an ordinary child call.');
     const button=page.getByRole('button',{name:'Post the thesis',exact:true});await waitEnabled(button);await button.click();
     const next=page.getByRole('link',{name:/Next: your child call, due /});await next.waitFor();
+    assert(!(await text()).includes('The venue you chose is not stored on chain'), 'A thesis has no venue notice');
     const created=f.created[0];assert.equal(created.p.targetBps,0);assert.equal(await next.getAttribute('href'),'#/?child='+created.id);
     const date=await page.evaluate(ts=>new Date(ts*1000).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}),f.now+604800);
     assert.match(await next.innerText(),new RegExp(date.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
@@ -442,6 +444,14 @@ try {
     await shot('child-focus-dark-320');
     await page.locator('#trade-parent').fill('0x'+'f'.repeat(64));await page.locator('#trade-parent-status').filter({hasText:'does not exist'}).waitFor();assert((await page.evaluate(()=>document.documentElement.scrollWidth))<=320);await shot('child-error-dark-320');
     await open('/',{wallet:false});const box=await page.locator('.trade-action button').boundingBox();assert(box.y+box.height<=844);await shot('home-390');
+  });
+  await check('Loaded home Feedback preserves a draft across composer changes',async()=>{
+    await open('/');await page.getByRole('button',{name:'Feedback',exact:true}).click();
+    await page.locator('#feedback-text').fill('Make the first step clearer.');
+    await page.getByRole('button',{name:'Trade and post',exact:true}).first().click();
+    await page.getByRole('button',{name:'Feedback',exact:true}).click();
+    assert.equal(await page.locator('#feedback-text').inputValue(),'Make the first step clearer.');
+    assert.equal(f.requests.length,0);
   });
 } finally {
   if(evidence){fs.writeFileSync(path.join(evidence,'results.json'),JSON.stringify(reports,null,2));fs.writeFileSync(path.join(evidence,'metrics.json'),JSON.stringify(metrics,null,2));}

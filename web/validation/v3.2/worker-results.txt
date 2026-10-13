@@ -1,0 +1,41 @@
+PASS EIP-191 recovers the exact signing wallet without a network call
+PASS ID uses abi.encode(address,uint256,string), case-independent address
+PASS Altered signer, signature and signed text are rejected
+PASS Canonical JSON binds order, site, kind, text, handle and week
+PASS 600 UTF-8 bytes accepted, 601 rejected; empty/malformed Unicode rejected
+PASS POST persists signed evidence, public entry and KV rate
+PASS Valid 600-byte text survives JSON expansion beyond the KV metadata cap
+PASS Concurrent different entries enforce one per rolling hour
+PASS Identical retry is idempotent; changed kind/handle cannot rewrite same ID
+PASS One hour boundary, weekly tenth entry and next week reset
+PASS Rolling hour does not reset at the Unix week boundary
+PASS KV failure preserves durable outbox and retries without double-counting
+PASS Alarm flushes an accepted outbox after a failed request
+PASS Current document has exactly the oracle shape; newest first and paginated KV complete
+PASS Pick and adopted ledger round trip, with exact picked order and shares
+PASS Bad picks/credits fail visibly instead of showing fabricated or empty data
+PASS Same-origin CORS, malformed body, size cap, method and unconfigured routes
+PASS A cached positive chain result grants badge; handle alone does not
+{
+  "passed": 18,
+  "checks": [
+    "EIP-191 recovers the exact signing wallet without a network call",
+    "ID uses abi.encode(address,uint256,string), case-independent address",
+    "Altered signer, signature and signed text are rejected",
+    "Canonical JSON binds order, site, kind, text, handle and week",
+    "600 UTF-8 bytes accepted, 601 rejected; empty/malformed Unicode rejected",
+    "POST persists signed evidence, public entry and KV rate",
+    "Valid 600-byte text survives JSON expansion beyond the KV metadata cap",
+    "Concurrent different entries enforce one per rolling hour",
+    "Identical retry is idempotent; changed kind/handle cannot rewrite same ID",
+    "One hour boundary, weekly tenth entry and next week reset",
+    "Rolling hour does not reset at the Unix week boundary",
+    "KV failure preserves durable outbox and retries without double-counting",
+    "Alarm flushes an accepted outbox after a failed request",
+    "Current document has exactly the oracle shape; newest first and paginated KV complete",
+    "Pick and adopted ledger round trip, with exact picked order and shares",
+    "Bad picks/credits fail visibly instead of showing fabricated or empty data",
+    "Same-origin CORS, malformed body, size cap, method and unconfigured routes",
+    "A cached positive chain result grants badge; handle alone does not"
+  ]
+}

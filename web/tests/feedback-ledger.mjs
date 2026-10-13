@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { keccak256, toBytes } from 'viem';
+import { validateCredits, appendBuild } from '../worker/ledger.mjs';
+const author=privateKeyToAccount(generatePrivateKey()).address;
+const ids=['first','second','third'].map(value=>keccak256(toBytes(value)));
+const request=keccak256(toBytes('attestation fixture'));
+const document={site:'marginalia.chat',week:3000,adopted:[],entries:ids.map(id=>({id,address:author}))};
+const pick={week:3000,attestationRequestId:request,ranked:ids};
+const credits={week:3000,attestationRequestId:request,implemented:[{id:ids[0],author,share:.6},{id:ids[1],author,share:.4}],notImplemented:[{id:ids[2],why:'Needs a separate interaction design.'}],synthesis:true};
+assert.equal(validateCredits(credits,pick,document),credits);
+for(const patch of[{week:2999},{attestationRequestId:ids[0]},{notImplemented:[]},{implemented:[{...credits.implemented[0],share:1}]},{implemented:[{...credits.implemented[0],share:0},credits.implemented[1]]},{implemented:[{...credits.implemented[0],author:'invalid'},credits.implemented[1]]}])assert.throws(()=>validateCredits({...credits,...patch},pick,document));
+assert.throws(()=>validateCredits(credits,pick,{...document,adopted:[ids[0]]}));
+const prior={site:'marginalia.chat',builds:[]};const next=appendBuild(prior,credits,'a'.repeat(40),pick,document);
+assert.deepEqual(prior,{site:'marginalia.chat',builds:[]});assert.deepEqual(next.builds[0].implemented,credits.implemented);assert.equal(next.builds[0].synthesis,true);
+assert.throws(()=>appendBuild(next,credits,'b'.repeat(40),pick,document));assert.throws(()=>appendBuild(prior,credits,'short',pick,document));
+console.log('PASS credit schema, full ranked disposition, actual authors, fractions/sum, synthesis, request/week, duplicate adoption, full commit and append without mutation.');

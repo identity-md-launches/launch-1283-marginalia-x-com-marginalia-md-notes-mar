@@ -1,0 +1,40 @@
+{
+  "method": "Computed foreground and first nontransparent ancestor background in the assigned Chromium browser, final export, Feedback form; WCAG sRGB relative luminance. Includes paragraphs, small text, textarea, summary and primary action.",
+  "pairs": [
+    {
+      "theme": "light",
+      "role": "text / field",
+      "foreground": "#1d1a16",
+      "background": "#fffdf8",
+      "contrast": 17.05003509468111
+    },
+    {
+      "theme": "light",
+      "role": "secondary / field",
+      "foreground": "#5a5146",
+      "background": "#fffdf8",
+      "contrast": 7.650548177759066
+    },
+    {
+      "theme": "dark",
+      "role": "text / field",
+      "foreground": "#ece5d6",
+      "background": "#1d1a16",
+      "contrast": 13.820986537645831
+    },
+    {
+      "theme": "dark",
+      "role": "secondary / field",
+      "foreground": "#b4a995",
+      "background": "#1d1a16",
+      "contrast": 7.469412822650721
+    },
+    {
+      "theme": "both",
+      "role": "primary button text / fill",
+      "foreground": "#ffffff",
+      "background": "#b9471f",
+      "contrast": 5.271165514423459
+    }
+  ]
+}
