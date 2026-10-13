@@ -188,10 +188,10 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
 
   return (
     <>
-      {embedded ? <h2>{mode==='thesis'?'Write a thesis':'Post a call'}</h2> : <h1>Post a note</h1>}
-      <p className="lede">Put a target on the record. The chain keeps the result.</p>
+      {embedded ? <h2>{mode==='thesis'?'The thesis':'Post a call'}</h2> : <h1>Post a note</h1>}
+      <p className="lede">{mode==='thesis' ? 'A longer argument on the record. One of your own ordinary calls under it within 7 days makes it count.' : 'Put a target on the record. The chain keeps the result.'}{!embedded && <> The simpler <a href="#/call">one call flow</a> covers most calls; this form keeps seal reveals and counters.</>}</p>
       {childParent.requested && <ChildCallContext state={childParent} />}
-      {posted?.graceEnd !== undefined && <Notice kind="ok"><p>Thesis recorded. <a href={childCallHref(posted.id)}>Next: your child call, due {fmtDate(posted.graceEnd)}</a></p></Notice>}
+      {posted?.graceEnd !== undefined && <Notice kind="ok"><p>Thesis recorded. A thesis counts only after you post one ordinary call under it within 7 days, due {fmtDate(posted.graceEnd)}.</p><p><a className="button primary" href={childCallHref(posted.id)}>Post the child call</a></p></Notice>}
       <p className="hold-rule">{HOLD_RULE}.</p>
       <p className="small">Right returns your bond; wrong forfeits it. Informational, not advice. Bonds can be lost.</p>
       {counterId && <Notice><p>{counter ? <>Counter to <a href={`#/note/${counter.id}`}>note № {counter.index.toString()}</a>: token, opposite side and parent are prefilled.</> : 'Reading the target call…'}</p>{counter && (counter.status !== Status.Open || counter.author.toLowerCase() === acct?.toLowerCase()) && <p className="small">Use another wallet and the same token, opposite side and original parent; the target must still be open.</p>}</Notice>}
@@ -230,7 +230,7 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
         <>
           <label htmlFor="thesis">Thesis</label>
           <span className="hint">
-            {tLen} / {L.thesisTextMax} bytes. A thesis must get one of your own child calls within 7 days, or its bond is forfeited. At most 3 per author and
+            {tLen} / {L.thesisTextMax} bytes. A thesis counts only after you post one ordinary call under it within 7 days; without one its bond is forfeited. At most 3 per author and
             120 per week.
           </span>
           <textarea id="thesis" value={thesisText} onChange={(e) => setThesisText(e.target.value)} style={{ minHeight: '14rem' }} />

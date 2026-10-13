@@ -1,3 +1,42 @@
+# Marginalia v4: the product, briefed as a promise
+
+Checked on 2026-10-13 UTC on this worker. Local observations, not independent certification. No funded transaction, oracle request, contract deployment, Worker publication or IPFS/DNS update was performed.
+
+## Delivered behavior
+
+First screen: the three-sentence promise as the headline, the unchanged caveat directly under it (not dismissible), three doors with one primary button and one plain line each (Make a call → `#/call`; Write a thesis with the week's pot and entry deadline → `#/thesis`; Your pages → the connected wallet's profile, or a connect button), "See who is right" → `#/scoreboard`, the wallet line, then the record (leaderboard by hit rate first, then by score; recent verdicts; prize; duels; feed). Feedback is a footer link (`#/feedback`; `#/?tab=feedback` still works) opening the unchanged panel; the intake route and message shape are untouched.
+
+One call flow (`web/src/trade.tsx`): token from `?token=` or the last token, +25%, 7 days, bond 0.25 IMD, "Trade it too" on when the wallet holds the venue's quote token (balance read on chain), off otherwise or when the venue takes native ETH or resolves through the Annex. Visible: token, five presets, horizon, why, one cost line in IMD and dollars naming the contract that holds the bond, one button. Behind More: conviction slider, venue, manual PoolKey, parent thesis, slippage (0.1–5%), deadline (10/20 min), the seal link, the dollar source. Toggle off sends router `note(params, poolKey, imdIn, minMargOut, deadline)` with only the exact IMD approval to the router; toggle on keeps `tradeAndNote` with the summed exact approval; the Annex path keeps its own exact approval and 3% baseline bound; WETH wrapping is unchanged. Discovery tries the router's canonical venues first and falls back to Annex-admitted hooked pools only when the router finds none. Inline rules: the bond line, the hold rule for upward calls only, the baseline warm-up sentence with countdown and "Baseline ready.", the warm-up button label, the 7-day child rule before the thesis bond and on the receipt with the "Post the child call" button.
+
+Profile (`web/src/pages/Author.tsx`, `web/src/backers.ts`): wallet, hit rate large, five counts, score with its one-line meaning, judged wins, share card, open calls with settlement countdowns, settled calls with verdicts, theses, duels, backers (holders with net positive pages from Pages `Trade` events since block 26180753, writer earnings = fee × ISSUER_BPS / 10000, trade count, disclosed gaps) and the backing panel with the required backing copy; the sealed list is "Sealed calls, revealed later". Pages is bound live in the manifest and verified at boot (code, ABI hash, `hook()`, `annex()`).
+
+## Checks and evidence
+
+| Check | Result |
+| --- | --- |
+| Live Pages verification | Read-only at Ethereum block 26184543 via the configured `https://eth.drpc.org`: 18,010 bytes of code, `hook()`/`annex()`/`intake()` as expected, ISSUER_BPS 8000, FEE_BPS 1000, deployment tx succeeded at block 26180753. `validation/v4/pages-live.json`. Exported ABI Keccak recomputed = `0d5e0eb3…e098a1f` |
+| `npm run typecheck` / `npm run build` | Passed, strict TypeScript; relative base; main JS 732 kB / 213 kB gzip (retained >500 kB advisory) |
+| `npm run manifest` / `npm run check` | Passed: 4 bound contracts (Marginalia, MarginaliaHook, MarginaliaAnnex, MarginaliaPages), 18 assets with SHA-256, canonical ABI Keccaks, exact network/walletAddChain copies, agent-doc equality, no remote resources |
+| `tests/v4-browser.mjs` (new) | **11/11 in Chromium** against the production export with mocked wallet/RPC: first screen order and contents, door routing, defaults and disclosure, toggle off → exact 0.6 IMD router approval + `note`, toggle on → 1.6 IMD + `tradeAndNote`, auto-off without IMD and `?token=` precedence, baseline warm-up/ready/button, thesis rule before bond and on receipt, profile contents and backers, own profile earnings, footer Feedback and old tab link, 320/390 dark reflow and focus. `validation/v4/results.json`, screenshots |
+| `tests/v3-browser.mjs` (ported to v4 routes) | **18 pass, 2 marked superseded** (the removed "Launched tokens" tab scenarios; Annex calldata and admission logic remain unit-tested and the Annex counter route is retained). `validation/v4/v3-regressions-ported.log` |
+| `tests/child-call-browser.mjs` (retained, unported) | **13/22 pass**; the 9 failures drive the removed home composer tabs ("Trade and post", "Write a thesis" tab clicks). The gates, calldata and grace behaviors they cover pass in `child-call-unit` and the 13 route-based scenarios. Porting is listed in STATUS. `validation/v4/child-call-browser.log` |
+| Retained unit suites | v2 (5 groups), revision (9), history (7), v3 arithmetic/ABI/calldata, child-call gates, feedback ledger, feedback noted, feedback worker: all passed unchanged |
+| `tests/feedback-browser.mjs` / `feedback-runtime.mjs` | Not rerun this job (Miniflare/workerd and the Worker fixture unchanged; the panel component, route and message shape are untouched; the v4 suite opens the panel from the footer and the old tab link) |
+| Pinned taste probe | **14/16** at 320/390/1440 on the final export: render, layout, targets, contrast, casing, tracking, eyebrows, type sizes/faces, glyphs, slogans, chrome, motion, share pass. Fails: repetition (the caveat twice, required by the brief) and copy-budget (135 prose words at 390 against the 60 bar: the 64-word caveat, three required one-line door explanations, the secondary link line and the required wallet line). `validation/v4/taste-checks.json`; 390 screenshot inspected: promise, caveat and all three door buttons are within the first screen |
+| Assigned browser tool | Not used; Playwright screenshots stand in (`validation/v4/*.png`) |
+
+## Better Interface review (six domains)
+
+Accessibility: native links/buttons/inputs/details, one `h1` per route, labelled toggle and selects, `aria-pressed` presets, status/alert roles, disabled pending fieldsets, visible 2px focus (dark 320 screenshot). No screen-reader or device session. Layout: 390 first screen holds the promise, caveat and three door buttons (`metrics.json`); no overflow at 320/390/1440 on every route; doors stack at ≤420px. Writing: product voice, imperative, no exclamation marks (asserted on the first screen), "buy" only inside the Pages panel controls, backing copy verbatim, caveat unchanged, rules at the moment they bite. Typography: the five existing sizes and three weights; the promise headline is the heaviest type; no new fonts. Colors: existing tokens; probe contrast pass in light; dark inspected in screenshots. UI: one primary action per door and per flow, native disclosure for More, loading/empty/error/retry states for backers and the prize.
+
+Findings fixed during the build: `#/feedback` was shadowed by the `/feed` prefix route (caught by the v4 suite; order fixed in `App.tsx`); Annex admission would have lost its home when no token resolved through the Annex (rendered under the call flow whenever the Annex is configured); the Pages fixture address in the retained suite now comes from the manifest.
+
+## Limitations
+
+No real wallet signature or funded transaction; no live Pages trade, claim, burn or Annex admission; the automatic Annex venue fallback is exercised by code review and the v3-unit calldata checks, not by a browser scenario with a hooked pool fixture; the child-call browser suite is partly unported (above); WebKit was not run; USD, keeper and history limitations are as in v3.2. The hosted CID is assigned at publication.
+
+---
+
 # Marginalia v3.2: Feedback and weekly-loop validation
 
 Checked on 2026-10-13 UTC. Complete for the stated implementation scope, with the deployment and manual/live limitations below. These are local worker observations, not independent certification. No funded transaction, oracle request, contract deployment, Worker publication or DNS/IPFS update was performed.

@@ -22,6 +22,12 @@
       "address": "0xd0c0d97aebe9194606bcc46ce56524eee4615543",
       "abiHash": "d5caa09b5445973684cc46375443c967ff8baf3da70992ddbdb102327cc79c0b",
       "abiPath": "abi/MarginaliaAnnex.json"
+    },
+    {
+      "name": "MarginaliaPages",
+      "address": "0xf69ccb8f46049248c59522b21a04cc193729d8fa",
+      "abiHash": "0d5e0eb325d547d7f67a13e48230649a55d2dc987292ab711de1d1d12e098a1f",
+      "abiPath": "abi/MarginaliaPages.json"
     }
   ],
   "assets": [
@@ -59,27 +65,27 @@
     },
     {
       "path": "agents.md",
-      "sha256": "0fccb111ad9d5844f5b631b38daee3eac6c11c510f9344401c88346277bfbe8e"
+      "sha256": "873b1b6acca28aaa24d89fb344e01091d35bc0d13a8b921593a8e6e507b3b09e"
     },
     {
-      "path": "assets/ccip-Bdpw2rUi.js",
-      "sha256": "8813b3a472e447a2e4e61a2b8dc52712bda42f4c7b6bbfb3c659b86fddde28ff"
+      "path": "assets/ccip-DUuTix_9.js",
+      "sha256": "a9915be5ee389bab6afec354d046e6d6166cf0f8b0bb5a010098ebadcd565016"
     },
     {
-      "path": "assets/index-DEW5xgqa.css",
-      "sha256": "f50e807ef74bafa99497cc316a33dd0f73ac65634e2268c0441feed43045ab02"
+      "path": "assets/index-BX_ln7Lv.css",
+      "sha256": "68ee7f749e308ab97ab2d9dd48cc135e7b1d1250bf3da2de973c1e8311442ce4"
     },
     {
-      "path": "assets/index-Du3m0aFA.js",
-      "sha256": "9d1611b4a7d0b1b033f2462deea198a070b5da4c5378f1f7bd938aa6dff43442"
+      "path": "assets/index-TYDLwswr.js",
+      "sha256": "3539f0fa1bb1a36a064cf64d201f930c477775250d54acb9fe36db0005e98f10"
     },
     {
       "path": "docs/CHANGELOG.md",
-      "sha256": "00a9c07498a7387d3ae96daa76f1ae10a58198333856048c091e9c95c6199a3f"
+      "sha256": "0041b442bdaedef0661daddedc9d879c10b72df7e836f16f136a5f567c7bf560"
     },
     {
       "path": "docs/STATUS.md",
-      "sha256": "beff9073b3258186ebc1d49e8378fee5ceaedbd19fe7bd356879046fa18751f6"
+      "sha256": "6cf0c97c84a6583d1979ea4c877a782424e42159b0a13c78ec6e6115d7b6aa6c"
     },
     {
       "path": "docs/loop.md",
@@ -87,11 +93,11 @@
     },
     {
       "path": "index.html",
-      "sha256": "b406d1b5a26d86250b7f3e42836eecad9ee1387555925e89a72bacab2e3fe073"
+      "sha256": "1b32cafdda74c2bf3d69f2621c1da1337fe2d8fb9f68d2da3347f37e381b6158"
     },
     {
       "path": "llms.txt",
-      "sha256": "6871e7c6499a3b216ed8bc915c328d33d877c00f92e996af9fcc03a3f758cfdc"
+      "sha256": "2049d505bbb08c372be4a7b04e28f1cbfda9df0526c6fc8f06c3f55d6a26af89"
     },
     {
       "path": "share-card.png",

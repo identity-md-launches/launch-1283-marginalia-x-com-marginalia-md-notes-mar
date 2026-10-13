@@ -10,7 +10,7 @@ import { TradeForm } from './trade';
 import { DollarProvider } from './price';
 import { AnnexNote } from './annex';
 import { PagesPanel } from './pages/Pages';
-import { HomePage, Scoreboard } from './pages/Home';
+import { HomePage, Prize, PROMISE, Scoreboard, WALLET_LINE } from './pages/Home';
 import { DuelPage } from './pages/Duel';
 import { FeedPage } from './pages/Feed';
 import { NotePage } from './pages/Note';
@@ -33,6 +33,7 @@ function useRoute(): string {
   }, []);
   return route;
 }
+const query = (route: string) => new URLSearchParams(route.split('?')[1] || '');
 
 export default function App() {
   const route = useRoute();
@@ -45,7 +46,8 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const wallet = useWallet(cfg);
   const now = useNow();
-  const [bootFeedback, setBootFeedback] = useState(() => new URLSearchParams(window.location.hash.split('?')[1]).get('tab') === 'feedback');
+  const q = query(route);
+  const feedbackRoute = route.startsWith('/feedback') || q.get('tab') === 'feedback';
   useEffect(() => { if (route !== 'main') document.getElementById('main')?.focus({ preventScroll: true }); }, [route]);
 
   useEffect(() => {
@@ -82,19 +84,20 @@ export default function App() {
     refreshFeed();
   }, [refreshFeed]);
 
+  // Boot and failure state: the promise, the caveat and the doors (disabled until Ethereum reads), plus signature-only Feedback.
   if (!cfg || !pub || !contracts || bootError) return <div className="page page-wide">
     <Masthead route={route} utility={<button type="button" className="quiet" onClick={wallet.connect} disabled={wallet.connecting}>{wallet.account ? 'Wallet connected' : 'Connect wallet'}</button>} />
-    <main id="main"><div className="trade-intro"><h1>Trade it. Say why.</h1><p>The chain keeps the receipt.</p></div>
-      <section className="trade-shell"><div className="composer-tabs" role="group" aria-label="Ways to post"><button disabled>Trade and post</button><button disabled>Just the call</button><button disabled>Write a thesis</button><button disabled>Launched tokens</button><button type="button" aria-pressed={bootFeedback} onClick={()=>setBootFeedback(value=>!value)}>Feedback</button></div>
-        {bootFeedback ? <Feedback wallet={wallet} now={now}/> : <>
-        <label htmlFor="boot-token">Token</label><input id="boot-token" placeholder="Paste a token address" disabled/>
-        <label htmlFor="boot-amount">You pay</label><input id="boot-amount" placeholder="0.00" disabled/>
-        <label htmlFor="boot-why">Why</label><input id="boot-why" placeholder="Make the call." disabled/>
-        <div className="actions"><button className="primary" disabled>Trade and post</button></div>
-        <p className="small" role="status">{bootError ? 'Ethereum reads unavailable. Trading is disabled.' : 'Checking deployment and reading Ethereum…'}</p>
+    <main id="main"><div className="promise"><h1>{PROMISE.map(line => <span key={line}>{line}</span>)}</h1></div><Caveat />
+      {feedbackRoute ? <section className="trade-shell writing-shell"><h2>Feedback</h2><Feedback wallet={wallet} now={now}/></section> : <section className="doors" aria-label="Three doors">
+        {[['Make a call', 'A target, a horizon and one line of why, with your trade if you want it.'], ['Write a thesis', "A longer argument for this week's pot."], ['Your pages', 'Your own page and record. Readers back you by holding your pages.']].map(([title, line]) => <div className="door" key={title}><h2>{title}</h2><p>{line}</p><button type="button" className="primary" disabled>{title}</button></div>)}
+        <p className="door-secondary"><a href="#/scoreboard">See who is right</a> · the public record, by hit rate.</p>
+        <p className="small wallet-line">{WALLET_LINE}</p>
+        <p className="small" role="status">{bootError ? 'Ethereum reads unavailable. Calls, theses and pages are disabled until they return.' : 'Checking deployment and reading Ethereum…'}</p>
         {bootError && <button type="button" className="quiet" onClick={()=>window.location.reload()}>Retry connection</button>}
-        {wallet.error && <p className="status bad" role="alert">{wallet.error}</p>}</>}
-      </section><Caveat />{bootError && <details><summary>Connection details</summary><p className="small">{bootError}</p></details>}
+        {wallet.error && <p className="status bad" role="alert">{wallet.error}</p>}
+      </section>}
+      {bootError && <details><summary>Connection details</summary><p className="small">{bootError}</p></details>}
+      <p className="small"><a href="#/feedback">Feedback</a> needs no chain read: a signature only.</p>
     </main>
   </div>;
 
@@ -103,11 +106,15 @@ export default function App() {
   let isFeedPage = false;
   const m = (re: RegExp) => route.match(re);
   let seg;
+  const counterNote = (id: string | null) => feed?.notes.find(n => n.id.toLowerCase() === id?.toLowerCase());
   if ((seg = m(/^\/author\/(0x[0-9a-fA-F]{40})$/))) page = <AuthorPage key={route} address={seg[1] as `0x${string}`} {...feedState} />;
   else if ((seg = m(/^\/note\/(0x[0-9a-fA-F]{1,64})$/))) { const n=feed?.notes.find(n=>n.id.toLowerCase()===seg![1].toLowerCase()); page = n?.source==='annex' ? <AnnexNote key={route} n={n} refresh={refreshFeed}/> : <NotePage key={route} id={seg[1] as `0x${string}`} {...feedState} />; }
   else if ((seg = m(/^\/duel\/(0x[0-9a-fA-F]{1,64})$/))) page = <DuelPage key={route} id={seg[1] as `0x${string}`} {...feedState} />;
+  else if (feedbackRoute) page = <><h1>Feedback</h1><section className="trade-shell writing-shell"><Feedback wallet={wallet} now={now}/></section></>;
   else if (route.startsWith('/feed')) { page = <FeedPage key={route} {...feedState} />; isFeedPage = true; }
-  else if (route.startsWith('/post')) { const target=new URLSearchParams(route.split('?')[1]).get('counter'); const n=feed?.notes.find(n=>n.id.toLowerCase()===target?.toLowerCase()); page=n?.source==='annex'?<><h1>Counter the call</h1><TradeForm annex counter={n} refresh={refreshFeed}/></>:<PostPage key={route} {...feedState}/>; }
+  else if (route.startsWith('/call') || (route.split('?')[0] === '/' && q.has('child'))) { const n = counterNote(q.get('counter')); page = <><h1>Make a call</h1><p className="lede">Right returns your bond. Wrong loses it. The chain decides.</p><section className="trade-shell"><TradeForm key={route} counter={n} childId={q.get('child')} initialToken={q.get('token')} refresh={refreshFeed}/></section><Caveat/></>; }
+  else if (route.startsWith('/thesis')) page = <><h1>Write a thesis</h1><Prize loadedAt={feed?.loadedAt}/><section className="trade-shell writing-shell"><PostPage key={route} {...feedState} initialMode="thesis" embedded/></section><Caveat/></>;
+  else if (route.startsWith('/post')) { const n=counterNote(q.get('counter')); page=n?.source==='annex'?<><h1>Counter the call</h1><section className="trade-shell"><TradeForm annex counter={n} refresh={refreshFeed}/></section></>:<PostPage key={route} {...feedState}/>; }
   else if (route.startsWith('/seal')) page = <SealPage {...feedState} />;
   else if (route.startsWith('/pools')) page = <PoolsPage {...feedState} />;
   else if (route.startsWith('/scoreboard')) { page = <Scoreboard {...feedState} />; isFeedPage = true; }

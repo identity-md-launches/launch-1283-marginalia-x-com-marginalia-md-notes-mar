@@ -178,7 +178,7 @@ export function WalletBar() {
 }
 
 const NAV: [string, string][] = [
-  ['#/', 'Trade'],
+  ['#/', 'Home'],
   ['#/feed', 'Feed'],
   ['#/scoreboard', 'Record'],
   ['#/seal', 'Seal'],
@@ -223,7 +223,11 @@ export function Footer({ hook, marg }: { hook: Address; marg: Address }) {
         ·{' '}
         <a href={`${cfg.explorer}/address/${hook}`} target="_blank" rel="noreferrer">
           hook on Etherscan
-        </a>
+        </a>{' '}
+        ·{' '}
+        <a href="#/feedback">Feedback</a>{' '}
+        ·{' '}
+        <a href="#/about">About</a>
       </p>
       <p>
         Hook <span className="addr">{hook}</span>

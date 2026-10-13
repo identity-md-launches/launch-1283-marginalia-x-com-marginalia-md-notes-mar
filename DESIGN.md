@@ -1,6 +1,10 @@
-# Marginalia v3.2 design
+# Marginalia v4 design
 
 ## Overview
+
+The interface is the promise: three sentences as the headline, the unchanged caveat under them, three doors and the record. `web/src/styles.css` is the token source (the v4 block at its end adds `.promise`, `.doors`/`.door`, `.trade-toggle`, `.rule-hold`, `.trade-more`, `.profile-*`, `.rate-large`, `.backer-list`). `web/src/pages/Home.tsx` defines the first screen, `web/src/trade.tsx` the one call flow, `web/src/pages/Author.tsx` the profile. Doors are a two-column grid (title and line left, one primary button right) that stacks at widths up to 420px so every button stays within the 390×844 first screen. The hit rate on the profile is the largest type after the headline (3rem, 2.4rem on phones). The toggle is a native checkbox with the accent color. No new fonts, colors or breakpoints were added; the v3.2 description below remains accurate for everything it names.
+
+### Previous overview (v3.2)
 
 The implemented interface keeps the project's paper ledger and puts the trade composer on the first screen. `web/src/styles.css` is the token source; `web/src/pages/Home.tsx` and `web/src/trade.tsx` define the primary layout. The headline is “Trade it. Say why.”, followed by “The chain keeps the receipt.” The required swarm caveat sits before the composer, and the retained prize, records, receipts and duels follow it. Version 3.2 adds a fifth Feedback composer tab while retaining the author’s child-call path. It adds no fonts, colors or layout breakpoints. The Feedback surface presents the immutable rules first, then the signature-only form and public weekly record.
 

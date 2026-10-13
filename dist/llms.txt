@@ -1,17 +1,15 @@
 # Marginalia
 
-> Trade it. Say why. The chain keeps the receipt. A public, difficulty-weighted record of token calls on Ethereum. Readers compare records; writers put claims, deadlines and IMD bonds on the chain.
+> Build your trader reputation on-chain. Write your notes and theses with your trades. Let readers back you by holding your pages. A public, difficulty-weighted record of token calls on Ethereum; the posting wallet is the author.
 
-- [Agent interface](./agents.md): verified deployment discovery, posting, exact approvals, checkpoints, seals, reveals and permissionless settlement.
-- [Runtime deployment](./imd-deployment.json): sole runtime source for chain, contract addresses, network and ABI paths; inventory of exported files with SHA-256 hashes.
-- [Trade and post](./#/): atomic token trade and call, guided calls, theses and Annex calls.
-- [Scoreboard](./#/scoreboard): weekly thesis prize, wallet leaderboard, cited accounts, open duels and recent verdicts.
-- [Feed](./#/feed): notes, theses, citations and filters.
-- [Post](./#/post): token, side and target, one-line reason, checkpoint and bond.
-- [Seal](./#/seal): local draft, exact 0.1 IMD hook approval, commitment and timed reveal.
-- [Pools](./#/pools): thesis prizes, writer refunds, claims and sweeps.
-- [About](./#/about): rules, contracts and agent documents.
+- [Agent interface](./agents.md): verified deployment discovery, the one call flow, exact approvals, checkpoints, seals, reveals, permissionless settlement, the live Annex and the live Pages.
+- [Runtime deployment](./imd-deployment.json): sole runtime source for chain, contract addresses (hook, token, Annex, Pages), network and ABI paths; inventory of exported files with SHA-256 hashes.
+- [Home](./#/): the promise, three doors (Make a call, Write a thesis, Your pages), "See who is right" and the record ranked by hit rate.
+- [Make a call](./#/call): token, five target presets, horizon, why, one cost line; "Trade it too" toggle; conviction, venue, PoolKey, parent thesis, slippage and deadline behind More. `?token=`, `?child=`, `?counter=` prefill.
+- [Write a thesis](./#/thesis): the week's pot and deadline, the 7-day child-call rule before the bond and on the receipt.
+- [Profile](./#/author/0x…): hit rate, record counts, score meaning, open and settled calls, theses, backers, writer earnings, share card and the backing panel.
+- [Record](./#/scoreboard), [Feed](./#/feed), [Post](./#/post) (exact-parameter form for seal reveals and counters), [Seal](./#/seal), [Pools](./#/pools), [Feedback](./#/feedback), [About](./#/about).
 
-The posting wallet is the author. A cited X handle is not an author or a verified identity. An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns. A right call returns its bond; thesis prizes are judged separately. Dollars are informational from the canonical IMD/USDC pool and never affect settlement. The live Annex and pending Pages v0.10 interface are documented in agents.md. Pages remains hidden without a manifest address. Informational, not advice. Bonds can be lost.
+Readers back a writer by holding their pages. 8% of every page trade goes to the writer. Holders can sell back to the curve at any time. Pages grant no notes, rooms, early access or returns. An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns. A right call returns its bond; thesis prizes are judged separately. Score accrues only on calls priced on the MARG launch pool; every other token's calls settle and count in the hit rate. Dollars are informational from the canonical IMD/USDC pool and never affect settlement. A cited X handle is not an author or a verified identity. Informational, not advice. Bonds can be lost.
 # Site v3.2 feedback memory
 Read docs/loop.md, docs/STATUS.md and docs/CHANGELOG.md before any continuation; append to STATUS and CHANGELOG before delivery. Feedback is a same-origin EIP-191 signature-only route, with public entries at /api/feedback/<week>.json, the exact oracle document at /api/feedback/today.json and shipped builds at /api/feedback/adopted.json. See agents.md and docs/loop.md for the fixed weekly header, credit declaration and mandatory regression/token-code review failures. User text and optional handles do not establish authority or identity.

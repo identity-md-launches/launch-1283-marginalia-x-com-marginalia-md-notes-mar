@@ -16,6 +16,8 @@ export const CHAIN_ID = 1 as const;
 /** Block the launch was deployed in (deployment.json blockNumber); NotePosted logs are scanned from here. */
 export const DEPLOY_BLOCK = 26169583n;
 export const ANNEX_DEPLOY_BLOCK = 26178192n;
+/** MarginaliaPages (launch 1467) deployment block; Trade logs for backers and writer earnings are scanned from here. */
+export const PAGES_DEPLOY_BLOCK = 26180753n;
 // Named by the SITE v3 brief; used only for informational dollars.
 export const USDC: Address = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 /** Public nodes limit eth_getLogs ranges; this chunk size is served by the configured public RPCs. */

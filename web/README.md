@@ -1,4 +1,8 @@
-# Marginalia site v3.2
+# Marginalia site v4
+
+v4 routes: `#/` (promise, caveat, three doors, record), `#/call` (one call flow; `?token=`, `?child=`, `?counter=`), `#/thesis`, `#/author/<address>` (profile, backers, backing panel), `#/feedback`, plus the retained `#/feed`, `#/scoreboard`, `#/post`, `#/seal`, `#/pools`, `#/pages/<handle>`, `#/note/<id>`, `#/duel/<id>`, `#/about`. MarginaliaPages is bound live in `deployment/integrations.json`. New test: `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v4 node tests/v4-browser.mjs` (`TEST_FILTER` selects a scenario). `tests/v3-browser.mjs` is ported to the v4 routes; see `VALIDATION.md` for the child-call suite's unported scenarios.
+
+# Marginalia site v3.2 (retained notes)
 
 This continuation adds the fifth **Feedback** composer tab and the operator's weekly build loop. It preserves the existing trade, calls, theses, child calls, seals, Annex, hidden Pages and runtime verification. Feedback signs exact EIP-191 JSON and uses a same-origin intake route; it never approves or moves tokens. The immutable/open lists appear before the form. Text is capped at 600 UTF-8 bytes; the connected wallet, exact message and self-reported handle are explicit. The form remains usable during an RPC outage. Unsent drafts survive composer changes in page memory only; no drafts or signatures are saved to browser storage.
 

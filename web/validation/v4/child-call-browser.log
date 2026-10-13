@@ -1,0 +1,850 @@
+FAIL Owner thesis CTA opens both composers with only the parent supplied locator.click: Timeout 12000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Just the call', exact: true })
+
+Skip to content
+☞
+Marginalia
+0x1111…1111
+Home
+Feed
+Record
+Seal
+Pools
+About
+Make a call
+
+Right returns your bond. Wrong loses it. The chain decides.
+
+Child call under your thesis 0x0000…0001, due Oct 20, 2026, 4:58 PM
+
+Token
+MARG
+Trade it too
+Needs a venue.
++25%
++50%
+2x
+-25%
+-50%
+1d
+7d
+30d
+Why 0/280 bytes
+
+You pay 0.6 IMD ≈$0.60 · 0.25 IMD of it is your bond, held by the hook (0xf045…a0cc).
+
+Returned if right, lost if wrong.
+
+An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns.
+
+Post the call
+
+Choose a token with a supported venue.
+
+More
+Conviction · bond
+0.25 IMD ≈$0.25
+
+0.25 to 10 IMD, held for the horizon. Returned if right, lost if wrong.
+
+Target move (%)
+Horizon (days)
+V4 PoolKey (optional JSON)
+Parent (your own open thesis)
+Optional. Any token and either side; post before the thesis’s child-call deadline.
+
+Trade slippage (%)
+Deadline
+10 minutes
+20 minutes
+
+0.1 IMD stamp + 0.25 IMD of MARG, which you keep + 0.25 IMD bond. Gas extra. No swap in this transaction. MARG allocation minimum has 10% room.
+
+Upward call · declared position. Tokens whose balances shrink can break the hold rule.
+
+Want to commit now and reveal later? Seal this call first.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+x.com/marginalia_md · launch #1283 on the explorer · hook on Etherscan · Feedback · About
+
+Hook 0xf0457dd0cf526686190e4f057ba19db14d34a0cc
+MARG 0xfA0EfEa559bdE229031c2B0A219472316647759c
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+A right call returns its bond. Reputation is the record; the weekly prize is judged separately. Read directly from Ethereum. No backend, analytics or third-party scripts.
+PASS CTA is hidden for other wallets, disconnected, closed and expired theses
+FAIL A child link discards unrelated saved trade and seal prefills locator.click: Timeout 12000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Just the call', exact: true })
+
+Skip to content
+☞
+Marginalia
+0x1111…1111
+Home
+Feed
+Record
+Seal
+Pools
+About
+Make a call
+
+Right returns your bond. Wrong loses it. The chain decides.
+
+Child call under your thesis 0x0000…0001, due Oct 20, 2026, 4:59 PM
+
+Token
+MARG
+Trade it too
+Needs a venue.
++25%
++50%
+2x
+-25%
+-50%
+1d
+7d
+30d
+Why 0/280 bytes
+
+You pay 0.6 IMD ≈$0.60 · 0.25 IMD of it is your bond, held by the hook (0xf045…a0cc).
+
+Returned if right, lost if wrong.
+
+An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns.
+
+Post the call
+
+Choose a token with a supported venue.
+
+More
+Conviction · bond
+0.25 IMD ≈$0.25
+
+0.25 to 10 IMD, held for the horizon. Returned if right, lost if wrong.
+
+Target move (%)
+Horizon (days)
+V4 PoolKey (optional JSON)
+Parent (your own open thesis)
+Optional. Any token and either side; post before the thesis’s child-call deadline.
+
+Trade slippage (%)
+Deadline
+10 minutes
+20 minutes
+
+0.1 IMD stamp + 0.25 IMD of MARG, which you keep + 0.25 IMD bond. Gas extra. No swap in this transaction. MARG allocation minimum has 10% room.
+
+Upward call · declared position. Tokens whose balances shrink can break the hold rule.
+
+Want to commit now and reveal later? Seal this call first.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+x.com/marginalia_md · launch #1283 on the explorer · hook on Etherscan · Feedback · About
+
+Hook 0xf0457dd0cf526686190e4f057ba19db14d34a0cc
+MARG 0xfA0EfEa559bdE229031c2B0A219472316647759c
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+A right call returns its bond. Reputation is the record; the weekly prize is judged separately. Read directly from Ethereum. No backend, analytics or third-party scripts.
+FAIL trade: all three chain gates and nonexistent/malformed parents block posting locator.fill: Timeout 12000ms exceeded.
+Call log:
+  - waiting for locator('#trade-why')
+
+Skip to content
+☞
+Marginalia
+0x1111…1111
+Home
+Feed
+Record
+Seal
+Pools
+About
+Build your trader reputation on-chain.
+Write your notes and theses with your trades.
+Let readers back you by holding your pages.
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Make a call
+
+A target, a horizon and one line of why, with your trade if you want it. The chain settles it.
+
+Make a call
+Write a thesis
+
+A longer argument for this week's pot: 1 IMD≈$1.00, entries close Oct 15, 2026, 2:00 AM.
+
+Write a thesis
+Your pages
+
+Your own page and record. Readers back you by holding your pages.
+
+Your pages
+
+See who is right · the public record, by hit rate.
+
+You are your wallet. No account, no handle, no name unless you want one.
+
+1 note loaded
+Who is right
+Posting wallets
+By hit rate
+By score
+01
+0x1111…1111
+40.0%
+
+10 posted · 4 right · 2 wrong · 2 broken · 2 retracted
+
+9.00 score
+
+How to read the score
+Cited accounts
+Receipts index
+
+Ranked by right receipt notes. The cited account did not post the note; the posting wallet owns its bond and hold rule.
+
+No cited calls in this record yet. Start a note with an X status URL to leave a receipt.
+
+Citations are supplied by writers; they do not verify identity, endorsement or the original claim.
+
+Recent verdicts
+
+No verdict recorded in the available history yet.
+
+This week's thesis prize
+
+1 IMD
+
+≈$1.00
+
+Judging opens
+
+in 8 d 8 h
+
+Oct 22, 2026, 2:00 AM
+
+1 eligible thesis · View pools
+
+A thesis counts only after you post one ordinary call under it within 7 days. Judging needs 2 IMD ≈$2.00 and pays the top three 50 / 30 / 20.
+
+Open duels / 0
+
+Same token. Opposite sides. Separate bonds and horizons.
+
+No open duel in this record. Find a call to counter.
+
+The feed
+Prices, deadlines, bonds.
+Token
+Author
+all
+calls
+theses
+Refresh
+open
+Thesis
+№ 1
+
+A review note: the evidence matters more than the result.
+
+by 0x1111…1111
+bond 0.25 IMD ≈$0.25
+declared
+Oct 13, 2026, 4:59 PM
+01
+
+Receipts for every call: a price, a deadline, a bond, and the chain's verdict
+
+02
+
+Prove it: a difficulty-weighted score, public duels, a weekly prize
+
+03
+
+Keep the receipt: the posting wallet owns the call and the cited account does not
+
+x.com/marginalia_md · launch #1283 on the explorer · hook on Etherscan · Feedback · About
+
+Hook 0xf0457dd0cf526686190e4f057ba19db14d34a0cc
+MARG 0xfA0EfEa559bdE229031c2B0A219472316647759c
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+A right call returns its bond. Reputation is the record; the weekly prize is judged separately. Read directly from Ethereum. No backend, analytics or third-party scripts.
+PASS call: all three chain gates and nonexistent/malformed parents block posting
+PASS Just the call posts the author’s child on the same side with bounded calldata
+PASS Trade child supports another token and either side, with combined/exact approval intact
+PASS Trade child approval still sums IMD and caps the transaction deadline at grace end
+PASS Live wallet change invalidates prior parent eligibility
+PASS Grace expiry during editing disables the child action without real-time waiting
+PASS trade: fresh preflight refuses a parent closed after the last UI read
+PASS call: fresh preflight refuses a parent closed after the last UI read
+PASS Failed chain reads stay disabled and recover with an explicit retry
+PASS Parent reads work independently of missing event history
+FAIL Thesis confirmation uses its receipt block and links to its own child composer locator.waitFor: Timeout 12000ms exceeded.
+Call log:
+  - waiting for getByRole('link', { name: /Next: your child call, due / }) to be visible
+
+Skip to content
+☞
+Marginalia
+0x1111…1111
+Home
+Feed
+Record
+Seal
+Pools
+About
+Post a note
+
+A longer argument on the record. One of your own ordinary calls under it within 7 days makes it count. The simpler one call flow covers most calls; this form keeps seal reveals and counters.
+
+Thesis recorded. A thesis counts only after you post one ordinary call under it within 7 days, due Oct 20, 2026, 6:00 PM.
+
+Post the child call
+
+An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns.
+
+Right returns your bond; wrong forfeits it. Informational, not advice. Bonds can be lost.
+
+Posting cost
+0.6 IMD
+≈$0.60
+Kind
+Call · a priced target with a horizon
+Thesis · a longer argument, no target
+Thesis
+46 / 8192 bytes. A thesis counts only after you post one ordinary call under it within 7 days; without one its bond is forfeited. At most 3 per author and 120 per week.
+Rebuts (optional)
+Another author's open thesis this one argues against.
+Bond, in IMD
+0.25 IMD ≈$0.25 to 10 IMD ≈$10.00, held for the horizon. It is yours again if the call is right and lost if it is not.
+What posting pulls from your wallet
+Stamp
+0.1 IMD ≈$0.10 · non-refundable, to the pools (70% thesis prize, 30% writer refunds)
+MARG allocation
+0.25 IMD ≈$0.25 · spent on MARG in the launch pool; the MARG goes to you. At least 0.225 MARG (10% below the current price of 1 IMD per MARG ≈$1.00)
+Bond
+0.25 IMD ≈$0.25 · returned when right
+Total
+0.6 IMD · ≈$0.60 · approved to the router only, for exactly this amount
+Your IMD
+100 IMD ≈$100.00 · router allowance 100 IMD ≈$100.00
+1 · Approve and post
+
+Spends 0.6 IMD including your bond; receives at least 0.225 MARG. Signature expires in 20 minutes.
+
+Post the thesis
+Confirmed. transaction 0x000000…00007b
+
+Posted as note № 2.
+
+x.com/marginalia_md · launch #1283 on the explorer · hook on Etherscan · Feedback · About
+
+Hook 0xf0457dd0cf526686190e4f057ba19db14d34a0cc
+MARG 0xfA0EfEa559bdE229031c2B0A219472316647759c
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+A right call returns its bond. Reputation is the record; the weekly prize is judged separately. Read directly from Ethereum. No backend, analytics or third-party scripts.
+FAIL Home Write a thesis returns to the child composer even within the same route locator.click: Timeout 12000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Write a thesis', exact: true })
+
+Skip to content
+☞
+Marginalia
+0x1111…1111
+Home
+Feed
+Record
+Seal
+Pools
+About
+Build your trader reputation on-chain.
+Write your notes and theses with your trades.
+Let readers back you by holding your pages.
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Make a call
+
+A target, a horizon and one line of why, with your trade if you want it. The chain settles it.
+
+Make a call
+Write a thesis
+
+A longer argument for this week's pot: 1 IMD≈$1.00, entries close Oct 15, 2026, 2:00 AM.
+
+Write a thesis
+Your pages
+
+Your own page and record. Readers back you by holding your pages.
+
+Your pages
+
+See who is right · the public record, by hit rate.
+
+You are your wallet. No account, no handle, no name unless you want one.
+
+1 note loaded
+Who is right
+Posting wallets
+By hit rate
+By score
+01
+0x1111…1111
+40.0%
+
+10 posted · 4 right · 2 wrong · 2 broken · 2 retracted
+
+9.00 score
+
+How to read the score
+Cited accounts
+Receipts index
+
+Ranked by right receipt notes. The cited account did not post the note; the posting wallet owns its bond and hold rule.
+
+No cited calls in this record yet. Start a note with an X status URL to leave a receipt.
+
+Citations are supplied by writers; they do not verify identity, endorsement or the original claim.
+
+Recent verdicts
+
+No verdict recorded in the available history yet.
+
+This week's thesis prize
+
+1 IMD
+
+≈$1.00
+
+Judging opens
+
+in 8 d 7 h
+
+Oct 22, 2026, 2:00 AM
+
+1 eligible thesis · View pools
+
+A thesis counts only after you post one ordinary call under it within 7 days. Judging needs 2 IMD ≈$2.00 and pays the top three 50 / 30 / 20.
+
+Open duels / 0
+
+Same token. Opposite sides. Separate bonds and horizons.
+
+No open duel in this record. Find a call to counter.
+
+The feed
+Prices, deadlines, bonds.
+Token
+Author
+all
+calls
+theses
+Refresh
+right
+MARG Up +20% in 30 d
+№ 1
+
+A review note: the evidence matters more than the result.
+
+by 0x1111…1111
+bond 0.25 IMD ≈$0.25
+declared
+Oct 12, 2026, 5:00 PM
+
+Venue liquidity unavailable · Token on IMD Radar
+
+01
+
+Receipts for every call: a price, a deadline, a bond, and the chain's verdict
+
+02
+
+Prove it: a difficulty-weighted score, public duels, a weekly prize
+
+03
+
+Keep the receipt: the posting wallet owns the call and the cited account does not
+
+x.com/marginalia_md · launch #1283 on the explorer · hook on Etherscan · Feedback · About
+
+Hook 0xf0457dd0cf526686190e4f057ba19db14d34a0cc
+MARG 0xfA0EfEa559bdE229031c2B0A219472316647759c
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+A right call returns its bond. Reputation is the record; the weekly prize is judged separately. Read directly from Ethereum. No backend, analytics or third-party scripts.
+PASS Feed needs-child label follows live children, including after a recorded child
+PASS Counters retain other-author, same-token and opposite-side rules
+FAIL Annex composer never offers or submits a hook child parent locator.click: Timeout 12000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Launched tokens', exact: true })
+
+Skip to content
+☞
+Marginalia
+0x1111…1111
+Home
+Feed
+Record
+Seal
+Pools
+About
+Make a call
+
+Right returns your bond. Wrong loses it. The chain decides.
+
+Child call under your thesis 0x0000…0001, due Oct 20, 2026, 5:01 PM
+
+Token
+MARG
+Trade it too
+Needs a venue.
++25%
++50%
+2x
+-25%
+-50%
+1d
+7d
+30d
+Why 0/280 bytes
+
+You pay 0.6 IMD ≈$0.60 · 0.25 IMD of it is your bond, held by the hook (0xf045…a0cc).
+
+Returned if right, lost if wrong.
+
+An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns.
+
+Post the call
+
+Choose a token with a supported venue.
+
+More
+Conviction · bond
+0.25 IMD ≈$0.25
+
+0.25 to 10 IMD, held for the horizon. Returned if right, lost if wrong.
+
+Target move (%)
+Horizon (days)
+V4 PoolKey (optional JSON)
+Parent (your own open thesis)
+Optional. Any token and either side; post before the thesis’s child-call deadline.
+
+Trade slippage (%)
+Deadline
+10 minutes
+20 minutes
+
+0.1 IMD stamp + 0.25 IMD of MARG, which you keep + 0.25 IMD bond. Gas extra. No swap in this transaction. MARG allocation minimum has 10% room.
+
+Upward call · declared position. Tokens whose balances shrink can break the hold rule.
+
+Want to commit now and reveal later? Seal this call first.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+x.com/marginalia_md · launch #1283 on the explorer · hook on Etherscan · Feedback · About
+
+Hook 0xf0457dd0cf526686190e4f057ba19db14d34a0cc
+MARG 0xfA0EfEa559bdE229031c2B0A219472316647759c
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+A right call returns its bond. Reputation is the record; the weekly prize is judged separately. Read directly from Ethereum. No backend, analytics or third-party scripts.
+PASS Disconnected and wrong-chain child actions offer connect or add-chain before posting
+FAIL Child surfaces reflow at 320, 390 and 1440; keyboard and dark focus stay visible locator.boundingBox: Timeout 12000ms exceeded.
+Call log:
+  - waiting for locator('.trade-action button')
+
+Skip to content
+☞
+Marginalia
+Connect wallet
+Home
+Feed
+Record
+Seal
+Pools
+About
+Build your trader reputation on-chain.
+Write your notes and theses with your trades.
+Let readers back you by holding your pages.
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Make a call
+
+A target, a horizon and one line of why, with your trade if you want it. The chain settles it.
+
+Make a call
+Write a thesis
+
+A longer argument for this week's pot: 1 IMD≈$1.00, entries close Oct 15, 2026, 2:00 AM.
+
+Write a thesis
+Your pages
+
+Your own page and record. Readers back you by holding your pages.
+
+Connect to open your pages
+
+See who is right · the public record, by hit rate.
+
+You are your wallet. No account, no handle, no name unless you want one.
+
+1 note loaded
+Who is right
+Posting wallets
+By hit rate
+By score
+01
+0x1111…1111
+40.0%
+
+10 posted · 4 right · 2 wrong · 2 broken · 2 retracted
+
+9.00 score
+
+How to read the score
+Cited accounts
+Receipts index
+
+Ranked by right receipt notes. The cited account did not post the note; the posting wallet owns its bond and hold rule.
+
+No cited calls in this record yet. Start a note with an X status URL to leave a receipt.
+
+Citations are supplied by writers; they do not verify identity, endorsement or the original claim.
+
+Recent verdicts
+
+No verdict recorded in the available history yet.
+
+This week's thesis prize
+
+1 IMD
+
+≈$1.00
+
+Judging opens
+
+in 8 d 7 h
+
+Oct 22, 2026, 2:00 AM
+
+1 eligible thesis · View pools
+
+A thesis counts only after you post one ordinary call under it within 7 days. Judging needs 2 IMD ≈$2.00 and pays the top three 50 / 30 / 20.
+
+Open duels / 0
+
+Same token. Opposite sides. Separate bonds and horizons.
+
+No open duel in this record. Find a call to counter.
+
+The feed
+Prices, deadlines, bonds.
+Token
+Author
+all
+calls
+theses
+Refresh
+right
+MARG Up +20% in 30 d
+№ 1
+
+A review note: the evidence matters more than the result.
+
+by 0x1111…1111
+bond 0.25 IMD ≈$0.25
+declared
+Oct 12, 2026, 5:01 PM
+
+Venue liquidity unavailable · Token on IMD Radar
+
+01
+
+Receipts for every call: a price, a deadline, a bond, and the chain's verdict
+
+02
+
+Prove it: a difficulty-weighted score, public duels, a weekly prize
+
+03
+
+Keep the receipt: the posting wallet owns the call and the cited account does not
+
+x.com/marginalia_md · launch #1283 on the explorer · hook on Etherscan · Feedback · About
+
+Hook 0xf0457dd0cf526686190e4f057ba19db14d34a0cc
+MARG 0xfA0EfEa559bdE229031c2B0A219472316647759c
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+A right call returns its bond. Reputation is the record; the weekly prize is judged separately. Read directly from Ethereum. No backend, analytics or third-party scripts.
+FAIL Loaded home Feedback preserves a draft across composer changes locator.click: Timeout 12000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Feedback', exact: true })
+
+Skip to content
+☞
+Marginalia
+0x1111…1111
+Home
+Feed
+Record
+Seal
+Pools
+About
+Build your trader reputation on-chain.
+Write your notes and theses with your trades.
+Let readers back you by holding your pages.
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Make a call
+
+A target, a horizon and one line of why, with your trade if you want it. The chain settles it.
+
+Make a call
+Write a thesis
+
+A longer argument for this week's pot: 1 IMD≈$1.00, entries close Oct 15, 2026, 2:00 AM.
+
+Write a thesis
+Your pages
+
+Your own page and record. Readers back you by holding your pages.
+
+Your pages
+
+See who is right · the public record, by hit rate.
+
+You are your wallet. No account, no handle, no name unless you want one.
+
+1 note loaded
+Who is right
+Posting wallets
+By hit rate
+By score
+01
+0x1111…1111
+40.0%
+
+10 posted · 4 right · 2 wrong · 2 broken · 2 retracted
+
+9.00 score
+
+How to read the score
+Cited accounts
+Receipts index
+
+Ranked by right receipt notes. The cited account did not post the note; the posting wallet owns its bond and hold rule.
+
+No cited calls in this record yet. Start a note with an X status URL to leave a receipt.
+
+Citations are supplied by writers; they do not verify identity, endorsement or the original claim.
+
+Recent verdicts
+
+No verdict recorded in the available history yet.
+
+This week's thesis prize
+
+1 IMD
+
+≈$1.00
+
+Judging opens
+
+in 8 d 7 h
+
+Oct 22, 2026, 2:00 AM
+
+1 eligible thesis · View pools
+
+A thesis counts only after you post one ordinary call under it within 7 days. Judging needs 2 IMD ≈$2.00 and pays the top three 50 / 30 / 20.
+
+Open duels / 0
+
+Same token. Opposite sides. Separate bonds and horizons.
+
+No open duel in this record. Find a call to counter.
+
+The feed
+Prices, deadlines, bonds.
+Token
+Author
+all
+calls
+theses
+Refresh
+right
+MARG Up +20% in 30 d
+№ 1
+
+A review note: the evidence matters more than the result.
+
+by 0x1111…1111
+bond 0.25 IMD ≈$0.25
+declared
+Oct 12, 2026, 5:01 PM
+
+Venue liquidity unavailable · Token on IMD Radar
+
+01
+
+Receipts for every call: a price, a deadline, a bond, and the chain's verdict
+
+02
+
+Prove it: a difficulty-weighted score, public duels, a weekly prize
+
+03
+
+Keep the receipt: the posting wallet owns the call and the cited account does not
+
+x.com/marginalia_md · launch #1283 on the explorer · hook on Etherscan · Feedback · About
+
+Hook 0xf0457dd0cf526686190e4f057ba19db14d34a0cc
+MARG 0xfA0EfEa559bdE229031c2B0A219472316647759c
+
+Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.
+
+Dollars: informational, from the IMD/USDC pool. USDC can depeg; never used to settle.
+
+A right call returns its bond. Reputation is the record; the weekly prize is judged separately. Read directly from Ethereum. No backend, analytics or third-party scripts.

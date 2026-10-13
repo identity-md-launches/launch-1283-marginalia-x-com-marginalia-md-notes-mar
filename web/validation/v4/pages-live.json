@@ -1,0 +1,14 @@
+{
+ "rpc": "https://eth.drpc.org",
+ "block": "26184700",
+ "chainId": 1,
+ "codeBytes": 18010,
+ "hook": "0xf0457dD0Cf526686190e4f057Ba19dB14D34a0cc",
+ "annex": "0xD0C0d97aeBE9194606BCC46ce56524Eee4615543",
+ "intake": "0x1397434cd35e8a9C8aC312A61D3A285EB31dea56",
+ "issuerBps": "8000",
+ "feeBps": "1000",
+ "txBlock": "26180753",
+ "txContract": null,
+ "txStatus": "success"
+}

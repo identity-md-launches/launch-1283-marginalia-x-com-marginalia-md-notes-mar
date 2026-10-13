@@ -1,3 +1,8 @@
+// The one call flow: a target, a horizon, one line of why, and the trade if the wallet wants it.
+// Trade-and-post (router.tradeAndNote) and just-the-call (router.note) are one form with a "Trade it too" toggle.
+// A token whose only live venue is an admitted hooked v4 pool routes through the Annex automatically; the cost
+// line says which contract holds the bond. Approvals stay exact: IMD (and the X input) to the router, IMD to the
+// Annex for Annex calls, WETH.deposit for wrapping. Every contract rule is explained inline where it bites.
 import { useEffect, useState } from 'react';
 import { decodeEventLog, formatUnits, parseUnits, zeroAddress, zeroHash, type Address, type Hex } from 'viem';
 import { useApp, useRead } from './chain';
@@ -17,22 +22,29 @@ import { Admission } from './annex';
 import { ChildCallContext, ThesisParentField, useThesisParent } from './child-call';
 import { checkThesisParent } from './thesis-parent';
 const DRAFT_KEY = 'marginalia.trade.v3';
-type Draft = { token: string; amount: string; side: number; pct: string; days: string; why: string; bond: string; manual: string; parentId: string };
+type Draft = { token: string; amount: string; side: number; pct: string; days: string; why: string; bond: string; manual: string; parentId: string; slippage: string; deadline: string };
+const DEFAULTS: Omit<Draft, 'token'> = { amount: '1', side: 0, pct: '25', days: '7', why: '', bond: '0.25', manual: '', parentId: '', slippage: '1', deadline: '10' };
+export const BOND_RULE = 'Returned if right, lost if wrong.';
+export const BASELINE_WARMUP = 'Your call is measured against the hour of prices before you; this pool needs a one-hour warm-up first, we saved your draft.';
 function readDraft(fallback: Draft): Draft {
-  try { const stored = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null'); const d = stored && { parentId: '', ...stored }; return d && Object.keys(fallback).every(k => typeof d[k] === typeof fallback[k as keyof Draft]) ? d : fallback; } catch { return fallback; }
+  try { const stored = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null'); const d = stored && { ...DEFAULTS, ...stored }; return d && Object.keys(fallback).every(k => typeof d[k] === typeof fallback[k as keyof Draft]) ? d : fallback; } catch { return fallback; }
 }
-export function TradeForm({ annex = false, refresh, counter, childId }: { annex?: boolean; refresh: () => void; counter?: Note; childId?: string | null }) {
+export function TradeForm({ annex: annexForced = false, refresh, counter, childId, initialToken }: { annex?: boolean; refresh: () => void; counter?: Note; childId?: string | null; initialToken?: string | null }) {
   const app = useApp(); const { pub, cfg, contracts: c, wallet, now } = app;
   const [draft, setDraft] = useState<Draft>(() => {
-    const defaults = { token: c.marg, amount: '1', side: 0, pct: '25', days: '7', why: '', bond: '0.25', manual: '', parentId: '' };
+    const defaults: Draft = { token: c.marg, ...DEFAULTS };
     // A child link carries only the thesis ID, never the thesis's token or a saved counter draft.
-    return childId && !annex && !counter ? { ...defaults, token: '', parentId: childId } : readDraft(defaults);
+    if (childId && !annexForced && !counter) return { ...defaults, token: '', parentId: childId };
+    const saved = readDraft(defaults);
+    // Token from the URL wins over the last token; everything else keeps the defaults (+25%, 7 days, 0.25 IMD).
+    return initialToken && validAddress(initialToken) ? { ...saved, token: initialToken, parentId: '' } : saved;
   });
   useEffect(()=>{if(counter)setDraft(d=>({...d,token:counter.x,side:counter.side===0?1:0,days:String(counter.horizonDays)}));},[counter?.id]);
   const [token, setToken] = useState(draft.token);
   const [selected, setSelected] = useState('');
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [tradeChoice, setTradeChoice] = useState<boolean | null>(null);
   const [pendingAction,setPendingAction] = useState<{kind:string; approval?:{token:Address;amount:bigint;allowance:bigint;balance:bigint}} | null>(null);
   const [posted, setPosted] = useState<Hex | null>(null);
   const [storageError, setStorageError] = useState(false);
@@ -45,7 +57,15 @@ export function TradeForm({ annex = false, refresh, counter, childId }: { annex?
     if (![k.currency0, k.currency1, k.hooks].every(a => typeof a === 'string' && validAddress(a)) || !Number.isInteger(k.fee) || k.fee < 0 || k.fee > 8388608 || !Number.isInteger(k.tickSpacing) || k.tickSpacing <= 0 || k.tickSpacing > 32767) throw new Error();
     manualKey = k;
   } catch { manualError = 'Enter a complete PoolKey JSON: currency0, currency1, fee, tickSpacing, hooks.'; } }
-  const finder = useRead(validAddress(token) && (!annex || c.annex) && !manualError ? () => discoverMarkets(pub, cfg, c, token as Address, annex, manualKey) : null, [token, annex, draft.manual, revision]);
+  // Venue resolution: the router's canonical venues first; if none exists and the Annex admits a hooked pool, the Annex.
+  const finder = useRead(validAddress(token) && (!annexForced || c.annex) && !manualError ? async () => {
+    if (annexForced) return { ...await discoverMarkets(pub, cfg, c, token as Address, true, manualKey), annex: true };
+    const hookMarkets = await discoverMarkets(pub, cfg, c, token as Address, false, manualKey);
+    if (hookMarkets.markets.length || !c.annex) return { ...hookMarkets, annex: false };
+    try { const annexMarkets = await discoverMarkets(pub, cfg, c, token as Address, true, manualKey); if (annexMarkets.markets.length) return { ...annexMarkets, annex: true }; } catch { /* keep the router result and its explicit empty state */ }
+    return { ...hookMarkets, annex: false };
+  } : null, [token, annexForced, draft.manual, revision]);
+  const annex = annexForced || !!finder.data?.annex;
   const market = finder.data?.markets.find(m => m.id === selected) ?? finder.data?.markets[0];
   const subjectReady = !!market && eq(token, draft.token.trim()) && !finder.error && !finder.loading;
   const symbol = finder.data?.symbol ?? 'token';
@@ -53,6 +73,10 @@ export function TradeForm({ annex = false, refresh, counter, childId }: { annex?
   const input = market ? draft.side === 0 ? market.venue.quote : token as Address : undefined;
   const inputSymbol = draft.side === 0 ? quoteSymbol : symbol;
   const inputDecimals = draft.side === 0 ? 18 : finder.data?.decimals;
+  // "Trade it too" defaults on when the wallet holds the venue's quote token; the Annex posts without a trade leg.
+  const quoteHolding = useRead(wallet.account && market && !annex && market.venue.quote !== zeroAddress ? () => pub.readContract({ address: market.venue.quote, abi: erc20Abi, functionName: 'balanceOf', args: [wallet.account!] }) : null, [wallet.account, market?.venue.quote, annex, revision], [wallet.account, market?.venue.quote, annex]);
+  const tradeAvailable = !annex && !!market && market.venue.quote !== zeroAddress;
+  const trade = tradeAvailable && (tradeChoice ?? (!!quoteHolding.data && quoteHolding.data > 0n));
   let amount: bigint | null = null;
   try { if (/^\d+(\.\d+)?$/.test(draft.amount) && inputDecimals !== undefined && (draft.amount.split('.')[1]?.length ?? 0) <= inputDecimals) amount = parseUnits(draft.amount, inputDecimals); } catch { /* validation below */ }
   const bond = parseAmount(draft.bond);
@@ -62,8 +86,10 @@ export function TradeForm({ annex = false, refresh, counter, childId }: { annex?
   const target = parseTarget(draft.side, draft.pct, L.minTargetDeltaBps);
   const childParent = useThesisParent(!annex && !counter ? draft.parentId : '');
   const days = Number(draft.days), bytes = utf8Length(draft.why);
+  const slippageBps = /^\d+(\.\d+)?$/.test(draft.slippage) && Number(draft.slippage) >= 0.1 && Number(draft.slippage) <= 5 ? Math.round(Number(draft.slippage) * 100) : null;
+  const deadlineMinutes = ['10', '20'].includes(draft.deadline) ? Number(draft.deadline) : 10;
   const counterOk = !counter || counter.status===0 && counter.author.toLowerCase()!==wallet.account?.toLowerCase() && draft.side!==counter.side && eq(token,counter.x);
-  const fieldsOk = childParent.ready && counterOk && subjectReady && bondOk && !target.error && Number.isInteger(days) && days >= 1 && days <= L.maxHorizonDays && bytes > 0 && bytes <= L.textMax;
+  const fieldsOk = childParent.ready && counterOk && subjectReady && bondOk && !target.error && Number.isInteger(days) && days >= 1 && days <= L.maxHorizonDays && bytes > 0 && bytes <= L.textMax && slippageBps !== null;
   const params: NoteParams | null = market && fieldsOk ? { ...publicParams(token as Address, market.venue), side: draft.side, targetBps: target.targetBps!, horizonDays: days, text: draft.why, parentId: counter?.id ?? childParent.id ?? zeroHash } : null;
   const spender = annex ? c.annex : c.router;
   const window = useRead(subjectReady && spender ? async () => {
@@ -73,13 +99,13 @@ export function TradeForm({ annex = false, refresh, counter, childId }: { annex?
   const started = window.data ? Number(window.data[0]) : 0;
   const age = now - started;
   const checkpointReady = !window.error && started > 0 && age >= 3600 && age <= 21600;
-  const quote = useRead(!annex && subjectReady && input && input !== zeroAddress && amount && amount > 0n ? async () => ({ ...await quoteMarket(pub, cfg, c, market!, input!, amount!), at: Date.now() }) : null,
-    [annex, subjectReady, market?.id, input, amount?.toString(), revision, Math.floor(now / 15)], [annex, subjectReady, market?.id, input, amount?.toString()]);
+  const quote = useRead(trade && subjectReady && input && input !== zeroAddress && amount && amount > 0n ? async () => ({ ...await quoteMarket(pub, cfg, c, market!, input!, amount!), at: Date.now() }) : null,
+    [trade, subjectReady, market?.id, input, amount?.toString(), revision, Math.floor(now / 15)], [trade, subjectReady, market?.id, input, amount?.toString()]);
   const margPrice = useRead(() => pub.readContract({ address: c.hook, abi: MarginaliaHookAbi, functionName: 'margPriceInImd' }), [Math.floor(now / 15)], [c.hook]);
   const minMargOut = margPrice.data && !margPrice.error ? L.margBuy * 10n ** 18n * 90n / (margPrice.data * 100n) : 0n;
   const baseline = useRead(annex && subjectReady && checkpointReady ? () => pub.readContract({ address: c.annex!, abi: AnnexAbi, functionName: 'postPrice', args: [market!.venue, draft.side === 0] }) : null,
     [annex, market?.id, subjectReady, checkpointReady, draft.side, revision, Math.floor(now / 15)], [annex, market?.id, subjectReady, checkpointReady, draft.side]);
-  const spendPlan = annex ? imdIn ? [{ token: c.imd, amount: imdIn }] : [] : input && amount && imdIn ? approvalPlan(input, c.imd, amount, imdIn) : [];
+  const spendPlan = annex || !trade ? imdIn ? [{ token: c.imd, amount: imdIn }] : [] : input && amount && imdIn ? approvalPlan(input, c.imd, amount, imdIn) : [];
   const planKey = spendPlan.map(p => `${p.token}:${p.amount}`).join('|');
   const funds = useRead(wallet.account && spender && spendPlan.length ? async () => {
     const plans = await Promise.all(spendPlan.map(async p => {
@@ -94,20 +120,21 @@ export function TradeForm({ annex = false, refresh, counter, childId }: { annex?
   const missing = funds.data?.plans.find(p => p.balance < p.amount);
   const nextApproval = funds.data?.plans.find(p => p.allowance < p.amount);
   const approval = busy && pendingAction?.approval ? pendingAction.approval : nextApproval;
-  const quoteReady = annex ? !!baseline.data && !baseline.error : !!quote.data && !quote.error && Date.now() - quote.data.at < 30000 && amount! > 0n && input !== zeroAddress;
+  const quoteReady = annex ? !!baseline.data && !baseline.error : !trade ? true : !!quote.data && !quote.error && Date.now() - quote.data.at < 30000 && amount! > 0n && input !== zeroAddress;
   const canProceed = !!params && checkpointReady && quoteReady && minMargOut > 0n && !!funds.data && !funds.error && !missing;
-  const wrap = !annex && input && eq(input, c.weth) && missing && eq(missing.token, c.weth) && funds.data && funds.data.eth > missing.amount - missing.balance;
+  const wrap = trade && input && eq(input, c.weth) && missing && eq(missing.token, c.weth) && funds.data && funds.data.eth > missing.amount - missing.balance;
   const done = async () => { setRevision(r => r + 1); await funds.refresh(); refresh(); };
   const checkpoint = async () => sendChecked(app, spender!, annex ? AnnexAbi : MarginaliaRouterAbi, 'checkpointVenue', [publicParams(token as Address, market!.venue), market!.key]);
   const submit = async () => {
     if (!params || !market || !canProceed) throw new Error('Refresh the quote and review the form.');
-    let deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+    let deadline = BigInt(Math.floor(Date.now() / 1000) + deadlineMinutes * 60);
     if (childParent.id) {
       const closes = BigInt(await checkThesisParent(pub, c.hook, childParent.id, wallet.account!, L.thesisGrace));
       if (closes < deadline) deadline = closes;
     }
     if (annex) return sendChecked(app, c.annex!, AnnexAbi, 'post', [params, market.key, bond!, minMargOut, baselineBound(baseline.data!, draft.side), deadline]);
-    const x = { kind: market.kind, key: market.key, zeroForOne: market.venue.xIsToken0 === (draft.side === 1), pool: market.pool, tokenIn: input!, amountIn: amount!, minOut: quote.data!.output * 99n / 100n };
+    if (!trade) return sendChecked(app, c.router, MarginaliaRouterAbi, 'note', [params, c.poolKey, imdIn!, minMargOut, deadline]);
+    const x = { kind: market.kind, key: market.key, zeroForOne: market.venue.xIsToken0 === (draft.side === 1), pool: market.pool, tokenIn: input!, amountIn: amount!, minOut: quote.data!.output * BigInt(10000 - slippageBps!) / 10000n };
     if (x.minOut <= 0n) throw new Error('Output minimum is too small.');
     return sendChecked(app, c.router, TradeRouterAbi, 'tradeAndNote', [x, params, market.key, imdIn!, minMargOut, deadline]);
   };
@@ -131,44 +158,48 @@ export function TradeForm({ annex = false, refresh, counter, childId }: { annex?
     if (childParent.id) await checkThesisParent(pub, c.hook, childParent.id, wallet.account!, L.thesisGrace);
     return sendChecked(app, approval!.token, erc20Abi, 'approve', [spender!, approval!.amount]);
   };
-  return <section className="trade-form" aria-label={annex ? 'Launched token call' : 'Trade and post'}>
+  const holder = annex ? `the Annex (${short(c.annex!)})` : `the hook (${short(c.hook)})`;
+  const sym = (t: Address) => eq(t, c.imd) ? 'IMD' : inputSymbol;
+  const dec = (t: Address) => eq(t, c.imd) ? 18 : inputDecimals ?? 18;
+  return <section className="trade-form" aria-label="Make a call">
     {counter && <p className="small">Counter to <a href={`#/note/${counter.id}`}>{short(counter.id)}</a>. Use the same token and opposite side.</p>}
     {childParent.requested && <ChildCallContext state={childParent} />}
     <fieldset className="trade-fields" disabled={busy}>
       <div className="token-row"><div><label htmlFor="trade-token">Token</label><input id="trade-token" value={draft.token} onChange={e => set({ token: e.target.value })} placeholder="Paste a token address" spellCheck={false} autoComplete="off" /></div><button type="button" className="quiet token-pick" onClick={() => set({ token: c.marg })}>MARG</button></div>
-      {!annex && <div className="trade-amount"><div><label htmlFor="trade-amount">You pay · {inputSymbol}</label><input id="trade-amount" inputMode="decimal" value={draft.amount} onChange={e => set({ amount: e.target.value })} /></div><div className="trade-output"><span className="small">You receive</span><strong>{quote.data && !quote.error ? fmtAmount(quote.data.output, draft.side === 0 ? finder.data?.decimals ?? 18 : 18, 5) : '—'} <span>{draft.side === 0 ? symbol : quoteSymbol}</span></strong><UsdContext imd={outputImd}/></div></div>}
+      <div className="trade-toggle"><label className="toggle-label"><input id="trade-toggle" type="checkbox" checked={trade} disabled={!tradeAvailable} onChange={e => setTradeChoice(e.target.checked)} /> Trade it too</label><span className="small">{annex ? 'Launched-token calls post without a trade leg.' : !market ? 'Needs a venue.' : market.venue.quote === zeroAddress ? 'This venue takes native ETH; the router needs an ERC-20 input.' : trade ? 'The swap and the call go in one transaction.' : 'Just the call; no swap.'}</span></div>
+      {trade && <div className="trade-amount"><div><label htmlFor="trade-amount">You pay · {inputSymbol}</label><input id="trade-amount" inputMode="decimal" value={draft.amount} onChange={e => set({ amount: e.target.value })} /></div><div className="trade-output"><span className="small">You receive</span><strong>{quote.data && !quote.error ? fmtAmount(quote.data.output, draft.side === 0 ? finder.data?.decimals ?? 18 : 18, 5) : '—'} <span>{draft.side === 0 ? symbol : quoteSymbol}</span></strong><UsdContext imd={outputImd}/></div></div>}
       <div className="preset-line" role="group" aria-label="Target presets">{[{ label: '+25%', side: 0, pct: '25' }, { label: '+50%', side: 0, pct: '50' }, { label: '2x', side: 0, pct: '100' }, { label: '-25%', side: 1, pct: '25' }, { label: '-50%', side: 1, pct: '50' }].map(p => <button type="button" key={p.label} aria-pressed={draft.side === p.side && draft.pct === p.pct} onClick={() => set({ side: p.side, pct: p.pct })}>{p.label}</button>)}<select aria-label="Horizon" value={draft.days} onChange={e => set({ days: e.target.value })}>{['1','7','30'].map(d => <option key={d} value={d}>{d}d</option>)}{!['1','7','30'].includes(draft.days) && <option value={draft.days}>{draft.days}d</option>}</select></div>
       <label htmlFor="trade-why">Why <span className="small">{bytes}/280 bytes</span></label><input id="trade-why" value={draft.why} onChange={e => set({ why: e.target.value })} placeholder="Make the call. An X status URL can lead." aria-invalid={bytes > 280} />
-      <div className="conviction-label"><label htmlFor="conviction">Conviction</label><span>{draft.bond} IMD <UsdContext imd={bond} /></span></div><input id="conviction" type="range" min={formatUnits(L.bondMin,18)} max={formatUnits(L.bondMax,18)} step="0.25" value={draft.bond} onChange={e => set({ bond: e.target.value })} />
-      <p className="small bond-help">Returned if you are right, forfeited if not.</p>
     </fieldset>
-    <p className="trade-cost">You pay {!annex && <>{draft.amount} {inputSymbol} <UsdContext imd={inputImd}/> + </>}{imdIn ? fmtAmount(imdIn) : '—'} IMD <UsdContext imd={imdIn}/></p>
+    <p className="trade-cost">You pay {trade && <>{draft.amount} {inputSymbol} <UsdContext imd={inputImd}/> + </>}{imdIn ? fmtAmount(imdIn) : '—'} IMD <UsdContext imd={imdIn}/> · {draft.bond} IMD of it is your bond, held by {holder}.</p>
+    <p className="small bond-help rule-bond">{BOND_RULE}</p>
+    {draft.side === 0 && <p className="small rule-hold">{HOLD_RULE}.</p>}
     <div className="trade-action">
-      <WalletAction>{action==='approve' && approval ? sign({ label: `Approve ${fmtAmount(approval.amount, eq(approval.token,c.imd) ? 18 : inputDecimals ?? 18)} ${eq(approval.token,c.imd) ? 'IMD' : inputSymbol}`, busyLabel: 'Approving…', primary: true, disabled: !childParent.ready, onSend: approve, onDone: done }) : action==='wrap' ? sign({ label: 'Wrap ETH', busyLabel: 'Wrapping…', primary: true, disabled: !childParent.ready, onSend: () => sendChecked(app, c.weth, wrapAbi, 'deposit', [], missing!.amount - missing!.balance), onDone: done }) : action==='checkpoint' ? sign({ label: 'Checkpoint venue', busyLabel: 'Checkpointing…', primary: true, disabled: !childParent.ready, onSend: checkpoint, onDone: done }) : sign({ label: annex ? 'Post call' : 'Trade and post', busyLabel: annex ? 'Posting…' : 'Trading and posting…', primary: true, disabled: !canProceed || !!approval, onSend: submit, onDone: afterPost })}</WalletAction>
+      <WalletAction>{action==='approve' && approval ? sign({ label: `Approve ${fmtAmount(approval.amount, dec(approval.token))} ${sym(approval.token)}`, busyLabel: 'Approving…', primary: true, disabled: !childParent.ready, onSend: approve, onDone: done, explain: `Exactly ${fmtAmount(approval.amount, dec(approval.token))} ${sym(approval.token)} to ${annex ? 'the Annex' : 'the router'}, nothing else.` }) : action==='wrap' ? sign({ label: 'Wrap ETH', busyLabel: 'Wrapping…', primary: true, disabled: !childParent.ready, onSend: () => sendChecked(app, c.weth, wrapAbi, 'deposit', [], missing!.amount - missing!.balance), onDone: done }) : action==='checkpoint' ? sign({ label: 'Start the one-hour warm-up', busyLabel: 'Checkpointing…', primary: true, disabled: !childParent.ready, onSend: checkpoint, onDone: done }) : sign({ label: annex ? 'Post the call' : trade ? 'Trade and post' : 'Post the call', busyLabel: annex || !trade ? 'Posting…' : 'Trading and posting…', primary: true, disabled: !canProceed || !!approval, onSend: submit, onDone: afterPost })}</WalletAction>
     </div>
-    <p className="small baseline-status">{finder.loading ? 'Finding the deepest available venue…' : !subjectReady ? 'Choose a token with a supported venue.' : checkpointReady ? 'Baseline ready.' : started && age < 3600 ? <>Baseline ready in <Countdown until={started + 3600} />. Draft saved locally.</> : 'Your baseline is the hour of price history before you, not the moment you click.'}</p>
-    {!annex && !counter && <details className="trade-details" open={childParent.requested || undefined}>
-      <summary>Parent thesis (optional)</summary>
-      <ThesisParentField id="trade-parent" value={draft.parentId} onChange={parentId => set({ parentId })} state={childParent} disabled={busy} />
-    </details>}
-    {posted && <Notice kind="ok"><p>Call recorded. <a href={`#/note/${posted}`}>Open the receipt</a>.</p></Notice>}
-    {wallet.account && missing && !wrap && <p className="status bad">You need {fmtAmount(missing.amount, eq(missing.token,c.imd) ? 18 : inputDecimals ?? 18)} {eq(missing.token,c.imd) ? 'IMD' : inputSymbol}; balance {fmtAmount(missing.balance, eq(missing.token,c.imd) ? 18 : inputDecimals ?? 18)}.</p>}
+    <p className="small baseline-status">{finder.loading ? 'Finding the deepest available venue…' : !subjectReady ? 'Choose a token with a supported venue.' : checkpointReady ? 'Baseline ready.' : started && age < 3600 ? <>{BASELINE_WARMUP} Ready in <Countdown until={started + 3600} />.</> : BASELINE_WARMUP}</p>
+    {posted && <Notice kind="ok"><p>Call recorded. <a className="button" href={`#/note/${posted}`}>Open the receipt</a></p></Notice>}
+    {wallet.account && missing && !wrap && <p className="status bad">You need {fmtAmount(missing.amount, dec(missing.token))} {sym(missing.token)}; balance {fmtAmount(missing.balance, dec(missing.token))}.</p>}
     {[finder.error, quote.error, baseline.error, funds.error, window.error, manualError].filter(Boolean).map((err, i) => <p className="status bad" role="alert" key={i}>{err!.split('\n')[0]}</p>)}
     {(finder.error || quote.error || window.error || funds.error) && <button type="button" className="quiet" onClick={() => setRevision(r => r + 1)}>Retry reads</button>}
-    {input === zeroAddress && !annex && <p className="status bad">This router requires an ERC-20 input. Select a WETH or IMD venue.</p>}
     {storageError && <p className="status bad">Browser storage is unavailable. Keep this tab open to retain your draft.</p>}
-    <details className="trade-details"><summary>Venue, costs and limits</summary>
-      <p className="small">{fmtAmount(L.stamp)} IMD <UsdContext imd={L.stamp}/> stamp + {fmtAmount(L.margBuy)} IMD <UsdContext imd={L.margBuy}/> of MARG, which you keep + {draft.bond} IMD <UsdContext imd={bond}/> bond. Gas extra. {annex ? 'Baseline has 3% room.' : 'Trade output minimum has 1% slippage.'} MARG allocation minimum has 10% room. Deadline: 10 minutes.</p>
-      <p className="small">{HOLD_RULE} Tokens whose balances shrink can break this rule.</p>
-      <p className="small">{draft.side === 0 ? 'Upward call' : 'Downward call'}{annex ? ' · Declared position' : ' · position proven by the swap'}.</p>
-      {market && <><label htmlFor="trade-venue">Venue</label><select id="trade-venue" value={market.id} onChange={e => setSelected(e.target.value)} disabled={busy}>{finder.data?.markets.map(m => <option value={m.id} key={m.id}>Uniswap v{m.kind === 1 ? 4 : m.kind === 2 ? 3 : 2} · {eq(m.venue.quote,c.imd) ? 'IMD' : m.venue.quote === zeroAddress ? 'ETH' : 'WETH'} · {m.fee / 10000}% · {short(m.venue.ref)}</option>)}</select><p className="small">{fmtAmount(market.quoteDepth)} {quoteSymbol} {market.kind === 3 ? 'reserve' : 'active virtual quote liquidity'}. {market.depthImd !== undefined && <UsdContext imd={market.depthImd} />} Depth is a comparison, not executable capacity.</p></>}
+    <details className="trade-details trade-more" open={childParent.requested || undefined}><summary>More</summary>
+      <div className="conviction-label"><label htmlFor="conviction">Conviction · bond</label><span>{draft.bond} IMD <UsdContext imd={bond} /></span></div><input id="conviction" type="range" min={formatUnits(L.bondMin,18)} max={formatUnits(L.bondMax,18)} step="0.25" value={draft.bond} onChange={e => set({ bond: e.target.value })} disabled={busy} />
+      <p className="small">{fmtAmount(L.bondMin)} to {fmtAmount(L.bondMax)} IMD, held for the horizon. {BOND_RULE}</p>
+      {market && <><label htmlFor="trade-venue">Venue</label><select id="trade-venue" value={market.id} onChange={e => setSelected(e.target.value)} disabled={busy}>{finder.data?.markets.map(m => <option value={m.id} key={m.id}>Uniswap v{m.kind === 1 ? 4 : m.kind === 2 ? 3 : 2} · {eq(m.venue.quote,c.imd) ? 'IMD' : m.venue.quote === zeroAddress ? 'ETH' : 'WETH'} · {m.fee / 10000}% · {short(m.venue.ref)}</option>)}</select><p className="small">{fmtAmount(market.quoteDepth)} {quoteSymbol} {market.kind === 3 ? 'reserve' : 'active virtual quote liquidity'}. {market.depthImd !== undefined && <UsdContext imd={market.depthImd} />} Depth is a comparison, not executable capacity. {annex ? 'Resolved through the Annex: this pool is an admitted hooked launch pool.' : 'Resolved through the router.'}</p></>}
       {finder.data && <p className="small">V4 discovery covers blocks {finder.data.from.toString()}–{finder.data.block.toString()}. {finder.data.failed > 0 ? `${finder.data.failed} reads or venues failed validation; discovery may be incomplete.` : ''} Older v4 venues can be supplied below. {finder.data.markets.some(m => m.depthImd === undefined) && 'WETH conversion unavailable; cross-currency depth ranking is incomplete.'}</p>}
       <div className="two-fields"><div><label htmlFor="custom-target">Target move (%)</label><input id="custom-target" inputMode="decimal" value={draft.pct} onChange={e => set({ pct: e.target.value })} disabled={busy} /></div><div><label htmlFor="custom-days">Horizon (days)</label><input id="custom-days" inputMode="numeric" value={draft.days} onChange={e => set({ days: e.target.value })} disabled={busy} /></div></div>
       {target.error && <p className="status bad">{target.error}</p>}
       <label htmlFor="manual-key">V4 PoolKey (optional JSON)</label><textarea id="manual-key" value={draft.manual} onChange={e => set({ manual: e.target.value })} spellCheck={false} disabled={busy} />
+      {!annex && !counter && <ThesisParentField id="trade-parent" value={draft.parentId} onChange={parentId => set({ parentId })} state={childParent} disabled={busy} />}
+      <div className="two-fields"><div><label htmlFor="trade-slippage">Trade slippage (%)</label><input id="trade-slippage" inputMode="decimal" value={draft.slippage} onChange={e => set({ slippage: e.target.value })} disabled={busy || !trade} aria-invalid={slippageBps === null} /></div><div><label htmlFor="trade-deadline">Deadline</label><select id="trade-deadline" value={draft.deadline} onChange={e => set({ deadline: e.target.value })} disabled={busy}><option value="10">10 minutes</option><option value="20">20 minutes</option></select></div></div>
+      {slippageBps === null && <p className="status bad">Slippage must be between 0.1% and 5%.</p>}
+      <p className="small">{fmtAmount(L.stamp)} IMD stamp + {fmtAmount(L.margBuy)} IMD of MARG, which you keep + {draft.bond} IMD bond. Gas extra. {annex ? 'Baseline has 3% room.' : trade ? `Trade output minimum has ${draft.slippage}% slippage.` : 'No swap in this transaction.'} MARG allocation minimum has 10% room.</p>
+      <p className="small">{draft.side === 0 ? 'Upward call' : 'Downward call'}{annex ? ' · declared position' : trade ? ' · position proven by the swap' : ' · declared position'}. Tokens whose balances shrink can break the hold rule.</p>
+      <p className="small">Want to commit now and reveal later? <a href="#/seal">Seal this call first</a>.</p>
       <DollarSource />
       {annex && <p className="small">Avoid pools whose entire liquidity one party can remove. An empty pool still has a standing price; the least favorable observed price decides.</p>}
     </details>
-    {annex && <Admission />}
+    {c.annex && <Admission />}
   </section>;
 }
