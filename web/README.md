@@ -1,6 +1,16 @@
-# Marginalia site v3
+# Marginalia site v3.1
 
 Trade it. Say why. The chain keeps the receipt. This version continues the existing React 19 / TypeScript / Vite / viem ledger, with the trade composer first and the scoreboard below it. Publish repository-root `dist/` as plain files. Relative Vite assets and hash routes support a gateway subpath without server rewrites.
+
+## Child calls
+
+On your open thesis, **Post the child call** opens `#/?child=<thesis-id>`. Use **Trade and post** or **Just the call**; both receive only the parent ID, leaving the token and text empty and retaining their ordinary target/horizon defaults. Neither inherits a token or side from the thesis. The composer shows “Child call under your thesis <short id>, due <date>”. `#/post?child=<id>` also supports the retained call form.
+
+You can enter **Parent (your own open thesis)** manually in call mode. In the trade box, open **Parent thesis (optional)** below the primary action. The ID must identify a hook thesis, be `ThesisOpen`, belong to the connected wallet, and be within `THESIS_GRACE`. Empty means an independent call. These parent rules do not apply to `#/post?counter=`, thesis rebuttals or saved seal reveals. The Annex cannot satisfy a hook thesis's child requirement, so its composer has no own-thesis field.
+
+`src/thesis-parent.ts` reads `noteOf` and `horizonEnd` at one block, using the hook's live grace limit. A thesis's zero horizon makes `horizonEnd` its posting timestamp. This works even if event history is incomplete. `src/child-call.tsx` scopes eligibility to parent, account and chain, refreshes every 15 seconds, and disables invalid/loading parents with a one-sentence explanation. Approval and posting re-read eligibility. Both posting paths cap their existing deadline at the thesis's inclusive grace end. Counter calls retain their separate other-author/same-token/opposite-side rules.
+
+A confirmed thesis shows **Next: your child call, due <date>**, using the confirmed receipt block timestamp. Open thesis feed cards say **needs its child call** while on-chain `children` is zero; a normal feed refresh updates that state after a child is confirmed. No contract, deployment setting, caveat or economic rule changed.
 
 ## Configuration
 
@@ -19,7 +29,8 @@ The named IMD/USDC v3 reference, canonical factories/WETH and deployment scan bl
 | `#/` | Trade and post; just the call; thesis; launched-token call; checkpoint; exact approvals; WETH wrap; Annex hook admission; scoreboard below |
 | `#/scoreboard` | Prize/clock, combined hook + Annex wallet records, cited accounts, duels, verdicts, feed |
 | `#/feed` | Filter notes, including `?cites=handle`; venue liquidity and token Radar links |
-| `#/note/<hex-id>` | Receipt, share, counter, observe, settle, retract, thesis forfeiture, deposit/refund claim; Annex actions target the Annex |
+| `#/note/<hex-id>` | Receipt, share, counter, own-thesis child call, observe, settle, retract, thesis forfeiture, deposit/refund claim; Annex actions target the Annex |
+| `#/?child=<hex-id>` | Child composer, with only an own-thesis parent prefilled; both hook posting modes available |
 | `#/duel/<counter-id>` | Independent call legs and their records |
 | `#/author/<address>` | Combined record, weighted wins, notes, duels, sharing; Pages when deployed |
 | `#/post` | Retained guided first call and experienced-writer form |
@@ -68,18 +79,21 @@ npm run preview
 
 `manifest` runs after the production build and inventories every exported file except itself with SHA-256. It also binds canonical ABI Keccaks and copies root `AGENTS.md` / `llms.txt` verbatim. `check` verifies those files, exact handoff/network, the explicit Annex extension, relative assets and export completeness. Regenerate after any export change. The source, unchanged package manifest/lockfile and final static export travel together.
 
-The assignment forbids writing dependency paths, so this worker installed the same lockfile in `/tmp/marginalia-v3/build/web`, copied source/public/scripts/tests plus root documents there, built/checked there and copied only `dist/` back. No dependency directory, registry archive, submodule, ignore-file edit or build-configuration change is delivered.
+The assignment forbids writing dependency paths, so this worker installed the same lockfile in `/tmp/marginalia-child/build/web`, copied source/public/scripts/tests plus root documents there, built/checked there and copied only `dist/` back. No dependency directory, registry archive, submodule, ignore-file edit or build-configuration change is delivered.
 
 ## Validation
 
-See `VALIDATION.md`, `validation/v3/` and root `DESIGN.md`. From `web/` with dependencies installed:
+See `VALIDATION.md`, `validation/v3.1/` and root `DESIGN.md` (older evidence remains in `validation/v3/`). From `web/` with dependencies installed:
 
 ```sh
-for name in v2-unit revision-unit history-unit v3-unit; do
+for name in v2-unit revision-unit history-unit v3-unit child-call-unit; do
   ./node_modules/.bin/esbuild "tests/$name.ts" --bundle --platform=node --format=esm --outfile="/tmp/$name.mjs"
   node "/tmp/$name.mjs"
 done
 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v3-browser node tests/v3-browser.mjs
+PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/child-call-browser node tests/child-call-browser.mjs
 ```
 
 Playwright may be installed separately under `/tmp`; it is not an application dependency. The runner serves production files under `/preview/`, mocks wallet/RPC responses, blocks outside requests and broadcasts nothing. `BROWSER=webkit` selects WebKit when its runtime works. Older browser harnesses remain historical v1/v2 reproductions and contain superseded home-layout expectations. `tests/v3-live.ts`, bundled like the unit tests, takes a public RPC URL and absolute runtime manifest path for read-only verification and same-block comparison against the configured Uniswap quoter. Real wallet signing and live transaction outcomes were not tested or authorized.
+
+`tests/child-call-browser.mjs` covers the three parent gates, nonexistent IDs, fresh preflight, expiry, account changes, both calldata paths, the receipt handoff and feed state. `TEST_FILTER` selects a scenario by name. `tests/child-call-live.ts` takes the same arguments as `v3-live.ts` for an optional read-only parent check; its live run did not finish because the worker RPC returned empty responses and HTTP 429, recorded in validation.

@@ -42,6 +42,7 @@ export function Entry({ n, tokenName, children }: { n: Note; tokenName?: string;
       </div>
       <Citation text={n.text} />
       <p className={`entry-text ${thesis ? 'clamp' : ''}`}>{n.text}</p>
+      {thesis && n.status === Status.ThesisOpen && n.children === 0 && <p className="small">needs its child call</p>}
       <div className="entry-meta">
         <span>
           by <a href={`#/author/${n.author}`} className="mono">{short(n.author)}</a>

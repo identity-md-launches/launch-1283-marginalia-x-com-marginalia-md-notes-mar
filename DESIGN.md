@@ -1,6 +1,8 @@
-# Marginalia v3 design
+# Marginalia v3.1 design
 
-The implemented interface keeps the project's paper ledger and puts the trade composer on the first screen. `web/src/styles.css` is the token source; `web/src/pages/Home.tsx` and `web/src/trade.tsx` define the primary layout. The headline is “Trade it. Say why.”, followed by “The chain keeps the receipt.” The required swarm caveat sits before the composer, and the retained prize, records, receipts and duels follow it.
+## Overview
+
+The implemented interface keeps the project's paper ledger and puts the trade composer on the first screen. `web/src/styles.css` is the token source; `web/src/pages/Home.tsx` and `web/src/trade.tsx` define the primary layout. The headline is “Trade it. Say why.”, followed by “The chain keeps the receipt.” The required swarm caveat sits before the composer, and the retained prize, records, receipts and duels follow it. Version 3.1 adds the author’s child-call path within these same surfaces; it adds no fonts, tokens, colors or layout breakpoints.
 
 ## Tokens and color
 
@@ -34,7 +36,9 @@ The final role scale has five sizes: small 0.88rem, body 1rem, section 1.3rem, t
 - `Caveat`: non-dismissible paragraph before the home composer and in every loaded-page footer, as requested.
 - `UsdContext`, `DollarSource`: estimates beside live token amounts, labeled source and an explicit unavailable fallback. USD is informational.
 - `PostPage`, `SealPage`: retained guided call/thesis and seal/reveal flows. The four composer choices are native pressed-state buttons. Checkpoint timers do not announce every tick; drafts remain in browser storage.
-- `Entry`, `NoteVenue`, `AnnexNote`: wallet-attributed receipt, optional supplied citation, swap-proven badge, current venue depth and Radar link, live lifecycle controls. A cited handle never replaces the wallet author.
+- `ThesisParentField`, `ChildCallContext` (`web/src/child-call.tsx`): a native labeled input, associated hint/error, `aria-invalid` and polite status text; an optional retry appears only for a failed chain read. The valid context links the shortened thesis ID to its receipt and shows the due date. The trade field uses native `details` below the main action, labeled “Parent thesis (optional)”, opening automatically when a parent is supplied. In call mode it occupies the existing parent position beside the final writing step. Full input values remain selectable.
+- `NotePage` (`web/src/pages/Note.tsx`): an eligible author sees a primary navigation link, “Post the child call”, immediately below the thesis heading, before its potentially long text. The same primary fill used by other actions establishes priority. The thesis completion notice in `PostPage` links directly to this composer and includes the due date.
+- `Entry`, `NoteVenue`, `AnnexNote`: wallet-attributed receipt, optional supplied citation, swap-proven badge, current venue depth and Radar link, live lifecycle controls. A cited handle never replaces the wallet author. An open thesis with zero on-chain children shows the plain-text “needs its child call” state; it uses the existing small-text role, with no extra badge or color.
 - `Prize`, `Leaderboards`, `DuelPair`, `AuthorPage`: existing record comparisons. Partial history and read failures are disclosed; no invented record fills an empty state.
 - `PagesPanel`: renders nothing without a manifest address. When configured, exposes the capped curve, holdings/eligibility, exact approval and trade, registration, exact claim sentence, pending claim/escrow lifecycle and reserved burn.
 - `TxButton`, `Notice`: simulation/signature/pending/confirmed/error states with transaction links. Buttons remain disabled while pending. Native details provide progressive disclosure; no modal traps are introduced.
@@ -42,7 +46,7 @@ The final role scale has five sizes: small 0.88rem, body 1rem, section 1.3rem, t
 
 ## Responsive layout
 
-At 390×844 the brand/wallet, tagline, complete caveat, composer fields and main action fit on the first screen. The same home layout and long numeric values are checked at 320px without document overflow. Pay/receive stay two columns; the four composer choices form a 2×2 grid. All flex/grid children that carry variable values can shrink and wrap. The venue select and manual PoolKey stay inside the column.
+At 390×844 the brand/wallet, tagline, complete caveat, composer fields and main action fit on the first screen. The same home layout and long numeric values are checked at 320px without document overflow. Pay/receive stay two columns; the four composer choices form a 2×2 grid. All flex/grid children that carry variable values can shrink and wrap. The venue select and manual PoolKey stay inside the column. The new optional parent disclosure sits after the primary action so the default first screen retains its existing density. The child context wraps above the fields when present, with a 1.4 line height and `--space-1` bottom margin; the 390px child composer still shows its main action within the first 844px. Both themes and 320/390/1440px child surfaces were exercised in Chromium and WebKit.
 
 From 740px the navigation sits beside the brand and wallet. The composer stays centered and narrow even on the wide scoreboard route. Leaderboards stack below 50rem; prize panels and seal steps stack below 34rem. Duels keep two `minmax(0,1fr)` legs to preserve comparison. Other native tables retain their local scroll container. Transaction controls are at least 44px; compact presets/tabs and header controls remain at least 24px with spacing, generally 34–40px.
 
@@ -50,6 +54,8 @@ Only the retained short color/underline transitions animate; reduced-motion pref
 
 ## Review and maintenance
 
-Applied all six pinned Better Interface domains while building. Coverage, measured probe results, corrected findings and unperformed checks are in `web/VALIDATION.md`. The probe's repetition and mobile prose-budget flags reflect the brief's mandatory repeated caveat, exact conviction explanation and baseline sentence; this content is retained deliberately.
+Applied all six pinned Better Interface domains while building. Coverage, measured probe results, corrected findings and unperformed checks are in `web/VALIDATION.md`, with v3.1 evidence in `web/validation/v3.1/`. Native screen-reader, physical-device, RTL and browser-native zoom checks are not claimed. The probe's repetition and mobile prose-budget flags reflect the brief's mandatory repeated caveat, exact conviction explanation and baseline sentence; this content is retained deliberately.
 
 Reuse the five text roles, native controls, paper/ink roles and transaction state components. New views should consume verified runtime configuration and scoped live reads, disclose gaps, and keep the relevant action beside its state. Do not add a second deployment address source, implied verified identity, fabricated dollar value, private seal-text access or hidden approval amounts.
+
+Design review references: Jakub Krehel’s Better Interface (MIT, pinned commit `267330e1adfc66a718fb65fa6918c1f06d0a689e`); documentation method from Paul Bakaus’s Impeccable (Apache-2.0, pinned commit `9d715cc4f5564a990ca8345abfdd5df6dc9b41c8`).

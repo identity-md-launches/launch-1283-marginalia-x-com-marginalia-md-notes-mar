@@ -13,6 +13,8 @@ import { CLASS_LABEL, describeTarget, fmtAmount, fmtDate, noteIdFromIndex, short
 import { horizonEndOf, isThesis } from '../notes';
 import { Addr, Countdown, Notice, StatusTag, TxButton, TxLink } from '../ui';
 import { describeOutcome, Entry, type FeedProps } from './Feed';
+import { useThesisParent } from '../child-call';
+import { childCallHref } from '../thesis-parent';
 
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -20,6 +22,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
   const { pub, contracts, wallet, now } = useApp();
   const id = rawId.length === 66 ? (rawId.toLowerCase() as Hex) : noteIdFromIndex(BigInt(rawId));
   const n = feed?.byId.get(id) ?? feed?.notes.find((x) => x.id.toLowerCase() === id);
+  const childParent = useThesisParent(n && isThesis(n) ? id : '');
   const app = useApp();
   const [retraction,setRetraction]=useState('');
   const [paid, setPaid] = useState<Record<string, boolean>>({});
@@ -65,6 +68,10 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
       <p className="entry-claim">
         {thesis ? 'Thesis' : <>{n.x.toLowerCase() === contracts.marg.toLowerCase() ? 'MARG' : <Addr a={n.x} />} {describeTarget(n.side, n.targetBps)} within {n.horizonDays} days</>}
       </p>
+      {thesis && childParent.ready && childParent.parent && <div className="actions">
+        <a className="button primary" href={childCallHref(n.id)}>Post the child call</a>
+        <span className="small">Due {fmtDate(childParent.parent.graceEnd)}</span>
+      </div>}
       <Citation text={n.text} />
       <p className="entry-text">{n.text}</p>
       <p className="small">{STATUS_EXPLAIN[n.status]}</p>

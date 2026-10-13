@@ -110,7 +110,7 @@ export default function App() {
   else if (route.startsWith('/scoreboard')) { page = <Scoreboard {...feedState} />; isFeedPage = true; }
   else if (cfg.pages && (seg = m(/^\/pages\/([a-zA-Z0-9_]{1,15})$/))) page = <PagesPanel handle={seg[1]} feed={feed}/>;
   else if (route.startsWith('/about')) page = <AboutPage />;
-  else { page = <HomePage {...feedState} />; isFeedPage = true; }
+  else { page = <HomePage key={route} {...feedState} />; isFeedPage = true; }
 
   return (
     <Ctx.Provider value={{ cfg, pub, contracts, wallet, now }}>

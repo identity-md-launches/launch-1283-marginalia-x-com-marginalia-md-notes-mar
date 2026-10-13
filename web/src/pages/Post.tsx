@@ -9,6 +9,8 @@ import { fmtAmount, fmtDate, NO_VENUE, parseAmount, sealHash, sealKey, sealSubje
 import { Checkpoint, useCheckpoint } from '../checkpoint';
 import { Countdown, Notice, TxButton } from '../ui';
 import type { FeedProps } from './Feed';
+import { ChildCallContext, ThesisParentField, useThesisParent } from '../child-call';
+import { checkThesisParent, childCallHref } from '../thesis-parent';
 
 const ZERO32 = '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex;
 const PREFILL_KEY = 'marginalia.prefill';
@@ -29,18 +31,20 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
   const L = contracts.limits;
   const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
   const counterId = query.get('counter');
+  const childId = !counterId && initialMode !== 'thesis' ? query.get('child') : null;
   const counter = feed?.notes.find(n => n.id.toLowerCase() === counterId?.toLowerCase());
   const [mode, setMode] = useState<'call' | 'thesis'>(initialMode ?? (query.get('kind') === 'thesis' ? 'thesis' : 'call'));
   const [step, setStep] = useState(1);
   const appliedCounter = useRef('');
-  const [draft, setDraft] = useState<CallDraft>(EMPTY_DRAFT);
+  const [draft, setDraft] = useState<CallDraft>(() => ({ ...EMPTY_DRAFT, parentId: childId ?? '' }));
   const [thesisText, setThesisText] = useState('');
   const [thesisParent, setThesisParent] = useState('');
   const [bond, setBond] = useState('0.25');
-  const [posted, setPosted] = useState<{ id: Hex; hash: Hex } | null>(null);
+  const [posted, setPosted] = useState<{ id: Hex; hash: Hex; graceEnd?: number } | null>(null);
   const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null);
 
   useEffect(() => {
+    if (childId || counterId) return;
     try {
       const raw = localStorage.getItem(PREFILL_KEY);
       if (raw) {
@@ -68,6 +72,7 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
   const reviewVisible = !guided || step === 3;
   const finder = useVenueFinder(mode === 'call' ? draft.x : '');
   const derived = useDerivedParams(draft, finder.options);
+  const childParent = useThesisParent(mode === 'call' && !counterId && !prefilledFrom ? draft.parentId : '');
 
   // thesis params
   const tLen = utf8Length(thesisText);
@@ -125,12 +130,19 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
   const enoughImd = imdIn !== null && balance.data !== undefined && balance.data >= imdIn;
 
   const sendApprove = async () => {
+    if (!childParent.ready) throw new Error(childParent.error || 'Wait for the parent check.');
+    if (childParent.id) await checkThesisParent(pub, contracts.hook, childParent.id, acct!, L.thesisGrace);
     const { request } = await pub.simulateContract({ address: contracts.imd, abi: erc20Abi, functionName: 'approve', args: [contracts.router, imdIn!], account: acct! });
     return wallet.client!.writeContract(request);
   };
   const sendNote = async () => {
     if (!counterOk) throw new Error('The counter must target an open call by another wallet on the same token from the opposite side.');
     let deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60);
+    if (!childParent.ready) throw new Error(childParent.error || 'Wait for the parent check.');
+    if (childParent.id) {
+      const closes = BigInt(await checkThesisParent(pub, contracts.hook, childParent.id, acct!, L.thesisGrace));
+      if (closes < deadline) deadline = closes;
+    }
     if (requestedReveal || revealReady) {
       if (!params || !key || !formHash || (requestedReveal && !matchesPrefill)) throw new Error('The form no longer matches the saved seal.');
       const current = await pub.readContract({ address: contracts.hook, abi: MarginaliaHookAbi, functionName: 'seals', args: [key] });
@@ -154,6 +166,7 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
   };
   const onPosted = async (hash: Hex) => {
     const r = await pub.getTransactionReceipt({ hash });
+    const block = await pub.getBlock({ blockNumber: r.blockNumber });
     for (const log of r.logs) {
       if (log.address.toLowerCase() !== contracts.hook.toLowerCase()) continue;
       try {
@@ -161,7 +174,7 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
         if (ev.eventName === 'NotePosted') {
           const id = (ev.args as { id: Hex }).id;
           if (params) rememberVenue(id, params);
-          setPosted({ id, hash });
+          setPosted({ id, hash, graceEnd: ev.args.targetBps === 0 ? Number(block.timestamp) + L.thesisGrace : undefined });
         }
       } catch {
         /* other event */
@@ -171,12 +184,14 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
   };
 
   const counterOk = !counterId || !!counter && counter.status === Status.Open && counter.targetBps !== 0 && counter.author.toLowerCase() !== acct?.toLowerCase() && params?.parentId.toLowerCase() === counter.id.toLowerCase() && params?.x.toLowerCase() === counter.x.toLowerCase() && params?.side !== counter.side;
-  const readyToPost = counterOk && !!params && bondOk && imdIn !== null && allowance.data !== undefined && !needsApproval && enoughImd && (mode === 'thesis' && !requestedReveal || mode === 'call' && callReady) && minMargOut > 0n;
+  const readyToPost = childParent.ready && counterOk && !!params && bondOk && imdIn !== null && allowance.data !== undefined && !needsApproval && enoughImd && (mode === 'thesis' && !requestedReveal || mode === 'call' && callReady) && minMargOut > 0n;
 
   return (
     <>
       {embedded ? <h2>{mode==='thesis'?'Write a thesis':'Post a call'}</h2> : <h1>Post a note</h1>}
       <p className="lede">Put a target on the record. The chain keeps the result.</p>
+      {childParent.requested && <ChildCallContext state={childParent} />}
+      {posted?.graceEnd !== undefined && <Notice kind="ok"><p>Thesis recorded. <a href={childCallHref(posted.id)}>Next: your child call, due {fmtDate(posted.graceEnd)}</a></p></Notice>}
       <p className="hold-rule">{HOLD_RULE}.</p>
       <p className="small">Right returns your bond; wrong forfeits it. Informational, not advice. Bonds can be lost.</p>
       {counterId && <Notice><p>{counter ? <>Counter to <a href={`#/note/${counter.id}`}>note № {counter.index.toString()}</a>: token, opposite side and parent are prefilled.</> : 'Reading the target call…'}</p>{counter && (counter.status !== Status.Open || counter.author.toLowerCase() === acct?.toLowerCase()) && <p className="small">Use another wallet and the same token, opposite side and original parent; the target must still be open.</p>}</Notice>}
@@ -209,7 +224,8 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
 
       {guided && <ol className="post-steps" aria-label="First note steps">{['Pick a token', 'Set your target', 'Say why'].map((label, i) => <li key={label} aria-current={step === i + 1 ? 'step' : undefined}><span>{i + 1}</span>{label}</li>)}</ol>}
       {mode === 'call' ? (
-        <CallFields draft={draft} onChange={setDraft} finder={finder} step={guided ? step : undefined} />
+        <CallFields draft={draft} onChange={setDraft} finder={finder} step={guided ? step : undefined}
+          parentField={counterId ? null : prefilledFrom ? undefined : <ThesisParentField value={draft.parentId} onChange={parentId => setDraft(d => ({ ...d, parentId }))} state={childParent} />} />
       ) : (
         <>
           <label htmlFor="thesis">Thesis</label>
@@ -289,7 +305,7 @@ export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & {
               primary
               onSend={sendApprove}
               onDone={() => allowance.refresh()}
-              disabled={!bondOk || !counterOk || requestedReveal && !callReady}
+              disabled={!bondOk || !counterOk || !childParent.ready || requestedReveal && !callReady}
               explain={`Authorizes exactly ${imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD to the router address read from the hook. Nothing else is approved.`}
             />
           )}

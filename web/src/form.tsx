@@ -1,6 +1,6 @@
 // The call form shared by Post and Seal: token X, venue finder, side, target, horizon, text, parent.
 // The venue is derived through router.validateVenue so that seal, checkpoint and post all use the same struct.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { zeroAddress, type Address, type Hex } from 'viem';
 import { MarginaliaRouterAbi, erc20Abi, univ2FactoryAbi, univ2PairAbi, univ3FactoryAbi, univ3PoolAbi, stateViewAbi } from './abi';
 import { useApp } from './chain';
@@ -179,7 +179,7 @@ export function useDerivedParams(draft: CallDraft, options: VenueOption[]): { pa
   return { params, problems, deriving };
 }
 
-export function CallFields({ draft, onChange, finder, step }: { draft: CallDraft; onChange: (d: CallDraft) => void; finder: ReturnType<typeof useVenueFinder>; step?: number }) {
+export function CallFields({ draft, onChange, finder, step, parentField }: { draft: CallDraft; onChange: (d: CallDraft) => void; finder: ReturnType<typeof useVenueFinder>; step?: number; parentField?: ReactNode }) {
   const { contracts } = useApp();
   const L = contracts.limits;
   const set = (patch: Partial<CallDraft>) => onChange({ ...draft, ...patch });
@@ -245,9 +245,10 @@ export function CallFields({ draft, onChange, finder, step }: { draft: CallDraft
         {len} / {L.textMax} bytes. Start with an X status URL to cite a public call.
       </span>
       <textarea id="text" value={draft.text} onChange={(e) => set({ text: e.target.value })} aria-describedby="text-hint" />
-      <label htmlFor="parent">Parent note (optional)</label>
+      {parentField !== undefined ? parentField : <><label htmlFor="parent">Parent note (optional)</label>
       <span className="hint">Your own open thesis to hang this call off, or another author's open call on the same token from the other side to counter it.</span>
       <input id="parent" className="mono" value={draft.parentId} onChange={(e) => set({ parentId: e.target.value })} placeholder="0x… note id, or empty" autoComplete="off" />
+      </>}
       </>}
     </>
   );

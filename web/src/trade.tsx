@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { decodeEventLog, formatUnits, parseUnits, zeroAddress, type Address, type Hex } from 'viem';
+import { decodeEventLog, formatUnits, parseUnits, zeroAddress, zeroHash, type Address, type Hex } from 'viem';
 import { useApp, useRead } from './chain';
 import { erc20Abi, MarginaliaHookAbi, MarginaliaRouterAbi } from './abi';
 import { AnnexAbi } from './annex-abi';
@@ -14,14 +14,20 @@ import { rememberVenue } from './pages/Post';
 import { HOLD_RULE } from './scoreboard';
 import type { Note } from './notes';
 import { Admission } from './annex';
+import { ChildCallContext, ThesisParentField, useThesisParent } from './child-call';
+import { checkThesisParent } from './thesis-parent';
 const DRAFT_KEY = 'marginalia.trade.v3';
-type Draft = { token: string; amount: string; side: number; pct: string; days: string; why: string; bond: string; manual: string };
+type Draft = { token: string; amount: string; side: number; pct: string; days: string; why: string; bond: string; manual: string; parentId: string };
 function readDraft(fallback: Draft): Draft {
-  try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null'); return d && Object.keys(fallback).every(k => typeof d[k] === typeof fallback[k as keyof Draft]) ? d : fallback; } catch { return fallback; }
+  try { const stored = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null'); const d = stored && { parentId: '', ...stored }; return d && Object.keys(fallback).every(k => typeof d[k] === typeof fallback[k as keyof Draft]) ? d : fallback; } catch { return fallback; }
 }
-export function TradeForm({ annex = false, refresh, counter }: { annex?: boolean; refresh: () => void; counter?: Note }) {
+export function TradeForm({ annex = false, refresh, counter, childId }: { annex?: boolean; refresh: () => void; counter?: Note; childId?: string | null }) {
   const app = useApp(); const { pub, cfg, contracts: c, wallet, now } = app;
-  const [draft, setDraft] = useState<Draft>(() => readDraft({ token: c.marg, amount: '1', side: 0, pct: '25', days: '7', why: '', bond: '0.25', manual: '' }));
+  const [draft, setDraft] = useState<Draft>(() => {
+    const defaults = { token: c.marg, amount: '1', side: 0, pct: '25', days: '7', why: '', bond: '0.25', manual: '', parentId: '' };
+    // A child link carries only the thesis ID, never the thesis's token or a saved counter draft.
+    return childId && !annex && !counter ? { ...defaults, token: '', parentId: childId } : readDraft(defaults);
+  });
   useEffect(()=>{if(counter)setDraft(d=>({...d,token:counter.x,side:counter.side===0?1:0,days:String(counter.horizonDays)}));},[counter?.id]);
   const [token, setToken] = useState(draft.token);
   const [selected, setSelected] = useState('');
@@ -54,10 +60,11 @@ export function TradeForm({ annex = false, refresh, counter }: { annex?: boolean
   const bondOk = bond !== null && bond >= L.bondMin && bond <= L.bondMax;
   const imdIn = bondOk ? L.stamp + L.margBuy + bond! : null;
   const target = parseTarget(draft.side, draft.pct, L.minTargetDeltaBps);
+  const childParent = useThesisParent(!annex && !counter ? draft.parentId : '');
   const days = Number(draft.days), bytes = utf8Length(draft.why);
   const counterOk = !counter || counter.status===0 && counter.author.toLowerCase()!==wallet.account?.toLowerCase() && draft.side!==counter.side && eq(token,counter.x);
-  const fieldsOk = counterOk && subjectReady && bondOk && !target.error && Number.isInteger(days) && days >= 1 && days <= L.maxHorizonDays && bytes > 0 && bytes <= L.textMax;
-  const params: NoteParams | null = market && fieldsOk ? { ...publicParams(token as Address, market.venue), side: draft.side, targetBps: target.targetBps!, horizonDays: days, text: draft.why, ...(counter?{parentId:counter.id}:{}) } : null;
+  const fieldsOk = childParent.ready && counterOk && subjectReady && bondOk && !target.error && Number.isInteger(days) && days >= 1 && days <= L.maxHorizonDays && bytes > 0 && bytes <= L.textMax;
+  const params: NoteParams | null = market && fieldsOk ? { ...publicParams(token as Address, market.venue), side: draft.side, targetBps: target.targetBps!, horizonDays: days, text: draft.why, parentId: counter?.id ?? childParent.id ?? zeroHash } : null;
   const spender = annex ? c.annex : c.router;
   const window = useRead(subjectReady && spender ? async () => {
     const args = [venueId(market!.venue)] as const;
@@ -94,7 +101,11 @@ export function TradeForm({ annex = false, refresh, counter }: { annex?: boolean
   const checkpoint = async () => sendChecked(app, spender!, annex ? AnnexAbi : MarginaliaRouterAbi, 'checkpointVenue', [publicParams(token as Address, market!.venue), market!.key]);
   const submit = async () => {
     if (!params || !market || !canProceed) throw new Error('Refresh the quote and review the form.');
-    const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+    let deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+    if (childParent.id) {
+      const closes = BigInt(await checkThesisParent(pub, c.hook, childParent.id, wallet.account!, L.thesisGrace));
+      if (closes < deadline) deadline = closes;
+    }
     if (annex) return sendChecked(app, c.annex!, AnnexAbi, 'post', [params, market.key, bond!, minMargOut, baselineBound(baseline.data!, draft.side), deadline]);
     const x = { kind: market.kind, key: market.key, zeroForOne: market.venue.xIsToken0 === (draft.side === 1), pool: market.pool, tokenIn: input!, amountIn: amount!, minOut: quote.data!.output * 99n / 100n };
     if (x.minOut <= 0n) throw new Error('Output minimum is too small.');
@@ -116,8 +127,13 @@ export function TradeForm({ annex = false, refresh, counter }: { annex?: boolean
   const nextAction = canProceed && nextApproval ? 'approve' : wrap ? 'wrap' : subjectReady && window.data && !window.error && (!started || age>21600) ? 'checkpoint' : 'execute';
   const action = busy && pendingAction ? pendingAction.kind : nextAction;
   const sign = (props: Parameters<typeof TxButton>[0]) => <TxButton {...props} onBusyChange={value=>{if(value)setPendingAction({kind:nextAction,approval:nextApproval});else setPendingAction(null);setBusy(value);}} />;
+  const approve = async () => {
+    if (childParent.id) await checkThesisParent(pub, c.hook, childParent.id, wallet.account!, L.thesisGrace);
+    return sendChecked(app, approval!.token, erc20Abi, 'approve', [spender!, approval!.amount]);
+  };
   return <section className="trade-form" aria-label={annex ? 'Launched token call' : 'Trade and post'}>
     {counter && <p className="small">Counter to <a href={`#/note/${counter.id}`}>{short(counter.id)}</a>. Use the same token and opposite side.</p>}
+    {childParent.requested && <ChildCallContext state={childParent} />}
     <fieldset className="trade-fields" disabled={busy}>
       <div className="token-row"><div><label htmlFor="trade-token">Token</label><input id="trade-token" value={draft.token} onChange={e => set({ token: e.target.value })} placeholder="Paste a token address" spellCheck={false} autoComplete="off" /></div><button type="button" className="quiet token-pick" onClick={() => set({ token: c.marg })}>MARG</button></div>
       {!annex && <div className="trade-amount"><div><label htmlFor="trade-amount">You pay · {inputSymbol}</label><input id="trade-amount" inputMode="decimal" value={draft.amount} onChange={e => set({ amount: e.target.value })} /></div><div className="trade-output"><span className="small">You receive</span><strong>{quote.data && !quote.error ? fmtAmount(quote.data.output, draft.side === 0 ? finder.data?.decimals ?? 18 : 18, 5) : '—'} <span>{draft.side === 0 ? symbol : quoteSymbol}</span></strong><UsdContext imd={outputImd}/></div></div>}
@@ -128,9 +144,13 @@ export function TradeForm({ annex = false, refresh, counter }: { annex?: boolean
     </fieldset>
     <p className="trade-cost">You pay {!annex && <>{draft.amount} {inputSymbol} <UsdContext imd={inputImd}/> + </>}{imdIn ? fmtAmount(imdIn) : '—'} IMD <UsdContext imd={imdIn}/></p>
     <div className="trade-action">
-      <WalletAction>{action==='approve' && approval ? sign({ label: `Approve ${fmtAmount(approval.amount, eq(approval.token,c.imd) ? 18 : inputDecimals ?? 18)} ${eq(approval.token,c.imd) ? 'IMD' : inputSymbol}`, busyLabel: 'Approving…', primary: true, onSend: () => sendChecked(app, approval.token, erc20Abi, 'approve', [spender!, approval.amount]), onDone: done }) : action==='wrap' ? sign({ label: 'Wrap ETH', busyLabel: 'Wrapping…', primary: true, onSend: () => sendChecked(app, c.weth, wrapAbi, 'deposit', [], missing!.amount - missing!.balance), onDone: done }) : action==='checkpoint' ? sign({ label: 'Checkpoint venue', busyLabel: 'Checkpointing…', primary: true, onSend: checkpoint, onDone: done }) : sign({ label: annex ? 'Post call' : 'Trade and post', busyLabel: annex ? 'Posting…' : 'Trading and posting…', primary: true, disabled: !canProceed || !!approval, onSend: submit, onDone: afterPost })}</WalletAction>
+      <WalletAction>{action==='approve' && approval ? sign({ label: `Approve ${fmtAmount(approval.amount, eq(approval.token,c.imd) ? 18 : inputDecimals ?? 18)} ${eq(approval.token,c.imd) ? 'IMD' : inputSymbol}`, busyLabel: 'Approving…', primary: true, disabled: !childParent.ready, onSend: approve, onDone: done }) : action==='wrap' ? sign({ label: 'Wrap ETH', busyLabel: 'Wrapping…', primary: true, disabled: !childParent.ready, onSend: () => sendChecked(app, c.weth, wrapAbi, 'deposit', [], missing!.amount - missing!.balance), onDone: done }) : action==='checkpoint' ? sign({ label: 'Checkpoint venue', busyLabel: 'Checkpointing…', primary: true, disabled: !childParent.ready, onSend: checkpoint, onDone: done }) : sign({ label: annex ? 'Post call' : 'Trade and post', busyLabel: annex ? 'Posting…' : 'Trading and posting…', primary: true, disabled: !canProceed || !!approval, onSend: submit, onDone: afterPost })}</WalletAction>
     </div>
     <p className="small baseline-status">{finder.loading ? 'Finding the deepest available venue…' : !subjectReady ? 'Choose a token with a supported venue.' : checkpointReady ? 'Baseline ready.' : started && age < 3600 ? <>Baseline ready in <Countdown until={started + 3600} />. Draft saved locally.</> : 'Your baseline is the hour of price history before you, not the moment you click.'}</p>
+    {!annex && !counter && <details className="trade-details" open={childParent.requested || undefined}>
+      <summary>Parent thesis (optional)</summary>
+      <ThesisParentField id="trade-parent" value={draft.parentId} onChange={parentId => set({ parentId })} state={childParent} disabled={busy} />
+    </details>}
     {posted && <Notice kind="ok"><p>Call recorded. <a href={`#/note/${posted}`}>Open the receipt</a>.</p></Notice>}
     {wallet.account && missing && !wrap && <p className="status bad">You need {fmtAmount(missing.amount, eq(missing.token,c.imd) ? 18 : inputDecimals ?? 18)} {eq(missing.token,c.imd) ? 'IMD' : inputSymbol}; balance {fmtAmount(missing.balance, eq(missing.token,c.imd) ? 18 : inputDecimals ?? 18)}.</p>}
     {[finder.error, quote.error, baseline.error, funds.error, window.error, manualError].filter(Boolean).map((err, i) => <p className="status bad" role="alert" key={i}>{err!.split('\n')[0]}</p>)}

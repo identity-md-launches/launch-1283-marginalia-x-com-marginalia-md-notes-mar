@@ -1,3 +1,71 @@
+# Marginalia v3.1: child-call worker validation
+
+Checked on 2026-10-13 UTC. Complete for the stated frontend scope. These are local worker results, not independent certification or an on-chain audit. No real wallet signature, funded transaction, contract deployment or publication occurred.
+
+## Scope and choices
+
+The existing React 19 / Vite / TypeScript / viem site remains intact. Changes are limited to the author's child call: thesis-page navigation, a validated parent input in both hook composers, receipt follow-up and feed status. Source, the unchanged dependency manifest/lockfile, and the rebuilt static export are present together. No contract, deployment handoff, network setting, caveat, dependency, build configuration, ignore file, Git internals or GitHub path was edited. No dependency directory or registry archive is delivered.
+
+The child route is `#/?child=<id>`; its “Just the call” tab and `#/post?child=<id>` use the retained call form. Only the parent is carried over: token/text start empty and the composer's ordinary defaults remain. Parent validation reads the hook directly, independently of event-history coverage. It checks existence, `ThesisOpen`, author equality and the inclusive seven-day grace boundary. `horizonEnd(id)` gives a thesis's posting timestamp because its horizon is zero. The helper uses the same block for both reads and the hook's live `THESIS_GRACE` limit. It repeats these checks before approval and posting and caps both posting deadlines at grace end.
+
+Counters retain their own rules. Saved seal reveals retain their original parameters and path. Annex calls cannot increment a hook thesis's children and do not expose this field. The feed's reminder applies to an open thesis with `children == 0`; a closed/forfeited thesis cannot receive a child and has no reminder. Its child count remains the on-chain count, not a count inferred from loaded events.
+
+## Checks and evidence
+
+| Check | Result |
+| --- | --- |
+| Dependency installation in `/tmp/marginalia-child/build/web` using the unchanged lockfile | Passed; source/config copied into the isolated build directory, no repository dependency writes |
+| `npm run typecheck` | Passed, strict TypeScript |
+| `npm run build` | Passed; relative `./` base, locally bundled assets, hash routes; main JS 710.58 kB / 206.61 kB gzip; existing >500 kB chunk advisory retained |
+| `npm run manifest` and `npm run check` | Passed; 3 bound contracts, 15 asset SHA-256 hashes, canonical ABI hashes, exact handoff/network/wallet parameters, relative assets, agent-doc equality |
+| Handoff preservation | `web/deployment/mainnet.json` and `web/deployment/network.json` equal the supplied inputs; manifest includes the same previously authorized Annex |
+| `tests/child-call-unit.ts` | Passed: malformed/zero/existing IDs; all non-ThesisOpen statuses; ownership/case; one second before, exactly at and one second after grace; chain-clock protection; fixed-block reads and fresh preflight rejection |
+| `tests/child-call-browser.mjs` on production files | **21/21 scenarios in Chromium; 21/21 in WebKit**, then the affected CTA/composer scenario passed again in both after the final CSS-only fixes; mocked wallet/RPC and all external requests blocked; engine and final-style results in `validation/v3.1/` |
+| Existing `tests/v3-browser.mjs` regression suite | **21/21** in Chromium: approval accounting, pending/rejection, checkpoints, trade minima, call/thesis/seal routes, Annex, Pages gates, lifecycle, mobile layouts; no external request or browser script error |
+| Existing unit suites | All passed: v2 (5 groups), revision (9), history (7), v3 arithmetic/ABI/calldata group |
+| `tests/v3-live.ts` read-only run | Passed at block **26180413**: Ethereum chain/code, hook-derived companions, pool/venue bindings, ABI subsets/hashes, seal encodings, Annex hook binding, and both local quote directions matching the configured quoter; `validation/v3.1/live-read.txt` |
+| Additional `tests/child-call-live.ts` attempt | Did not complete: worker RPC returned empty JSON responses; a later live browser refresh received **HTTP 429 Too Many Requests**; no additional live-parent result is claimed |
+| Pinned `taste.mjs --out test/scratch/taste` | **13/16** on the final export with mocked RPC at 320/390/1440, plus reduced motion (the earlier live run also scored 14/16); passed render/layout/targets/contrast/type/metadata checks; two preserved-copy exceptions and one confirmed data-row false positive below |
+| Assigned browser tool | Inspected live export under `/preview/` at 390 and 320; first-screen action bottom measured **768.30px** at 390×844, no sideways overflow; later refresh encountered the RPC failures above |
+
+The browser suite tests both the manual parent and the thesis link, unknown and malformed IDs, the three gates in both forms, another token/either side, chain-independent feed coverage, account changes, grace expiry via a controlled clock, fresh preflight rejection, normal exact approvals including summed IMD, positive minima and capped deadlines, receipt-block-derived due dates, home/standalone thesis handoffs, feed refresh, retained counter behavior, Annex exclusion, disconnected/wrong-chain recovery, and keyboard/dark/mobile states. Mock receipts confirm that `parentId` reaches `note` and `tradeAndNote`. No timer test waits out the real seven-day grace or one-hour checkpoint.
+
+Tests serve the actual export under `/preview/`; fixtures stay in tests and never enter production. WebKit 27.2 needed temporary system libraries and an explicit Mesa EGL vendor setting; tooling lives outside the repository. The assigned-browser preview and initial taste probes redirected only configured public RPC requests to the worker-supplied transport; production configuration was unchanged. After the worker RPC failures, the final probe used the browser suite’s RPC fixture with outside traffic blocked. The probe script itself was unchanged. Public source labels remain `https://ethereum-rpc.publicnode.com` and `https://eth.drpc.org`.
+
+## Better Interface review
+
+Visual idea: the existing paper ledger becomes an actionable receipt, with the author's next required call placed directly under the thesis heading. No new visual system was introduced. All six pinned domains were applied while building and reviewed after the final source changes.
+
+| Domain | Coverage and evidence |
+| --- | --- |
+| Accessibility | Checked native link/button/input/details semantics, input label, `aria-describedby`, `aria-invalid`, polite status, keyboard focus and disabled/pending paths. Viewed `child-focus-dark-320.png`; focus uses the existing 2px ring. Screen-reader and native-device sessions were not performed. |
+| Layout | Checked home, thesis note, both composers and feed at 320/390/1440 in both browsers. No document overflow. Viewed the final `home-mock-final-390.png`, `thesis-note-390.png`, `child-trade-390.png` and dark error/focus evidence. Optional parent stays below the primary action; context wraps above fields. Native zoom and RTL were not tested. |
+| Writing | Checked the brief's exact CTA/context/receipt/feed phrases and short field-specific errors. Counter instructions remain separate. The duplicate disclosure/input label was corrected. Original caveat and economic copy remain verbatim. |
+| Typography | Reused existing five text roles, three weight roles, serif prose and monospace data; no new font or type size. Checked long IDs and errors in narrow views; field values remain fully selectable. Probe passes type sizes/families/tracking/casing. |
+| Colors | Reused light/dark semantic tokens. Final probe measured all sampled solid-background text at >=4.5:1 (>=3:1 large). Viewed child focus and error states in dark mode; no new colors. This is sampled measurement, not a full accessibility certification. |
+| UI | Checked native disclosure, parent loading/error/retry, wallet/chain changes, disabled eligibility and successful follow-up. Existing transaction pending/rejection regressions pass. No new animation, modal, icon, shadow or elevation. Reduced-motion probe passes. |
+
+## Findings, fixes and retained exceptions
+
+| Finding | Evidence, correction and recheck |
+| --- | --- |
+| High: own-child path missing / counter rules incompatible | `src/pages/Note.tsx:71`, `src/pages/Post.tsx:75`, `src/trade.tsx:63`: added owner-gated CTA, separate child context and shared live validator; both calldata paths and all three gates pass in Chromium/WebKit. |
+| Medium: nonexistent parent could appear as generic read failure | `src/abi.ts:5`, `src/thesis-parent.ts:39`: initial browser test reproduced the missing `UnknownNote` decoder; added the exact error entry from the pinned full ABI, now giving a one-sentence existence error. Full exported ABI and hashes did not change. Both browsers pass the regression. |
+| Medium: expiry or closure after an earlier read | `src/thesis-parent.ts:48`, `src/pages/Post.tsx:142`, `src/trade.tsx:105`: fresh preflight and grace-capped deadlines; controlled expiry and closure-before-signing tests pass. |
+| Low: repeated parent label in an open disclosure | `src/trade.tsx:151`, `src/child-call.tsx:32`: summary now says “Parent thesis (optional)”; input retains the requested full label. Rechecked in both browsers. |
+| Medium: primary anchor had no filled style | `src/styles.css:80`: screenshot review found that only buttons received the primary fill; included `.button.primary` and its hover state in the existing token rule. A new rendered-color assertion and final screenshots pass in Chromium/WebKit. |
+| Medium: child context pushed the WebKit action past the fold | `src/styles.css:286`: the added context now uses `--space-1` bottom spacing and a 1.4 line height. Final child-action bottoms: **802.89px Chromium**, **842.30px WebKit**, within the 390×844 first screen; asserted by both browser runs. |
+| Probe false positive: eyebrow detection | `src/pages/Home.tsx:85`: the final populated fixture places a posting-wallet address in the Recent verdicts row near the following feed heading. Screenshot inspection confirms it is receipt data inside a linked verdict, not a kicker above a heading; the retained verdict row is unchanged. |
+| Preserved exception: repetition and mobile prose budget | Final taste report flags the same caveat twice and 64 first-screen prose words against the 60-word probe bar (70 words in the live run). The brief says “same … caveat, copy rules” and “keep everything else exactly as is”; the pre-existing required caveat stays above the home fold and in the footer. No scope-wide copy redesign was made. |
+
+## Limitations and delivery
+
+No funded posting, actual wallet signing, physical iPhone, screen-reader session, native 200% zoom, RTL localization, live seven-day lifecycle or hosted/IPFS publication was tested. Mocked success paths are not claims that a live transaction was sent. The optional additional live-parent probe failed on worker RPC responses; the earlier live deployment/binding checks succeeded. Public-history gaps remain disclosed by the existing site. Real parent eligibility is re-read and the contract remains authoritative when a transaction is mined.
+
+`DESIGN.md` describes the final source. The runtime manifest was regenerated after the final build. Obsolete hashed JS files were removed from `dist/`; source, runtime ABIs, static assets and the existing lockfile remain complete. Generated browser/cache/dependency directories are excluded by location, without changing an ignore file. A redundant earlier live-home screenshot was omitted to keep the full tree below 8 MiB even before compression; the final home, thesis CTA, child composer and dark error/focus screenshots remain, along with all source and runtime assets. `validation/v3.1/submission.json` records final file/hash/budget checks. No `.git` write or local commit was made because the assignment expressly forbids touching `.git/`; files are prepared for the contributor submission mechanism.
+
+---
+
 # Marginalia v3 — worker validation
 
 Validated locally on 2026-10-13 UTC. These are worker observations, not independent certification, a contract audit or hosting approval. No real signature or transaction was requested or broadcast.

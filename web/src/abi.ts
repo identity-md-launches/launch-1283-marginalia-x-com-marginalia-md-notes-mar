@@ -2,6 +2,7 @@
 // Subsets of the full ABIs shipped in public/abi/*.json; a check compares each entry against the full file.
 
 export const MarginaliaHookAbi = [
+  { "inputs": [], "name": "UnknownNote", "type": "error" },
  {
   "type": "function",
   "name": "BOND_MAX",

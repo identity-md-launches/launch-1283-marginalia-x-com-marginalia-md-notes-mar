@@ -1,0 +1,40 @@
+{
+  "scope": "SITE v3.1 child call",
+  "limitBytes": 8388608,
+  "sourceFilesExcludingBudgetReport": 613,
+  "sourceBytesExcludingBudgetReport": 8224145,
+  "exportFiles": 16,
+  "exportBytes": 941473,
+  "manifestSha256": "be3d4146a4e7c7b5f695c8ec3ffac8c963d841bbceb08c3c0d2ad93757c4585c",
+  "allExportHashesMatch": true,
+  "allExportFilesInventoried": true,
+  "handoffNetworkUnchanged": true,
+  "protectedFilesUnchanged": true,
+  "noDependencyDirectoriesOrArchives": true,
+  "noSubmodules": true,
+  "typecheck": "pass",
+  "productionBuild": "pass",
+  "manifestAndAbiCheck": "pass",
+  "childBrowserScenarios": {
+    "chromium": 21,
+    "webkit": 21
+  },
+  "finalCtaStyleChecks": {
+    "chromium": "pass",
+    "webkit": "pass"
+  },
+  "legacyV3BrowserScenarios": 21,
+  "pinnedProbe": {
+    "passed": 13,
+    "checks": 16,
+    "exceptions": [
+      "preserved caveat repetition",
+      "preserved mobile copy budget",
+      "verdict-wallet data falsely classified as eyebrow"
+    ]
+  },
+  "liveChecks": "Deployment/code/ABI/quotes passed; additional parent probe failed on empty RPC responses and later HTTP 429; no transactions sent.",
+  "gitWrites": false,
+  "within8MiB": true,
+  "completeSnapshotGzipBytesLessThan": 4248000
+}
