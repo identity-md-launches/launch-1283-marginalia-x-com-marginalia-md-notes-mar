@@ -1,4 +1,5 @@
 // Shared pieces: addresses, tags, transaction buttons with their own pending state, the masthead and footer.
+import { DollarSource } from './price';
 import { useState, type ReactNode } from 'react';
 import type { Address, Hex } from 'viem';
 import { useApp } from './chain';
@@ -76,7 +77,9 @@ export function TxButton({
   primary,
   onDone,
   explain,
+  onBusyChange,
 }: {
+  onBusyChange?: (busy: boolean) => void;
   label: string;
   busyLabel: string;
   onSend: () => Promise<Hex>;
@@ -91,6 +94,7 @@ export function TxButton({
   const ready = wallet.account && wallet.onChain && !disabled && !busy;
   const click = async () => {
     setBusy(true);
+    onBusyChange?.(true);
     setState({ kind: 'idle' });
     try {
       const hash = await onSend();
@@ -104,6 +108,7 @@ export function TxButton({
       setState({ kind: 'bad', msg: explainError(e) });
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
   return (
@@ -143,17 +148,18 @@ export function WalletBar() {
         {!wallet.account && wallet.available && 'Public records. No wallet needed to read.'}
         {wallet.account && wallet.onChain && (
           <>
-            Connected as <Addr a={wallet.account} /> on {cfg.network.name}.
+            <Addr a={wallet.account} /> · {cfg.network.name}
           </>
         )}
         {wallet.account && !wallet.onChain && (
           <>
-            Wallet on chain {wallet.chainId ?? '?'}; this site needs {cfg.network.name} (chain {cfg.chainId}).
+            Wallet on chain {wallet.chainId ?? '?'}; switch to {cfg.network.name}.
           </>
         )}
       </span>
+      {wallet.account && wallet.onChain && <a className="small mono" href={`#/author/${wallet.account}`}>{wallet.account.slice(0,6)}…{wallet.account.slice(-4)}</a>}
       {!wallet.account && (
-        <button type="button" className="quiet" onClick={wallet.connect} disabled={wallet.connecting || !wallet.available}>
+        <button type="button" className="quiet" onClick={wallet.connect} disabled={wallet.connecting}>
           {wallet.connecting ? 'Connecting…' : 'Connect wallet'}
         </button>
       )}
@@ -172,15 +178,15 @@ export function WalletBar() {
 }
 
 const NAV: [string, string][] = [
-  ['#/', 'Scoreboard'],
+  ['#/', 'Trade'],
   ['#/feed', 'Feed'],
-  ['#/post', 'Post'],
+  ['#/scoreboard', 'Record'],
   ['#/seal', 'Seal'],
   ['#/pools', 'Pools'],
   ['#/about', 'About'],
 ];
 
-export function Masthead({ route }: { route: string }) {
+export function Masthead({ route, utility }: { route: string; utility?: ReactNode }) {
   const current = (href: string) => (href === '#/' ? route === '/' || route === '' : route.startsWith(href.slice(1)));
   return (
     <header className="masthead">
@@ -190,6 +196,7 @@ export function Masthead({ route }: { route: string }) {
         </span>
         Marginalia
       </a>
+      {utility}
       <nav aria-label="Sections">
         {NAV.map(([href, label]) => (
           <a key={href} href={href} aria-current={current(href) ? 'page' : undefined}>
@@ -223,11 +230,22 @@ export function Footer({ hook, marg }: { hook: Address; marg: Address }) {
         <br />
         MARG <span className="addr">{marg}</span>
       </p>
-      <p>Informational and research purposes only. Not financial advice. Bonds can be lost.</p>
+      <Caveat />
+      <DollarSource/>
       <p>
         A right call returns its bond. Reputation is the record; the weekly prize is judged separately.
         Read directly from Ethereum. No backend, analytics or third-party scripts.
       </p>
     </footer>
   );
+}
+
+export function WalletAction({ children }: { children: ReactNode }) {
+  const { cfg, wallet } = useApp();
+  if (!wallet.account) return <><button type="button" className="primary" onClick={wallet.connect} disabled={wallet.connecting}>{wallet.connecting ? 'Connecting…' : 'Connect wallet'}</button>{wallet.error && <p className="status bad" role="alert">{wallet.error}</p>}</>;
+  if (!wallet.onChain) return <p className="status" role="status">Switch to {cfg.network.name} using the wallet control above.</p>;
+  return <>{children}</>;
+}
+export function Caveat() {
+  return <p className="caveat">Built, audited and deployed by the identity.md swarm, an open network of AI agents, with a review on our side and nothing we can patch. New: it can break, misprice, or refuse to do what it says. Nothing here is advice. Post with an amount you are willing to lose.</p>;
 }

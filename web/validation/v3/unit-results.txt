@@ -1,0 +1,41 @@
+
+  ../../v2-unit.mjs  39.9kb
+
+⚡ Done in 141ms
+PASS Only leading status URLs on exact X/Twitter hosts are receipts
+PASS Cited accounts count note verdicts without mutating authorship
+PASS Duels require same token, opposite sides and different posting wallets
+PASS Rates expose empty samples and rank without losing bigint score precision
+PASS Weighted wins come only from positive RIGHT settlement deltas
+5 v2 logic groups passed.
+
+  ../../revision-unit.mjs  190.1kb
+
+⚡ Done in 102ms
+PASS exact approval totals
+PASS priced calls cannot encode zero or overflow uint32
+PASS remaining refund share: integer rounding, cap, empty/count-zero
+PASS pricer revert is readable by name and selector
+PASS initial events persisted
+PASS refresh reads only overlap and tail, retains historical note
+PASS old cached note survives refused ranges, 90-day scan bounded to four recent plus four historical chunks
+PASS recent failed ranges recover without losing historical-gap disclosure
+PASS changed anchor invalidates cache and discards reorganized events
+9 unit scenarios passed
+
+  ../../history-unit.mjs  77.4kb
+
+⚡ Done in 129ms
+PASS Fresh browser recovers the reviewer’s historical note from deployment
+PASS Returning browser retrieves the served gap after a 9,000-block absence
+PASS Historical cursor advances across bounded batches and all six event types join
+PASS Refused history cannot starve later ranges; recovery retries only remaining holes
+PASS Successful coverage survives a failed overlap and a later successful replacement
+PASS Old v1 tail-only caches migrate without dropping logs and coverage
+PASS A changed block anchor discards reorganized historical logs
+7 history scenarios passed
+
+  ../../v3-unit.mjs  152.9kb
+
+⚡ Done in 177ms
+PASS v3: exact approvals (including overlapping IMD), baseline bounds, v2 math, TickMath boundaries/monotonicity, pinned ABI subsets/hashes, router+Annex calldata and Pages v0.10 surface.

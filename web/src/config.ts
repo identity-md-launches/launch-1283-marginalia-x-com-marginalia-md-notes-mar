@@ -15,6 +15,9 @@ export const CHAIN_ID = 1 as const;
 
 /** Block the launch was deployed in (deployment.json blockNumber); NotePosted logs are scanned from here. */
 export const DEPLOY_BLOCK = 26169583n;
+export const ANNEX_DEPLOY_BLOCK = 26178192n;
+// Named by the SITE v3 brief; used only for informational dollars.
+export const USDC: Address = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 /** Public nodes limit eth_getLogs ranges; this chunk size is served by the configured public RPCs. */
 export const LOG_CHUNK = 2000n;
 /** Read the recent tail first, then continue historical coverage in a separate bounded batch. */
@@ -31,6 +34,7 @@ export const UNIV3_FEES = [100, 500, 3000, 10000] as const;
 
 export const LINKS = {
   x: 'https://x.com/marginalia_md',
+  radar: 'https://imdradar.site',
   launch: 'https://explorer.imd.fun/jobs/9060a248-29ce-4683-b5d1-54fbc83cd49d',
 };
 
@@ -86,6 +90,8 @@ export interface AppConfig {
   hook: Address;
   marg: Address;
   imd: Address;
+  annex?: Address;
+  pages?: Address;
   rpcUrls: string[];
   explorer: string;
   network: NetworkBlock;
@@ -117,6 +123,8 @@ export function loadDeployment(): Promise<AppConfig> {
         deployment: d,
         chainId: d.chainId,
         hook: hook.address,
+        annex: d.contracts.find(c => c.name === 'MarginaliaAnnex' || c.name === 'annex')?.address,
+        pages: d.contracts.find(c => c.name === 'MarginaliaPages' || c.name === 'pages')?.address,
         marg: marg.address,
         imd: d.network.pairToken.address,
         rpcUrls: d.network.rpcUrls,

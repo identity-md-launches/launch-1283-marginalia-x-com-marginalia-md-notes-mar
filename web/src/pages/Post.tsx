@@ -24,13 +24,13 @@ export function rememberVenue(id: Hex, params: NoteParams) {
   }
 }
 
-export function PostPage({ feed, refresh }: FeedProps) {
+export function PostPage({ feed, refresh, initialMode, embedded }: FeedProps & { initialMode?: 'call'|'thesis'; embedded?: boolean }) {
   const { pub, contracts, wallet, now } = useApp();
   const L = contracts.limits;
   const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
   const counterId = query.get('counter');
   const counter = feed?.notes.find(n => n.id.toLowerCase() === counterId?.toLowerCase());
-  const [mode, setMode] = useState<'call' | 'thesis'>(query.get('kind') === 'thesis' ? 'thesis' : 'call');
+  const [mode, setMode] = useState<'call' | 'thesis'>(initialMode ?? (query.get('kind') === 'thesis' ? 'thesis' : 'call'));
   const [step, setStep] = useState(1);
   const appliedCounter = useRef('');
   const [draft, setDraft] = useState<CallDraft>(EMPTY_DRAFT);
@@ -175,12 +175,12 @@ export function PostPage({ feed, refresh }: FeedProps) {
 
   return (
     <>
-      <h1>Post a note</h1>
+      {embedded ? <h2>{mode==='thesis'?'Write a thesis':'Post a call'}</h2> : <h1>Post a note</h1>}
       <p className="lede">Put a target on the record. The chain keeps the result.</p>
       <p className="hold-rule">{HOLD_RULE}.</p>
       <p className="small">Right returns your bond; wrong forfeits it. Informational, not advice. Bonds can be lost.</p>
       {counterId && <Notice><p>{counter ? <>Counter to <a href={`#/note/${counter.id}`}>note № {counter.index.toString()}</a>: token, opposite side and parent are prefilled.</> : 'Reading the target call…'}</p>{counter && (counter.status !== Status.Open || counter.author.toLowerCase() === acct?.toLowerCase()) && <p className="small">Use another wallet and the same token, opposite side and original parent; the target must still be open.</p>}</Notice>}
-      <div className="cost-summary"><span>Posting cost</span><strong>{imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD</strong><UsdContext /></div>
+      <div className="cost-summary"><span>Posting cost</span><strong>{imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD</strong><UsdContext imd={imdIn} /></div>
       {prefilledFrom && (
         <Notice>
           <p>
@@ -231,7 +231,7 @@ export function PostPage({ feed, refresh }: FeedProps) {
       {reviewVisible && <>
       <label htmlFor="bond">Bond, in IMD</label>
       <span className="hint">
-        {fmtAmount(L.bondMin)} to {fmtAmount(L.bondMax)} IMD, held for the horizon. It is yours again if the call is right and lost if it is not.
+        {fmtAmount(L.bondMin)} IMD <UsdContext imd={L.bondMin}/> to {fmtAmount(L.bondMax)} IMD <UsdContext imd={L.bondMax}/>, held for the horizon. It is yours again if the call is right and lost if it is not.
       </span>
       <input id="bond" inputMode="decimal" value={bond} onChange={(e) => setBond(e.target.value)} aria-invalid={!bondOk} />
       {!bondOk && <span className="hint">Enter a bond between {fmtAmount(L.bondMin)} and {fmtAmount(L.bondMax)} IMD, with at most 18 decimal places.</span>}
@@ -239,23 +239,23 @@ export function PostPage({ feed, refresh }: FeedProps) {
       <h2>What posting pulls from your wallet</h2>
       <dl className="facts">
         <dt>Stamp</dt>
-        <dd>{fmtAmount(L.stamp)} IMD · non-refundable, to the pools (70% thesis prize, 30% writer refunds)</dd>
+        <dd>{fmtAmount(L.stamp)} IMD <UsdContext imd={L.stamp}/> · non-refundable, to the pools (70% thesis prize, 30% writer refunds)</dd>
         <dt>MARG allocation</dt>
         <dd>
-          {fmtAmount(L.margBuy)} IMD · spent on MARG in the launch pool; the MARG goes to you. At least {fmtAmount(minMargOut)} MARG (10% below the current
-          price of {price.data ? fmtAmount(price.data, 18, 10) : '…'} IMD per MARG)
+          {fmtAmount(L.margBuy)} IMD <UsdContext imd={L.margBuy}/> · spent on MARG in the launch pool; the MARG goes to you. At least {fmtAmount(minMargOut)} MARG (10% below the current
+          price of {price.data ? fmtAmount(price.data, 18, 10) : '…'} IMD per MARG <UsdContext imd={price.data}/>)
         </dd>
         <dt>Bond</dt>
-        <dd>{bondOk ? formatUnits(bondWei!, 18) : '…'} IMD · returned when right</dd>
+        <dd>{bondOk ? formatUnits(bondWei!, 18) : '…'} IMD <UsdContext imd={bondWei}/> · returned when right</dd>
         <dt>Total</dt>
         <dd>
-          <strong>{imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD</strong> · <UsdContext /> · approved to the router only, for exactly this amount
+          <strong>{imdIn !== null ? formatUnits(imdIn, 18) : '…'} IMD</strong> · <UsdContext imd={imdIn} /> · approved to the router only, for exactly this amount
         </dd>
         {acct && (
           <>
             <dt>Your IMD</dt>
             <dd>
-              {fmtAmount(balance.data)} IMD · router allowance {fmtAmount(allowance.data)} IMD
+              {fmtAmount(balance.data)} IMD <UsdContext imd={balance.data}/> · router allowance {fmtAmount(allowance.data)} IMD <UsdContext imd={allowance.data}/>
             </dd>
           </>
         )}

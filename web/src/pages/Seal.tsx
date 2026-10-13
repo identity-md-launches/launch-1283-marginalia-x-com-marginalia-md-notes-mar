@@ -78,7 +78,7 @@ export function SealPage({ feed, refresh }: FeedProps) {
     <>
       <h1>Seal a note</h1>
       <p className="lede">Commit now. Show the call later. The hash fixes your words before the verdict.</p>
-      <ol className="seal-timeline"><li><strong>Seal</strong><span>{fmtAmount(L.stamp)} IMD stamp</span></li><li><strong>Wait 30 minutes</strong><span>Text stays in this browser</span></li><li><strong>Reveal by 6 hours</strong><span>Post the exact saved call</span></li></ol>
+      <ol className="seal-timeline"><li><strong>Seal</strong><span>{fmtAmount(L.stamp)} IMD stamp <UsdContext imd={L.stamp}/></span></li><li><strong>Wait 30 minutes</strong><span>Text stays in this browser</span></li><li><strong>Reveal by 6 hours</strong><span>Post the exact saved call</span></li></ol>
       <p className="small">The extra stamp is non-refundable; a lapsed seal keeps it in the pools.</p>
       <h2>1 · Write the call</h2>
       <CallFields draft={draft} onChange={setDraft} finder={finder} />
@@ -96,7 +96,7 @@ export function SealPage({ feed, refresh }: FeedProps) {
         <dd className="mono">{hash ?? (acct ? '… complete the form' : '… connect a wallet; the hash includes your address')}</dd>
         <dt>Stamp</dt>
         <dd>
-          {fmtAmount(L.stamp)} IMD · <UsdContext /> · exactly this amount approved to the hook
+          {fmtAmount(L.stamp)} IMD · <UsdContext imd={L.stamp} /> · exactly this amount approved to the hook
         </dd>
         <dt>Reveal window</dt>
         <dd>from 30 minutes to 6 hours after the seal is mined</dd>

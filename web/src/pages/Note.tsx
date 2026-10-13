@@ -1,3 +1,6 @@
+import { sendChecked } from '../transactions';
+import { NoteVenue } from '../note-venue';
+import { UsdContext } from '../price';
 import { Citation } from '../receipts';
 import { noteColumn, Share } from '../share';
 import { findDuels } from '../scoreboard';
@@ -6,7 +9,7 @@ import { useState } from 'react';
 import { ClaimControls, readClaim } from '../claims';
 import { MarginaliaHookAbi, erc20Abi } from '../abi';
 import { useApp, useRead } from '../chain';
-import { CLASS_LABEL, describeTarget, fmtAmount, fmtDate, noteIdFromIndex, short, Status, STATUS_EXPLAIN, STATUS_LABEL } from '../lib';
+import { CLASS_LABEL, describeTarget, fmtAmount, fmtDate, noteIdFromIndex, short, Status, utf8Length, STATUS_EXPLAIN, STATUS_LABEL } from '../lib';
 import { horizonEndOf, isThesis } from '../notes';
 import { Addr, Countdown, Notice, StatusTag, TxButton, TxLink } from '../ui';
 import { describeOutcome, Entry, type FeedProps } from './Feed';
@@ -17,6 +20,8 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
   const { pub, contracts, wallet, now } = useApp();
   const id = rawId.length === 66 ? (rawId.toLowerCase() as Hex) : noteIdFromIndex(BigInt(rawId));
   const n = feed?.byId.get(id) ?? feed?.notes.find((x) => x.id.toLowerCase() === id);
+  const app = useApp();
+  const [retraction,setRetraction]=useState('');
   const [paid, setPaid] = useState<Record<string, boolean>>({});
   const claimRead = useRead(n ? () => readClaim(pub, contracts.hook, n, contracts.limits.stamp) : null, [n?.id, feed?.loadedAt]);
   const claim = claimRead.data?.id === n?.id ? claimRead.data : undefined;
@@ -63,6 +68,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
       <Citation text={n.text} />
       <p className="entry-text">{n.text}</p>
       <p className="small">{STATUS_EXPLAIN[n.status]}</p>
+      <NoteVenue n={n}/>
       <div className="actions">
         {!thesis && n.status === Status.Open && !mine && <a className="button" href={`#/post?counter=${n.id}`}>Counter this call</a>}
         {findDuels(feed.notes).filter(d => d.counter.id === n.id || d.target.id === n.id).map(d => <a className="button" key={d.counter.id} href={`#/duel/${d.counter.id}`}>View duel № {d.counter.index.toString()}</a>)}
@@ -76,7 +82,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
         <dt>Class</dt>
         <dd>{CLASS_LABEL[n.classLive]}</dd>
         <dt>Bond</dt>
-        <dd>{n.deposit > 0n ? `${fmtAmount(n.deposit)} IMD held` : 'released or forfeited'}</dd>
+        <dd>{n.deposit > 0n ? `${fmtAmount(n.deposit)} IMD held` : 'released or forfeited'} {n.deposit>0n && <UsdContext imd={n.deposit}/>}</dd>
         <dt>Posted</dt>
         <dd>
           {fmtDate(n.timestamp)} · block {n.block.toString()} · <TxLink hash={n.tx} />
@@ -84,7 +90,7 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
         {!thesis && (
           <>
             <dt>Post price</dt>
-            <dd>{fmtAmount(n.postPrice, 18, 8)} IMD per X (scaled 1e18)</dd>
+            <dd>{fmtAmount(n.postPrice, 18, 8)} IMD per X (scaled 1e18) <UsdContext imd={n.postPrice}/></dd>
             <dt>Horizon end</dt>
             <dd>
               {fmtDate(hEnd)} {hEnd > now && <>(<Countdown until={hEnd} prefix="in " />)</>}
@@ -225,12 +231,13 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
           <h2>Your claims</h2>
           {claimRead.error && <Notice kind="bad"><p>Could not check claims. Refresh to try again.</p></Notice>}
           {claim && <>
-            <p className="small">Writer refund for day {claim.day}: {formatUnits(claim.pool, 18)} IMD shared by {claim.count} unclaimed notes, capped at one stamp. {claim.claimed || paid[`${id}:refund`] ? 'Already claimed.' : claim.day >= claim.today ? 'Opens after the day ends.' : claim.refund === 0n ? 'No share remains.' : ''}</p>
+            <p className="small">Writer refund for day {claim.day}: {formatUnits(claim.pool, 18)} IMD <UsdContext imd={claim.pool}/> shared by {claim.count} unclaimed notes, capped at one stamp. {claim.claimed || paid[`${id}:refund`] ? 'Already claimed.' : claim.day >= claim.today ? 'Opens after the day ends.' : claim.refund === 0n ? 'No share remains.' : ''}</p>
             <ClaimControls claim={{ ...claim, deposit: paid[`${id}:deposit`] ? 0n : claim.deposit, refund: paid[`${id}:refund`] ? 0n : claim.refund }} onDone={kind => { setPaid(p => ({ ...p, [`${id}:${kind}`]: true })); claimRead.refresh(); refresh(); }} />
           </>}
         </>
       )}
 
+      {mine && n.status===Status.Open && now<hEnd && <details><summary>Retract this call</summary><p>Retracting forfeits the entire bond.</p><label htmlFor="hook-retraction">Reason (up to 280 bytes)</label><input id="hook-retraction" value={retraction} onChange={e=>setRetraction(e.target.value)}/><TxButton label="Retract and forfeit bond" busyLabel="Retracting…" disabled={utf8Length(retraction)>280} onSend={()=>sendChecked(app,contracts.hook,MarginaliaHookAbi,'retract',[n.id,retraction])} onDone={refresh}/></details>}
       {children.length > 0 && (
         <>
           <h2>Children</h2>

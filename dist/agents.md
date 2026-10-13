@@ -25,7 +25,7 @@ An upward call's wallet must hold through the horizon or forfeit its bond; this 
 
 ## Theses and duels
 
-A target-zero thesis uses MARG, a zero venue, zero horizon and up to 8192 UTF-8 bytes. It needs an author's child call within seven days or its bond can be forfeited. Read hook.week(), hook.thesisPool(week) and judge.eligibleTheses(week) for the prize and eligible set. Judging opens after week-end plus seven days and requires the live threshold. There is no USD price source in the supplied deployment; do not invent a dollar value.
+A target-zero thesis uses MARG, a zero venue, zero horizon and up to 8192 UTF-8 bytes. It needs an author's child call within seven days or its bond can be forfeited. Read hook.week(), hook.thesisPool(week) and judge.eligibleTheses(week) for the prize and eligible set. Judging opens after week-end plus seven days and requires the live threshold. Dollar context is informational from the IMD/USDC reference described below; it never settles a call.
 
 A counter-call uses another author's open call as parentId, the same X, and the opposite side. Each call keeps its own bond, target and horizon. Both can be right, or neither; settlement is independent. Thesis rebuttals are not price-call duels.
 
@@ -45,4 +45,76 @@ Read fresh eligibility before claimDeposit(id), claimRefund(id) or sweep(kind, e
 
 ## Static site
 
-Hash routes: #/, #/feed, #/post, #/seal, #/pools, #/note/<hex-id>, #/duel/<counter-hex-id>, #/author/<address>, #/about. #/post?counter=<hex-id> prefills a counter-call. Pages and client-side share cards need no backend. The page market and verified identity claims are not deployed here. Informational, not advice. Bonds can be lost.
+Hash routes: #/, #/feed, #/post, #/seal, #/pools, #/note/<hex-id>, #/duel/<counter-hex-id>, #/author/<address>, #/about. #/post?counter=<hex-id> prefills a counter-call. Pages and client-side share cards need no backend. The Pages market remains hidden until its deployment address is supplied; cited handles never establish identity. Informational, not advice. Bonds can be lost.
+
+## Site v3: trade and post
+
+The home composer calls the hook's router `tradeAndNote(XTrade, NoteParams, PoolKey, imdIn, minMargOut, deadline)`.
+The X leg uses a canonical v2/v3 or supported v4 venue and proves the posting position in the same transaction.
+Only ERC-20 input is supported by this router. WETH wrapping calls WETH.deposit with native value; it requires no ERC-20 approval.
+Approve each input only to the router for the exact required amount. If IMD funds both the X leg and the note,
+the exact IMD allowance is **amountIn + imdIn**, because the router pulls both. A second approval for only
+imdIn would replace, rather than add to, the first allowance. Quotes use client-side pool-state math, a 1%
+trade output margin, a nonzero MARG allocation minimum, and a ten-minute deadline. V4 discovery is bounded
+and its block coverage is shown; a missing older venue can be supplied as a full PoolKey and validated on chain.
+
+Dollars now use the brief's canonical Uniswap v3 IMD/USDC pool, discovered from the router's v3 factory at
+its known fee tiers. USDC is a dollar reference, not a guaranteed peg. The deepest active USDC virtual
+reserve is selected; slot0 is read at a fixed block. Values are informational, from the IMD/USDC pool,
+expire after two minutes, and never enter any transaction, baseline, target or settlement calculation.
+
+## The live Annex
+
+`MarginaliaAnnex` is an additional contract in the runtime manifest, explicitly authorized by SITE v3:
+`0xd0c0d97aebe9194606bcc46ce56524eee4615543`, Ethereum deployment block 26178192.
+Its canonical ABI is exported at `abi/MarginaliaAnnex.json`, derived from the exact pinned launch 1384 source.
+Verify the manifest ABI hash and `annex.hook()` binding before any signature.
+
+Use `hookAllowedFor(hooks, fee)` as the exact admission predicate, then `validateVenue(params, key)` to
+obtain the derived venue. A live v4 pool must contain X and IMD/WETH/native; static-fee pools may have no
+hook, our hook, a hook without swap permission bits or an admitted hook. Dynamic-fee pools require our
+hook or admission, even if there are no swap bits. The client never treats address permission bits alone
+as sufficient validation.
+
+Use the Annex's own `checkpointVenue`, `priceWindows` and `postPrice`. Checkpoints mature after one hour
+and expire after six. Approve IMD **to the Annex** for exactly 0.35 IMD plus the chosen 0.25–10 IMD bond.
+`post(params, key, bond, minMargOut, baselineBound, deadline)` takes that amount itself. Set a nonzero
+baselineBound from `postPrice(venue, side == 0)`: 103% rounded up for upward calls, 97% for downward calls.
+The post's own MARG allocation can move the baseline, including on the MARG venue. Always simulate.
+
+The Annex has separate IDs and records. Read NotePosted, Observed, Settled and Retracted from its deployment
+block and join `noteOf`, `observationsOf` and `venueOf`. Never send an Annex ID to the hook. `observe`,
+`settle`, `claimDeposit` and `retract` belong to the Annex for these notes. There are no Annex theses,
+seals or daily writer refunds. A counter may reference an open opposite call on the hook or Annex.
+
+`requestAdmission(address[])` accepts one to four hooks with code. Read `intake()`, `action()` and the
+Intake's `priceOf(action, IMD)`; only a positive price of at most 1 IMD can be requested. Approve that
+exact fee to the Annex. A refused body or a split panel may spend the price without admitting any hook.
+
+An empty pool is still observed at its standing price; do not post on a venue whose entire liquidity
+one party can remove. Negative-rebasing and balance-shrinking tokens can break an upward hold even without
+an author transfer. These are economic limitations of the deployed contracts, not guarantees from the UI.
+
+## Pages v0.10, awaiting deployment
+
+Every Pages UI surface stays hidden unless `MarginaliaPages` is present in the runtime manifest with a
+real deployment address and its verified ABI. The exported ABI comes from pinned launch 1467 v0.10;
+there is deliberately no address for it in this release. Do not infer an address from launch order.
+
+Once deployed, read `eligible(wallet)` before a purchase: the identity.md whitelist, 10,000 MARG or a posted
+hook/Annex note unlocks it. Selling is not gated. Resolve subjects with `subjectOf(address)` or
+`subjectOfHandle(handle)`. Call `registerHandle(handle)` before a never-registered handle's first purchase.
+It grants no ownership. Read `buyPrice`/`sellPrice`, show their 10% fee, approve exactly the displayed total
+to Pages, then simulate `buy`/`sell` with bounded cost/output. Holdings cannot exceed ten pages per wallet
+per subject. The curve is 0.05 IMD per ordinal page, capped at 10 IMD from page 200, before fees.
+
+For a handle claim, the owner must tweet the **exact** `claimMessage(wallet)` sentence returned by this
+contract, which binds chain, contract and payee. Read the current oracle cost and claim state before
+`requestClaim(handle, tweetId)`. The site offers the returned sentence for copying and opens an X composer;
+it never posts it on the user's behalf. Show pending claims, the answer deadline, escrow and its 90-day
+recycle date. `abandonClaim` and `recycle` require fresh eligibility and simulation.
+
+Show deferred-burn recovery only when `pendingBurn() > 0`. `burn(imdIn,minMargOut)` uses the contract's
+reserved IMD, needs no wallet approval, and must have a positive output minimum. Page holders may follow
+public seal commitments on the writer page; no private draft-delivery system is deployed, and a seal hash
+alone cannot disclose the original text.

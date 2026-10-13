@@ -240,22 +240,33 @@ export function explainError(e: unknown): string {
   const code = any?.code ?? any?.cause?.code;
   if (code === 4001) return 'You rejected the request in your wallet.';
   const msg = String(any?.shortMessage || any?.message || e || 'Unknown error');
+  const causes: string[] = [msg];
+  let current = e as { cause?: unknown; shortMessage?: string; message?: string; data?: { errorName?: string } } | undefined;
+  for (let i=0; current && i<8; i++) { causes.push(current.shortMessage ?? '', current.message ?? '', current.data?.errorName ?? ''); current=current.cause as typeof current; }
+  const detail=causes.join(' ');
   const known: [RegExp, string][] = [
     [/PriceHistoryUnavailable|0xc3651e6d/i, 'Checkpoint this venue, then wait one hour. The checkpoint must be between 1 and 6 hours old.'],
     [/InvalidNote/, 'The contract refused the note (InvalidNote): check the target, horizon, text length, X token or venue.'],
     [/BadVenue/, 'The contract refused the venue (BadVenue): the pool must be canonical, hold liquidity, contain X and be quoted in IMD, WETH or ETH.'],
+    [/NotEligible/, 'This wallet is not yet eligible for pages. Check the access rules.'],
+    [/BadSubject/, 'Register this handle before its first page trade.'],
+    [/TooManyPages/, 'A wallet can hold at most ten pages of one subject.'],
+    [/InsufficientPages/, 'You do not hold enough pages for this amount.'],
+    [/ClaimPending|AlreadyClaimed|BadClaim|BadHandle/, 'Check the handle and current claim state before trying again.'],
+    [/BadList/, 'The hook list or current admission fee is not valid. Refresh admission details.'],
+    [/InsufficientPendingBurn/, 'The pending burn balance changed. Refresh the amount.'],
     [/TooEarly/, 'Too early: the contract says this action is not open yet.'],
     [/NotOpen/, 'This note is not in a state that allows the action.'],
     [/NothingToClaim/, 'Nothing to claim for this note.'],
     [/NothingToSweep/, 'That pool is already empty.'],
     [/Unauthorized/, 'Only the note’s author may do this.'],
     [/Expired/, 'The deadline passed before the transaction was mined.'],
-    [/Slippage|TooLittle/, 'The MARG received would be below the minimum you allowed. Refresh the price and try again.'],
+    [/Slippage|TooLittle/, 'The quote moved beyond an output minimum or baseline limit. Refresh the quote and try again.'],
     [/insufficient funds/i, 'Not enough ETH for gas.'],
-    [/ERC20InsufficientAllowance|allowance/i, 'The router’s IMD allowance is too small. Approve first.'],
-    [/ERC20InsufficientBalance|transfer amount exceeds balance/i, 'Not enough IMD in the wallet.'],
+    [/ERC20InsufficientAllowance|allowance/i, 'The input token allowance is too small. Complete the displayed approval first.'],
+    [/ERC20InsufficientBalance|transfer amount exceeds balance/i, 'Not enough of the input token in the wallet.'],
     [/User rejected|user rejected|denied/i, 'You rejected the request in your wallet.'],
   ];
-  for (const [re, text] of known) if (re.test(msg)) return text;
+  for (const [re, text] of known) if (re.test(detail)) return text;
   return msg.length > 300 ? `${msg.slice(0, 300)}…` : msg;
 }

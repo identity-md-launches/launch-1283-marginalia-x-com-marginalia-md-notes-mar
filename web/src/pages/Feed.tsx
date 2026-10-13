@@ -1,3 +1,5 @@
+import { NoteVenue } from '../note-venue';
+import { UsdContext } from '../price';
 import { Citation } from '../receipts';
 import { parseReceipt } from '../scoreboard';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -35,7 +37,7 @@ export function Entry({ n, tokenName, children }: { n: Note; tokenName?: string;
           )}
         </span>
         <a href={`#/note/${n.id}`} className="small mono">
-          № {n.index.toString()}
+          {n.source==='annex' ? `Annex ${short(n.id,6,4)}` : `№ ${n.index.toString()}`}
         </a>
       </div>
       <Citation text={n.text} />
@@ -44,8 +46,8 @@ export function Entry({ n, tokenName, children }: { n: Note; tokenName?: string;
         <span>
           by <a href={`#/author/${n.author}`} className="mono">{short(n.author)}</a>
         </span>
-        <span>{n.deposit > 0n ? `bond ${fmtAmount(n.deposit)} IMD` : 'Bond released or forfeited'}</span>
-        <span>{CLASS_LABEL[n.classLive]}</span>
+        <span>{n.deposit > 0n ? `bond ${fmtAmount(n.deposit)} IMD` : 'Bond released or forfeited'} {n.deposit>0n && <UsdContext imd={n.deposit}/>}</span>
+        <span>{n.classLive===0 ? <span className="tag">Position proven by the swap</span> : CLASS_LABEL[n.classLive]}</span>
         <span>{fmtDate(n.timestamp)}</span>
         {n.settlement && n.settlement.status !== Status.Retracted && <span>settled at price {fmtAmount(n.settlement.settlePrice, 18, 6)} · outcome {describeOutcome(n.settlement.status)}</span>}
         {n.parentId !== '0x0000000000000000000000000000000000000000000000000000000000000000' && (
@@ -54,6 +56,7 @@ export function Entry({ n, tokenName, children }: { n: Note; tokenName?: string;
           </span>
         )}
       </div>
+      <NoteVenue n={n}/>
       {children}
     </li>
   );

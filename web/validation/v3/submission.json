@@ -1,0 +1,24 @@
+{
+  "dateUtc": "2026-10-13",
+  "limitBytes": 8388608,
+  "protectedPathsUnchanged": true,
+  "ignoreFilesChanged": false,
+  "addedDependencyDirectories": [],
+  "gitlinks": 0,
+  "exportFiles": 16,
+  "exportBytes": 936168,
+  "maxExportFileBytes": 705388,
+  "compressedSnapshotExcludingThisReportBytes": 3821558,
+  "bundleNote": "No Git internals were changed. Compressed snapshot is a size estimate; actual Git submission is produced by the contributor network. All candidate source/export files also fit under the limit before compression.",
+  "manifestSha256": "3709d02820c8afd3f84080186b7d0d664c8349a1205c6119675bcad6890f28bf",
+  "browserScenariosPassed": 20,
+  "unitGroupsPassed": 22,
+  "designProbePasses": 14,
+  "designProbeChecks": 16,
+  "designProbeExceptions": [
+    "Mandatory caveat repeated on home and footer",
+    "Mandatory first-screen caveat, conviction and baseline copy exceed default mobile prose budget"
+  ],
+  "candidateFileCount": 591,
+  "candidateFileBytes": 7717245
+}

@@ -18,6 +18,8 @@ export interface Observation {
   tx: Hex;
 }
 export interface Note {
+  source?: 'hook' | 'annex';
+  sourceAddress?: Address;
   id: Hex;
   index: bigint;
   author: Address;
@@ -144,18 +146,18 @@ async function blockTime(pub: PublicClient, n: bigint): Promise<number> {
   return t;
 }
 
-export function loadFeed(pub: PublicClient, hook: Address): Promise<FeedData> {
+export function loadFeed(pub: PublicClient, hook: Address, deployBlock = DEPLOY_BLOCK, source: 'hook' | 'annex' = 'hook'): Promise<FeedData> {
   let jobs = pending.get(pub);
   if (!jobs) { jobs = new Map(); pending.set(pub, jobs); }
   const key = hook.toLowerCase();
   const active = jobs.get(key);
   if (active) return active;
-  const job = scanFeed(pub, hook).finally(() => jobs!.delete(key));
+  const job = scanFeed(pub, hook, deployBlock, source).finally(() => jobs!.delete(key));
   jobs.set(key, job);
   return job;
 }
 
-async function scanFeed(pub: PublicClient, hook: Address): Promise<FeedData> {
+async function scanFeed(pub: PublicClient, hook: Address, deployBlock: bigint, source: 'hook' | 'annex'): Promise<FeedData> {
   const toBlock = await pub.getBlockNumber({ cacheTime: 0 });
   const key = `marginalia.logs.v1.1.${hook.toLowerCase()}`;
   let cache = readCache(key);
@@ -170,11 +172,11 @@ async function scanFeed(pub: PublicClient, hook: Address): Promise<FeedData> {
       }
     } catch { warnings.push('The cached history anchor could not be verified by the node.'); }
   }
-  const tailStart = max(DEPLOY_BLOCK, toBlock - LOG_TAIL + 1n);
+  const tailStart = max(deployBlock, toBlock - LOG_TAIL + 1n);
   const from = cache ? max(tailStart, cache.cursor - LOG_REORG_OVERLAP + 1n) : tailStart;
   const saved: LogCache = {
     version: 1, logs: [...(cache?.logs ?? [])], ranges: mergeRanges(cache?.ranges ?? []),
-    cursor: toBlock, historyCursor: cache?.historyCursor ?? DEPLOY_BLOCK, anchor: cache?.anchor,
+    cursor: toBlock, historyCursor: cache?.historyCursor ?? deployBlock, anchor: cache?.anchor,
   };
   const persist = () => {
     memory.set(key, saved);
@@ -207,25 +209,25 @@ async function scanFeed(pub: PublicClient, hook: Address): Promise<FeedData> {
   // Sweep forward from deployment, skipping successful ranges. Wrap after reaching the tail so
   // refused holes are retried on later batches without starving later, potentially readable history.
   const historyEnd = tailStart - 1n;
-  const start = saved.historyCursor! < DEPLOY_BLOCK || saved.historyCursor! > historyEnd ? DEPLOY_BLOCK : saved.historyCursor!;
+  const start = saved.historyCursor! < deployBlock || saved.historyCursor! > historyEnd ? deployBlock : saved.historyCursor!;
   const history = [
     ...missingRanges(saved.ranges, start, historyEnd),
-    ...missingRanges(saved.ranges, DEPLOY_BLOCK, start - 1n),
+    ...missingRanges(saved.ranges, deployBlock, start - 1n),
   ];
   let attempted = 0;
   for (const range of chunks(history)) {
     if (attempted++ === LOG_HISTORY_CHUNKS) break;
     await scanRange(range);
-    saved.historyCursor = range[1] >= historyEnd ? DEPLOY_BLOCK : range[1] + 1n;
+    saved.historyCursor = range[1] >= historyEnd ? deployBlock : range[1] + 1n;
     persist();
   }
   const logs = saved.logs;
   logs.sort((a, b) => a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1);
   const coverage = saved.ranges;
-  const partial = coverage.length !== 1 || coverage[0][0] > DEPLOY_BLOCK || coverage[0][1] < toBlock;
-  if (partial) warnings.unshift(`History is incomplete. Each refresh reads recent events and continues a bounded history scan from deployment block ${DEPLOY_BLOCK}. Successful ranges stay in this browser; missing ranges are retried on later batches. Notes, seals, observations and claims may be missing until coverage is complete.`);
+  const partial = coverage.length !== 1 || coverage[0][0] > deployBlock || coverage[0][1] < toBlock;
+  if (partial) warnings.unshift(`History is incomplete. Each refresh reads recent events and continues a bounded history scan from deployment block ${deployBlock}. Successful ranges stay in this browser; missing ranges are retried on later batches. Notes, seals, observations and claims may be missing until coverage is complete.`);
   const anchorBlock = toBlock - LOG_REORG_OVERLAP;
-  if (anchorBlock >= DEPLOY_BLOCK) {
+  if (anchorBlock >= deployBlock) {
     try { const anchor = await pub.getBlock({ blockNumber: anchorBlock }); if (anchor.hash) saved.anchor = { block: anchorBlock, hash: anchor.hash }; }
     catch { /* overlap is still re-read even if an anchor cannot be saved */ }
   }
@@ -251,8 +253,9 @@ async function scanFeed(pub: PublicClient, hook: Address): Promise<FeedData> {
     const v = views[i];
     if (!v || !tsCache.has(l.blockNumber)) return [];
     const n: Note = {
+      source, sourceAddress: hook,
       id: l.args.id!,
-      index: BigInt(l.args.id!),
+      index: source === 'annex' ? BigInt(i + 1) : BigInt(l.args.id!),
       author: l.args.author!,
       x: l.args.x!,
       classAtPost: Number(l.args.class),

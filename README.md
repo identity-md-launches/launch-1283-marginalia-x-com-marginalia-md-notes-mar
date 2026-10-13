@@ -1,5 +1,10 @@
 # Marginalia — notes in the margin of every trade
 
+## Static site v3
+
+The trade-first frontend, live Annex integration and deployment-gated Pages v0.10 are delivered in `web/` with a ready-to-host export in `dist/`. See [frontend setup](web/README.md), [worker validation](web/VALIDATION.md), [design](DESIGN.md) and [operator launch copy](docs/launch-copy.md). The live contracts are unchanged.
+
+
 This launch deploys the fixed-supply Marginalia token and its Uniswap v4 hook on Ethereum mainnet. The hook clones the live launch-1240 Router, Judge and Treasury and calls the live Pricer; none of those implementations is redeployed. Buying MARG through the
 router with a note attached posts a falsifiable call on an ERC-20 other than IMD itself, backed by a flat 0.1 IMD stamp and an
 IMD bond the author sizes between 0.25 and 10 IMD (every note also buys 0.25 IMD of MARG). Calls resolve against a manipulation-resistant settlement price built from permissionless

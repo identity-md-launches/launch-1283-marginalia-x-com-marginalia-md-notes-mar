@@ -1,0 +1,22 @@
+{
+  "head": "26179943",
+  "router": "0xa3579D7c59A2C0c742fC4e5BB18AF93241D1d263",
+  "judge": "0xa9e1891d76553195B4Cbcd0F8Db290C8C0FA28B9",
+  "treasury": "0x3e00372cc4967D2bd006Ca882c51dAf45a9810C8",
+  "poolId": "0x436763bf49aa9ea6db1d8d4d80ac8c7b3c36ad58fa6281a06ea39c92d69e2f20",
+  "window": [
+    "0",
+    "0",
+    "0",
+    "0",
+    "0",
+    "0",
+    "0"
+  ],
+  "sealSubject": "0x259f1e02efe208330acbb95432569d4ae226284ec3b96363a24b1c73a841efd1",
+  "noteCount": "0",
+  "result": "addresses/code, venue, seal encodings, ABI subsets and canonical hashes verified; no transaction sent"
+}
+Annex code, hook binding, hookAllowedFor and derived venue verified.
+{"input":"0xD34a99Bc0f67aE1bbd63C660e6d0b0dd03E263B7","localOutput":"558366433404114398988","quoterOutput":"558366433404114398988","block":"26179943","match":true}
+{"input":"0xfA0EfEa559bdE229031c2B0A219472316647759c","localOutput":"169404867137","quoterOutput":"169404867137","block":"26179943","match":true}

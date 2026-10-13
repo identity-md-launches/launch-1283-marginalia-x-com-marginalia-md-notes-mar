@@ -13,6 +13,9 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem';
+import { HookPricerAbi } from './pricer-abi';
+import { AnnexAbi } from './annex-abi';
+import { PagesAbi } from './pages-abi';
 import { MarginaliaHookAbi, MarginaliaRouterAbi } from './abi';
 import { EXPECTED_UNIV2_FACTORY, EXPECTED_UNIV3_FACTORY, EXPECTED_WETH, type AppConfig } from './config';
 import type { PoolKey } from './lib';
@@ -20,6 +23,9 @@ import type { PoolKey } from './lib';
 export interface Contracts {
   hook: Address;
   router: Address;
+  pricer?: Address;
+  annex?: Address;
+  pages?: Address;
   judge: Address;
   treasury: Address;
   marg: Address;
@@ -93,6 +99,19 @@ export async function loadContracts(pub: PublicClient, cfg: AppConfig): Promise<
     const code = await pub.getCode({ address });
     if (!code || code === '0x') throw new Error(`No contract code at ${address}. Transactions are disabled.`);
   }));
+  for (const address of [cfg.annex, cfg.pages].filter(Boolean) as Address[]) {
+    const code = await pub.getCode({address});
+    if (!code || code === '0x') throw new Error('A configured companion has no code.');
+    const boundHook = await pub.readContract({ address, abi: AnnexAbi, functionName: 'hook' });
+    if (boundHook.toLowerCase() !== hook.toLowerCase()) throw new Error('Companion belongs to a different Marginalia hook.');
+  }
+  if (cfg.pages) {
+    const boundAnnex = await pub.readContract({ address: cfg.pages, abi: PagesAbi, functionName: 'annex' });
+    if (!cfg.annex || boundAnnex.toLowerCase() !== cfg.annex.toLowerCase()) throw new Error('Pages Annex binding differs from the manifest.');
+  }
+  const pricer = await pub.readContract({address:hook,abi:HookPricerAbi,functionName:'pricer'});
+  const pricerCode = await pub.getCode({address:pricer});
+  if (!pricerCode || pricerCode==='0x') throw new Error('The hook pricer has no code.');
   const r = { address: router, abi: MarginaliaRouterAbi } as const;
   const [v3f, v2f, weth] = await Promise.all([
     pub.readContract({ ...r, functionName: 'UNIV3_FACTORY' }),
@@ -111,7 +130,9 @@ export async function loadContracts(pub: PublicClient, cfg: AppConfig): Promise<
   const b = (v: bigint | number) => BigInt(v);
   return {
     hook,
-    router,
+    router, pricer,
+    annex: cfg.annex,
+    pages: cfg.pages,
     judge,
     treasury,
     marg: token,

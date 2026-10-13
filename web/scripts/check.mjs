@@ -9,8 +9,8 @@ import { keccak256, toBytes } from 'viem';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
 const dist = path.join(root, 'dist');
-const deploymentPath = process.argv[2] ?? path.join(root, '.imd', 'reads', 'deployment.json');
-const networkPath = process.argv[3] ?? path.join(root, '.imd', 'reads', 'network.json');
+const deploymentPath = process.argv[2] ?? path.join(root, 'web', 'deployment', 'mainnet.json');
+const networkPath = process.argv[3] ?? path.join(root, 'web', 'deployment', 'network.json');
 const canon = (v) =>
   v === null ? 'null' : Array.isArray(v) ? `[${v.map(canon).join(',')}]` : typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}` : JSON.stringify(v);
 const fail = (m) => {
@@ -20,14 +20,15 @@ const fail = (m) => {
 
 const m = JSON.parse(fs.readFileSync(path.join(dist, 'imd-deployment.json'), 'utf8'));
 const handoff = JSON.parse(fs.readFileSync(deploymentPath, 'utf8'));
+const integrations = JSON.parse(fs.readFileSync(path.join(root, 'web', 'deployment', 'integrations.json'), 'utf8'));
 const net = fs.existsSync(networkPath) ? JSON.parse(fs.readFileSync(networkPath, 'utf8')) : null;
 
 const allowed = new Set(['version', 'launchId', 'chainId', 'sourceCommit', 'attestationHash', 'contracts', 'assets', 'network', 'walletAddChain', 'poolKey']);
 for (const k of Object.keys(m)) if (!allowed.has(k)) fail(`extra top-level key ${k}`);
 if (m.version !== 1) fail('version');
 for (const k of ['launchId', 'chainId', 'sourceCommit', 'attestationHash']) if (m[k] !== handoff[k]) fail(`${k} differs from handoff`);
-if (m.contracts.length !== handoff.contracts.length) fail('contract count');
-for (const c of handoff.contracts) {
+if (m.contracts.length !== (handoff.contracts.length+integrations.contracts.length)) fail('contract count');
+for (const c of [...handoff.contracts,...integrations.contracts]) {
   const mc = m.contracts.find((x) => x.name === c.name);
   if (!mc) fail(`missing contract ${c.name}`);
   else {
@@ -60,10 +61,11 @@ if (net) {
   if (net.walletAddChain && canon(m.walletAddChain) !== canon(net.walletAddChain)) fail('walletAddChain differs');
 } else if (m.network || m.walletAddChain) fail('network present without network.json');
 if ('poolKey' in handoff !== 'poolKey' in m) fail('poolKey presence differs from handoff');
+if (handoff.poolKey && canon(m.poolKey) !== canon(handoff.poolKey)) fail('poolKey differs from handoff');
 
 // Addresses and URLs in the manifest must come from the handoff or the network block.
 const text = JSON.stringify({ ...m, assets: undefined, network: undefined, walletAddChain: undefined });
-const okAddrs = new Set([...handoff.contracts.map((c) => c.address.toLowerCase()), ...(handoff.poolKey ? Object.values(handoff.poolKey).filter((v) => typeof v === 'string' && v.startsWith('0x')).map((v) => v.toLowerCase()) : [])]);
+const okAddrs = new Set([...[...handoff.contracts,...integrations.contracts].map((c) => c.address.toLowerCase()), ...(handoff.poolKey ? Object.values(handoff.poolKey).filter((v) => typeof v === 'string' && v.startsWith('0x')).map((v) => v.toLowerCase()) : [])]);
 for (const a of text.match(/0x[0-9a-fA-F]{40}/g) ?? []) if (!okAddrs.has(a.toLowerCase())) fail(`address outside handoff: ${a}`);
 if (/https?:\/\//.test(text)) fail('URL outside the network block');
 

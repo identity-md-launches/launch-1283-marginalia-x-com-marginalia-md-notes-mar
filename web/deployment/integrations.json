@@ -1,0 +1,10 @@
+{
+  "contracts": [
+    {
+      "name": "MarginaliaAnnex",
+      "address": "0xd0c0d97aebe9194606bcc46ce56524eee4615543",
+      "abiHash": "d5caa09b5445973684cc46375443c967ff8baf3da70992ddbdb102327cc79c0b",
+      "abiPath": "abi/MarginaliaAnnex.json"
+    }
+  ]
+}

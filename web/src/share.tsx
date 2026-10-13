@@ -9,7 +9,7 @@ export function noteColumn(n: Note, token: string): CardColumn {
   const citation = parseReceipt(n.text);
   const rationale = citation ? n.text.trimStart().replace(/^\S+\s*/, '') : n.text;
   return {
-    title: `Note № ${n.index}`,
+    title: n.source==='annex' ? `Annex ${short(n.id,8,6)}` : `Note № ${n.index}`,
     claim: isThesis(n) ? n.text : `${token} ${describeTarget(n.side, n.targetBps)} in ${n.horizonDays} d — ${rationale}`,
     author: short(n.author),
     result: n.status === 0 ? `Open · horizon ${fmtDate(horizonEndOf(n))}` : STATUS_LABEL[n.status],

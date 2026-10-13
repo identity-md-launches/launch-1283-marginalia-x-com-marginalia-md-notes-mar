@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { encodeFunctionData, decodeFunctionData, keccak256, toBytes } from 'viem';
+import { approvalPlan, baselineBound, quoteV2, sqrtAtTick, poolIdOf } from '../src/market';
+import { TradeRouterAbi } from '../src/trade-abi';
+import { AnnexAbi } from '../src/annex-abi';
+import { PagesAbi } from '../src/pages-abi';
+const a='0x1111111111111111111111111111111111111111' as const,b='0x2222222222222222222222222222222222222222' as const;
+const unit=10n**18n;
+assert.deepEqual(approvalPlan(a,b,2n,3n),[{token:a,amount:2n},{token:b,amount:3n}]);
+assert.deepEqual(approvalPlan(b,b,2n,3n),[{token:b,amount:5n}]);
+assert.equal(baselineBound(100n,0),103n);assert.equal(baselineBound(101n,0),105n);assert.equal(baselineBound(100n,1),97n);
+assert.equal(quoteV2(1000n,10000n,20000n),1813n);
+assert.equal(sqrtAtTick(0),1n<<96n);
+assert.equal(sqrtAtTick(-887272),4295128739n);
+assert.equal(sqrtAtTick(887272),1461446703485210103287273052203988822378723970342n);
+assert.equal(sqrtAtTick(1),79232123823359799118286999568n);
+assert.throws(()=>sqrtAtTick(887273));
+for(let i=-887000;i<887000;i+=1237)assert(sqrtAtTick(i)<sqrtAtTick(i+1));
+const canon=(v:unknown):string=>v===null?'null':Array.isArray(v)?`[${v.map(canon).join(',')}]`:typeof v==='object'?`{${Object.keys(v!).sort().map(k=>`${JSON.stringify(k)}:${canon((v as Record<string,unknown>)[k])}`).join(',')}}`:JSON.stringify(v);
+for(const [name,abi] of [['MarginaliaRouter',TradeRouterAbi],['MarginaliaAnnex',AnnexAbi],['MarginaliaPages',PagesAbi]] as const){
+ const full=JSON.parse(fs.readFileSync(`public/abi/${name}.json`,'utf8'));
+ for(const item of abi)assert(full.some((a:unknown)=>canon(a)===canon(item)),`${name} ${item.type} ${(item as {name?:string}).name}`);
+}
+const integration=JSON.parse(fs.readFileSync('deployment/integrations.json','utf8'));
+assert.equal(keccak256(toBytes(canon(AnnexAbi))).slice(2),integration.contracts[0].abiHash);
+const key={currency0:a,currency1:b,fee:3000,tickSpacing:60,hooks:a};
+const p={x:b,venue:{kind:1,ref:poolIdOf(key),quote:a,xIsToken0:false},side:0,targetBps:12500,horizonDays:7,parentId:`0x${'0'.repeat(64)}` as `0x${string}`,class:1,text:'State-backed fixture'};
+const x={kind:1,key,zeroForOne:true,pool:a,tokenIn:a,amountIn:unit,minOut:unit/2n};
+const data=encodeFunctionData({abi:TradeRouterAbi,functionName:'tradeAndNote',args:[x,p,key,unit,1n,9999999999n]});
+assert.equal(decodeFunctionData({abi:TradeRouterAbi,data}).functionName,'tradeAndNote');
+const annex=encodeFunctionData({abi:AnnexAbi,functionName:'post',args:[p,key,unit,1n,baselineBound(unit,0),9999999999n]});
+assert.equal(decodeFunctionData({abi:AnnexAbi,data:annex}).args?.[4],unit*103n/100n);
+for(const fn of ['registerHandle','claimMessage','pendingBurn','burn','eligible','buy','sell','buyPrice','sellPrice','pagesOf','subjects','subjectOf','subjectOfHandle','claims','abandonClaim','recycle']) assert(PagesAbi.some(a=>a.type==='function'&&a.name===fn),fn);
+console.log('PASS v3: exact approvals (including overlapping IMD), baseline bounds, v2 math, TickMath boundaries/monotonicity, pinned ABI subsets/hashes, router+Annex calldata and Pages v0.10 surface.');

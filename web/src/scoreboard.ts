@@ -78,5 +78,5 @@ export const HOLD_RULE = "An upward call's wallet must hold through the horizon 
 export const REASONS = [
   "Receipts for every call: a price, a deadline, a bond, and the chain's verdict",
   'Prove it: a difficulty-weighted score, public duels, a weekly prize',
-  "Readers pay writers: pages of an author's marginalia (coming with the page market)",
+  "Keep the receipt: the posting wallet owns the call and the cited account does not",
 ];

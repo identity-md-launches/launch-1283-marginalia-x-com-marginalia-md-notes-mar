@@ -1,84 +1,85 @@
-# Marginalia site v2
+# Marginalia site v3
 
-A static scoreboard for the live Marginalia launch on Ethereum. React 19, TypeScript, Vite and viem retain the v1 ledger, bounded history loader and transaction builders. The app has no backend or remote scripts. Publish only repository-root `dist/`; hash routes and a relative base work under gateway subpaths.
+Trade it. Say why. The chain keeps the receipt. This version continues the existing React 19 / TypeScript / Vite / viem ledger, with the trade composer first and the scoreboard below it. Publish repository-root `dist/` as plain files. Relative Vite assets and hash routes support a gateway subpath without server rewrites.
 
-## Pages
+## Configuration
 
-| Route | Reader/writer purpose | Actions |
-| --- | --- | --- |
-| `#/` | Weekly prize and clock, wallet scores, cited accounts, open duels, recent verdicts, feed | Read, sort, follow calls |
-| `#/feed` | Filter notes by token, wallet, kind or `?cites=handle` | Read receipts |
-| `#/note/<hex-id>` | Claim, author, citation, horizon, observations and outcome | Share; counter; observe, settle, forfeit thesis, claim |
-| `#/duel/<counter-hex-id>` | Both calls, authors, records, bonds and independent verdicts | Share; open either note's actions |
-| `#/author/<address>` | Net score, hit rate, weighted wins, broken holds, notes and duels | Share; link to claims |
-| `#/post` | Three-step first note; full form for experienced wallets; thesis option | Checkpoint, exact router approval, post |
-| `#/post?counter=<id>` | Same X, opposite side and parent prefilled | Post counter-call |
-| `#/post?kind=thesis` | Enter a thesis for the weekly record | Post thesis |
-| `#/seal` | Local draft, checkpoint, exact stamp approval, seal/reveal timeline | Approve 0.1 IMD to hook; seal; open saved reveal |
-| `#/pools` | Existing daily refunds, weekly pools, claims and eligible sweeps | Claim deposit/refund; sweep |
-| `#/about` | One-line mechanics, contracts and agent documents | Read `./llms.txt` and `./agents.md` |
+The browser loads **`dist/imd-deployment.json`** for deployment addresses, chain ID, ABI paths and public network configuration. `src/config.ts` verifies canonical ABI Keccaks. `loadContracts` verifies chain/code, token/IMD/pool bindings, and derives router, judge, treasury and pricer from the hook. It checks the Annex's hook binding and, when present, the Pages hook/Annex bindings. No private credentials or WalletConnect ID are required; signing uses an injected EIP-1193 wallet.
 
-Path-style routes in the brief are represented by hash routes so no server rewrite is required. The page market is out of scope.
+`deployment/mainnet.json` and `deployment/network.json` preserve the supplied handoffs for reproducible builds after task inputs disappear. `deployment/integrations.json` adds only the explicitly authorized live Annex, `0xd0c0d97aebe9194606bcc46ce56524eee4615543`. The manifest keeps the original launch identifiers, contracts and unchanged network/walletAddChain objects. No top-level integration configuration is added to the exported manifest.
 
-## Configuration and transaction rules
+Pages v0.10 has **no deployment address**. Its implementation-derived ABI and frontend are included, but all panels, links, routes and reads stay hidden until a verified `MarginaliaPages` entry is added to the runtime manifest. Do not use a placeholder address. After deployment, add the authorized address and ABI hash to `deployment/integrations.json`, then regenerate and verify the export. Provenance and ABI hashes are in `contracts/README.md`.
 
-`dist/imd-deployment.json` is the runtime source for deployment addresses, chain, ABI paths and network. `src/config.ts` loads it, verifies the referenced ABI Keccaks, and centralizes the launch block and retained canonical venue constants. Typed ABI subsets remain in `src/abi.ts`; `public/abi/*.json` are the unchanged implementation-derived exports. `loadContracts` verifies RPC chain/code, hook token/IMD bindings, the live pool key, and reads router/judge/treasury from the hook. The optional handoff poolKey must match if supplied. Venue factories/WETH are cross-checked against router constants.
+The named IMD/USDC v3 reference, canonical factories/WETH and deployment scan blocks are centralized in `src/config.ts`; factories/WETH are cross-checked against the router. Every v4 state/quote uses the manifest network's Uniswap addresses. The posting router is derived from the hook, as this app uses its atomic trade-and-note path. Unknown-chain errors offer the exact `wallet_addEthereumChain` parameters, then retry switching.
 
-Wallets use EIP-1193 injection. Unknown-chain switching offers the handoff's exact `wallet_addEthereumChain` parameters. No WalletConnect ID or secret configuration is needed. Browser reads use only the approved public RPCs; worker validation uses the supplied loopback relay without publishing it.
+## Routes and actions
 
-- Posting approval: IMD to the runtime router, exactly stamp + MARG allocation + chosen bond, only when allowance is short.
-- Seal-only exception: IMD to the runtime hook, exactly STAMP = 0.1 IMD; a differing live stamp disables sealing. No other hook approval is offered.
-- Every transaction is simulated before requesting a signature and stays pending through confirmation. Approval refreshes are awaited. Reads invalidate previous-wallet/subject eligibility while preserving same-subject polling state.
-- Seals save the exact draft locally before simulation/signing. Seal checkpoint calldata contains only public X/venue and fixed unused fields, never the private draft. Reveal requires the same author, hash and subject, within 30 minutes–6 hours; its deadline is capped at expiry. An expired or changed reveal never silently becomes an ordinary post.
-- Browser storage is unencrypted. Clearing storage loses local seal drafts and cached history. Keep the original parameters with the author until reveal.
+| Route | Purpose and primary controls |
+| --- | --- |
+| `#/` | Trade and post; just the call; thesis; launched-token call; checkpoint; exact approvals; WETH wrap; Annex hook admission; scoreboard below |
+| `#/scoreboard` | Prize/clock, combined hook + Annex wallet records, cited accounts, duels, verdicts, feed |
+| `#/feed` | Filter notes, including `?cites=handle`; venue liquidity and token Radar links |
+| `#/note/<hex-id>` | Receipt, share, counter, observe, settle, retract, thesis forfeiture, deposit/refund claim; Annex actions target the Annex |
+| `#/duel/<counter-id>` | Independent call legs and their records |
+| `#/author/<address>` | Combined record, weighted wins, notes, duels, sharing; Pages when deployed |
+| `#/post` | Retained guided first call and experienced-writer form |
+| `#/post?counter=<id>` | Opposite-side counter-call; Annex parents use the Annex composer |
+| `#/post?kind=thesis` | Long-form thesis and child-call requirement |
+| `#/seal` | Local draft, public checkpoint, exact stamp approval, seal and timed reveal |
+| `#/pools` | Deposit/refund claims, sweeps, judging request/payment/abandonment, treasury drip |
+| `#/pages/<handle>` | Registration, page trades, exact claim sentence/tweet ID, abandonment, recycling and deferred burn; available only with Pages address |
+| `#/about` | Mechanics, contract explorer links and exported agent documents |
 
-No USD feed, stablecoin quote or price service is supplied by the verified handoff. Per the pinned Ethereum UX fallback, prize and costs show IMD and **USD context unavailable**; no dollar value or new oracle address is invented. The existing live MARG/IMD read still supplies the post output minimum.
+## Transaction behavior
 
-## Records and receipts
+- The trade box discovers canonical v2/v3 WETH/IMD pairs and bounded v4 Initialize events, validates every candidate on the relevant contract, and ranks normalized active quote liquidity. V4 history starts no earlier than the hook launch and covers at most 16,000 recent blocks. Failed reads and incomplete depth comparisons are disclosed. Supply an older v4 PoolKey in the venue details; it still must pass contract validation.
+- Client-side bigint quotes read one block of pool state. V3/v4 quotes walk initialized ticks and liquidity changes; v2 uses reserve math. The quote includes the MARG hook's quiet sell fee. Trades use a 1% minimum, positive MARG allocation minimum with 10% room, and a 10-minute deadline. Excessive tick traversal fails explicitly. No third-party quote API is called.
+- An X-side ERC-20 approval goes only to the hook-derived router for the exact input. Posting IMD approval is exactly stamp + MARG allocation + bond. **If both legs spend IMD, one approval covers their sum.** Allowances are checked before offering approval. WETH shortage offers a separate `deposit()` for exactly the missing amount, using native value; the subsequent trade sends no native value.
+- Annex posting approves exactly 0.35 IMD + bond to the manifest Annex. `validateVenue` is authoritative for hook/static/dynamic-fee eligibility. Its own checkpoint and `postPrice` supply the baseline, bounded at +3% for upward or -3% for downward calls. Admission validates up to four distinct contracts, reads the panel fee and offers exact fee approval.
+- Checkpoints use fixed public unused fields and never reset a usable 1–6 hour window. Drafts persist locally; the countdown enables posting at maturity. Sealed drafts never enter checkpoint calldata or simulations. Reveal remains bound to author/hash/subject and the 30-minute–6-hour window, with deadline capped at expiry. Only sealing approves exactly the verified 0.1 IMD stamp to the hook.
+- Pages reads `eligible`, registers a handle before its first trade, quotes both value and 10% fee, and approves exactly the quoted cost. Claims display the contract's exact `claimMessage(wallet)`. Pending claim abandonment, escrow recycling and reserved-fee burn have live eligibility gates. Burns have a positive MARG minimum and spend contract reserves, not a wallet approval.
+- Transaction calls simulate first, recheck wallet identity/chain, request a signature and stay pending through confirmation. Prerequisite reads are scoped to the wallet and subject. Errors, rejection, insufficient funds and failed reads remain explicit.
 
-Authors come from `NotePosted`, then rank by live `records(address).score` or hit rate. Hit rate = right / (right + wrong + broken + retracted); open/thesis/no-data outcomes are excluded. No-data outcomes still penalize score. A dash means no counted outcome. Difficulty-weighted wins sum positive RIGHT `Settled.scoreDelta` values in loaded history, separately from net score and judged wins.
+USD values are informational **spot** references from the deepest active canonical IMD/USDC v3 pool among the four standard fee tiers. USDC is treated as a dollar reference and can depeg. The source is labeled and linked; missing/stale prices show `USD unavailable`. No USD value enters settlement, approval, quote minima or transaction calldata. USD context on a WETH-side trade is unavailable when the WETH/IMD bridge cannot be read.
 
-A leading exact-host x.com/twitter.com status URL adds a citation. It never replaces the wallet author. The cited account did not post the note. Cited accounts rank by the number of right receipt notes; all verdict categories remain visible. The site cannot authenticate the original post, identity or endorsement. A writer can cite a call more than once; the index counts notes, not verified unique public calls.
+## Records and limitations
 
-Duels require another wallet's parent call, the same X and the opposite side. Either open leg keeps a duel open. Both can be right at their own horizons. Released/forfeited deposits are labeled honestly; the contract's current state does not expose a historical original bond after release.
+The hook and Annex scanners start at blocks 26169583 and 26178192 respectively. Each uses 2,000-block requests, bounded recent/backfill batches, persisted successful ranges, a 64-block overlap and reorg anchor. Refresh continues coverage; gaps remain disclosed. Wallet scores combine both contracts. Rankings, receipts and weighted wins depend on loaded history and never substitute a cited handle for the posting wallet. Both sides of a duel settle independently.
 
-History retains the v1 bounded scanner: 2,000-block chunks, up to four recent plus four historical chunks per refresh, persisted ranges/cursor, 64-block overlap and a reorg anchor. Partial coverage and unavailable records remain explicit. Leaderboard discovery, citations, weighted wins and duels depend on loaded history; records themselves are live contract reads. Refresh/Load more history continues coverage. Prize reads poll every 30 seconds; transaction prerequisites every 15 seconds.
+Venue liquidity on a note is reconstructed from its posting transaction when directly decodable. Nested smart-wallet calldata or unavailable transactions show an explicit unavailable state. Calls can still be authored by contract wallets. The liquidity comparison is an active virtual reserve, not executable capacity or a guarantee against removal.
 
-## Sharing and agent documents
+Pages holders can follow the writer's public seal commitments in their panel. **Private early delivery of sealed text is not deployed:** the contracts publish only hashes and the draft stays in the author's unencrypted local storage. The frontend does not pretend hashes disclose draft text. Canvas cards remain local; the generic OG image targets the supplied `marginalia.chat` domain, while per-route social unfurls require a future rendering service.
 
-Every note, duel and author has a client-side 1200×630 canvas card. It uses local fonts and text only, writes image/png plus text/plain to the clipboard, and falls back to a PNG download with selectable text. No rendering service is called. The inherited generic OG card remains; per-page unfurl images require the later service and are not claimed here.
-
-Root `llms.txt` and `AGENTS.md` were absent in the supplied tree. V2 adds deployment/interface documentation and copies both verbatim to `dist/llms.txt` and `dist/agents.md` during manifest generation. Both are inventoried and hash-checked.
+The full swarm caveat stays above the home fold and in every loaded-page footer. Launch text in `../docs/launch-copy.md` is for the operator to post manually.
 
 ## Build and preview
+
+With Node and the unchanged lockfile:
 
 ```sh
 cd web
 npm ci --cache /tmp/marginalia-npm-cache --no-audit --no-fund
 npm run typecheck
 npm run build
-node scripts/manifest.mjs /path/to/deployment.json /path/to/network.json
-node scripts/check.mjs /path/to/deployment.json /path/to/network.json
+npm run manifest
+npm run check
 npm run preview
 ```
 
-The manifest scripts default to the task's `.imd/reads` files while supplied; operators must retain the verified handoff for later rebuilds. Regenerate the manifest after any export change. The scripts check exact network/handoff, canonical ABI hashes, every SHA-256 and verbatim agent docs. Source and the unchanged lockfile accompany the final export.
+`manifest` runs after the production build and inventories every exported file except itself with SHA-256. It also binds canonical ABI Keccaks and copies root `AGENTS.md` / `llms.txt` verbatim. `check` verifies those files, exact handoff/network, the explicit Annex extension, relative assets and export completeness. Regenerate after any export change. The source, unchanged package manifest/lockfile and final static export travel together.
 
-This worker used an isolated `/tmp/marginalia-v2/web` copy with the identical manifest, lockfile and configuration, leaving all repository dependency and build-configuration paths untouched. Copy root agent docs and the supplied handoff into that tree before running manifest/check. Copy only the resulting `dist/` back. No registry archive or dependency cache is part of delivery.
+The assignment forbids writing dependency paths, so this worker installed the same lockfile in `/tmp/marginalia-v3/build/web`, copied source/public/scripts/tests plus root documents there, built/checked there and copied only `dist/` back. No dependency directory, registry archive, submodule, ignore-file edit or build-configuration change is delivered.
 
 ## Validation
 
-See `VALIDATION.md` and root `DESIGN.md`. From `web/`, with the lockfile dependencies installed:
+See `VALIDATION.md`, `validation/v3/` and root `DESIGN.md`. From `web/` with dependencies installed:
 
 ```sh
-mkdir -p ../test/scratch
-./node_modules/.bin/esbuild tests/v2-unit.ts --bundle --platform=node --format=esm --outfile=../test/scratch/v2-unit.mjs
-node ../test/scratch/v2-unit.mjs
-./node_modules/.bin/esbuild tests/revision-unit.ts --bundle --platform=node --format=esm --outfile=../test/scratch/revision-unit.mjs
-node ../test/scratch/revision-unit.mjs
-./node_modules/.bin/esbuild tests/history-unit.ts --bundle --platform=node --format=esm --outfile=../test/scratch/history-unit.mjs
-node ../test/scratch/history-unit.mjs
-PLAYWRIGHT_BROWSERS_PATH=/tmp/marginalia-browsers PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v2-browser node tests/v2-browser.mjs
+for name in v2-unit revision-unit history-unit v3-unit; do
+  ./node_modules/.bin/esbuild "tests/$name.ts" --bundle --platform=node --format=esm --outfile="/tmp/$name.mjs"
+  node "/tmp/$name.mjs"
+done
+PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v3-browser node tests/v3-browser.mjs
 ```
 
-The browser runner owns and closes a local static server under `/preview/`, mocks RPC/wallet, blocks other requests and broadcasts nothing. Its accounts and datasets are fixtures. Playwright may be installed separately under `/tmp`; it is not a project dependency. `tests/revision-browser.mjs` is retained as the historical v1 reproduction harness; v2 replaces its superseded author layout and disabled-seal expectations. `tests/live-read.ts` bundles like the unit tests; pass the worker-approved RPC and absolute `dist/imd-deployment.json` path for read-only code/ABI/encoding checks.
+Playwright may be installed separately under `/tmp`; it is not an application dependency. The runner serves production files under `/preview/`, mocks wallet/RPC responses, blocks outside requests and broadcasts nothing. `BROWSER=webkit` selects WebKit when its runtime works. Older browser harnesses remain historical v1/v2 reproductions and contain superseded home-layout expectations. `tests/v3-live.ts`, bundled like the unit tests, takes a public RPC URL and absolute runtime manifest path for read-only verification and same-block comparison against the configured Uniswap quoter. Real wallet signing and live transaction outcomes were not tested or authorized.

@@ -16,12 +16,22 @@
       "address": "0xf0457dd0cf526686190e4f057ba19db14d34a0cc",
       "abiHash": "ffba7e31146b501ba95575d8af426ac1e360dcc5dd3a502fc8981b9c94c763c7",
       "abiPath": "abi/MarginaliaHook.json"
+    },
+    {
+      "name": "MarginaliaAnnex",
+      "address": "0xd0c0d97aebe9194606bcc46ce56524eee4615543",
+      "abiHash": "d5caa09b5445973684cc46375443c967ff8baf3da70992ddbdb102327cc79c0b",
+      "abiPath": "abi/MarginaliaAnnex.json"
     }
   ],
   "assets": [
     {
       "path": "abi/Marginalia.json",
       "sha256": "7fc44a8cb387754c3653ae749e5d7a72b5f5487dd6c1ed485f27a54be5568dc6"
+    },
+    {
+      "path": "abi/MarginaliaAnnex.json",
+      "sha256": "087b588b5c025af7cd489903fedfce25cca2b74573fbe955edf717193351696e"
     },
     {
       "path": "abi/MarginaliaHook.json",
@@ -32,36 +42,48 @@
       "sha256": "febce673ad5d13ceb20a9392dd6422e6b542040f83c4b43ac1345ba4d335695e"
     },
     {
+      "path": "abi/MarginaliaPages.json",
+      "sha256": "c2f2b6c24988bee27afdb316840467157cc085a117751d3bb8635c350f929162"
+    },
+    {
+      "path": "abi/MarginaliaPricer.json",
+      "sha256": "e06bfbd27f7e9c8aad97676cce7c92204be9f60a256e0e848861a59d7ad0ebc5"
+    },
+    {
       "path": "abi/MarginaliaRouter.json",
       "sha256": "68d887bbb93b1a30cd7525110b1ee9a1f28aa48c47d51971e7926143712199e8"
     },
     {
+      "path": "abi/MarginaliaTreasury.json",
+      "sha256": "062567f915e33b3069805af2501d2226d9b11ad4c30b8e5cbe28c4f8798b338e"
+    },
+    {
       "path": "agents.md",
-      "sha256": "58517cf271cb1f896538583785628c59132e6a804d0376fed2b9c3516bc871d2"
+      "sha256": "38204db8dd3baeb3db4b898265f1b94ec73b36a6285c0ec201bac4e27cb715f9"
     },
     {
-      "path": "assets/ccip-ttM6Cmcc.js",
-      "sha256": "f99240bbf3e4605c3b7ec72125c0d7544cfdc58e25d254be3e3968f4bb496c09"
+      "path": "assets/ccip-C8Nf_b47.js",
+      "sha256": "7d7563f4e668e44bd5db98d03bf5446e6092a7b1ebe69645064af5b475ea0ce8"
     },
     {
-      "path": "assets/index-Dx7Om2au.js",
-      "sha256": "1219057cb7a236cf0a7f5fc4d35d32ad82fd9d60bc9b2e40e3cb2c7c574693c8"
+      "path": "assets/index-B-SYEe_X.js",
+      "sha256": "0b7c8350c42c5221fb73cff9a5e419d437cb5a5f1cf49aec1772a618d1034901"
     },
     {
-      "path": "assets/index-c_G7yJYe.css",
-      "sha256": "b2b5955ce34fa3464234ee1b3fb32896493efca2408a08b7aec3a8b2ef152e70"
+      "path": "assets/index-DQBnmTWp.css",
+      "sha256": "867e223b9f9df287743efde684a038709e684c35592cc14e38206628e1c41f37"
     },
     {
       "path": "index.html",
-      "sha256": "4093c2e05b71ad7dbfcc2bd6b9ec1cea7989b492e612a094c38caf6693fa75ec"
+      "sha256": "a8f19274e1930ff7dbe2155c3fe977bbc5b3da08c2a7fbe329b6574be9b7387e"
     },
     {
       "path": "llms.txt",
-      "sha256": "c60c9e887922b3b3149b06d5184dd6bf3ece70e1ebdba7f55714bee79a09138d"
+      "sha256": "51bf4d5709ed76b4e67dfcb9c1cfbb2852d33cea8898f4f6102ba49a5e5e2cb5"
     },
     {
       "path": "share-card.png",
-      "sha256": "ea7c3b3efa4873d9d0d795b7245c92be21f5d0f641194a7bfa1438c38c78c757"
+      "sha256": "0f1e6a296b2079fec40e20a4feaf39f53884c86cf021c7f2c1d30d8c5a77aa68"
     }
   ],
   "network": {

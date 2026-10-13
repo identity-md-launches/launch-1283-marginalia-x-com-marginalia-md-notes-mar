@@ -1,14 +1,15 @@
 # Marginalia
 
-> Say it with a bond. A public, difficulty-weighted record of token calls on Ethereum. Readers compare records; writers put claims, deadlines and IMD bonds on the chain.
+> Trade it. Say why. The chain keeps the receipt. A public, difficulty-weighted record of token calls on Ethereum. Readers compare records; writers put claims, deadlines and IMD bonds on the chain.
 
 - [Agent interface](./agents.md): verified deployment discovery, posting, exact approvals, checkpoints, seals, reveals and permissionless settlement.
 - [Runtime deployment](./imd-deployment.json): sole runtime source for chain, contract addresses, network and ABI paths; inventory of exported files with SHA-256 hashes.
-- [Scoreboard](./#/): weekly thesis prize, wallet leaderboard, cited accounts, open duels and recent verdicts.
+- [Trade and post](./#/): atomic token trade and call, guided calls, theses and Annex calls.
+- [Scoreboard](./#/scoreboard): weekly thesis prize, wallet leaderboard, cited accounts, open duels and recent verdicts.
 - [Feed](./#/feed): notes, theses, citations and filters.
 - [Post](./#/post): token, side and target, one-line reason, checkpoint and bond.
 - [Seal](./#/seal): local draft, exact 0.1 IMD hook approval, commitment and timed reveal.
 - [Pools](./#/pools): thesis prizes, writer refunds, claims and sweeps.
 - [About](./#/about): rules, contracts and agent documents.
 
-The posting wallet is the author. A cited X handle is not an author or a verified identity. An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns. A right call returns its bond; thesis prizes are judged separately. No verified USD price source is supplied. Informational, not advice. Bonds can be lost.
+The posting wallet is the author. A cited X handle is not an author or a verified identity. An upward call's wallet must hold through the horizon or forfeit its bond; this binds the posting wallet, not every wallet the author owns. A right call returns its bond; thesis prizes are judged separately. Dollars are informational from the canonical IMD/USDC pool and never affect settlement. The live Annex and pending Pages v0.10 interface are documented in agents.md. Pages remains hidden without a manifest address. Informational, not advice. Bonds can be lost.

@@ -1,3 +1,5 @@
+import { JudgingControls } from '../judging';
+import { UsdContext } from '../price';
 import { useState } from 'react';
 import { formatUnits } from 'viem';
 import { ClaimControls, readClaim } from '../claims';
@@ -67,8 +69,8 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
     <>
       <h1>Pools</h1>
       <p className="lede">
-        Every fee, stamp and forfeited bond stays in IMD inside the hook. At accrual, 70% goes to the week's thesis prize and 30% to the day's writer
-        refund. Nothing is sold for ETH, and nothing here pays for being right.
+        Hook fees, stamps and forfeited bonds stay in IMD inside the hook. At accrual, 70% goes to the week's thesis prize and 30% to the day's writer
+        refund. Annex stamps fund MARG burns; its forfeitures join these pools. Nothing here pays for being right.
       </p>
       {state.error && (
         <Notice kind="bad">
@@ -77,7 +79,7 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
       )}
       <h2>Writer refunds, by day</h2>
       <p className="small">
-        Non-retracted notes of a day share the day's refund pool after it ends, capped at one stamp (0.1 IMD) each. Day numbers count from the Unix
+        Non-retracted notes of a day share the day's refund pool after it ends, capped at one stamp ({fmtAmount(contracts.limits.stamp)} IMD <UsdContext imd={contracts.limits.stamp}/>) each. Day numbers count from the Unix
         epoch; today is {s ? s.today : '…'}.
       </p>
       <table>
@@ -97,7 +99,7 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
                 {i === 0 ? ' (today)' : ''}
               </td>
               <td>{fmtDate((d + 1) * 86400)}</td>
-              <td className="num">{fmtAmount(s.refunds[i])}</td>
+              <td className="num">{fmtAmount(s.refunds[i])} <UsdContext imd={s.refunds[i]}/></td>
               <td className="num">{s.counts[i]}</td>
             </tr>
           ))}
@@ -105,7 +107,7 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
       </table>
       <h2>Thesis prize, by week</h2>
       <p className="small">
-        Judging a week waits until the week ends plus the 7-day child grace, needs at least {fmtAmount(contracts.limits.judgeThreshold)} IMD in the pool, and
+        Judging a week waits until the week ends plus the 7-day child grace, needs at least {fmtAmount(contracts.limits.judgeThreshold)} IMD <UsdContext imd={contracts.limits.judgeThreshold}/> in the pool, and
         pays an evidence panel's top three 50 / 30 / 20. An eligible thesis is one with a child call. This week is {s ? s.week : '…'}.
       </p>
       <table>
@@ -138,13 +140,14 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
                   {i === 0 ? ' (this week)' : ''}
                 </td>
                 <td>{fmtDate(opens)}</td>
-                <td className="num">{fmtAmount(s.theses[i])}</td>
+                <td className="num">{fmtAmount(s.theses[i])} <UsdContext imd={s.theses[i]}/></td>
                 <td>{st}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      <JudgingControls/>
       <h2>Sweep</h2>
       <p className="small">
         A pool left unclaimed for 28 days after its period rolls forward into the current week's thesis prize. Anyone may sweep; it pays nothing. A
@@ -159,7 +162,7 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
       {epoch === null && <p role="alert" className="status bad">Enter a whole epoch number from 0 to 4294967295.</p>}
       {sweepRead.error && <Notice kind="bad"><p>Could not read this pool. Refresh to try again.</p></Notice>}
       {sweep && <dl className="facts">
-        <dt>Remaining</dt><dd>{formatUnits(sweep.balance, 18)} IMD</dd>
+        <dt>Remaining</dt><dd>{formatUnits(sweep.balance, 18)} IMD <UsdContext imd={sweep.balance}/></dd>
         <dt>Sweep opens</dt><dd>{fmtDate(sweepAt)} · {now >= sweepAt ? '28-day wait complete' : 'too early'}</dd>
         {sweepKind === 1 && <><dt>Judge closure</dt><dd>{sweep.closed ? 'Week closed' : 'Week is not closed; cannot sweep'}</dd></>}
       </dl>}

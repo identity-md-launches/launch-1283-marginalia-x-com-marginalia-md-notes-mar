@@ -1,5 +1,5 @@
 // Writes dist/imd-deployment.json from the deployment handoff and the network file, after `vite build`.
-// Usage: node scripts/manifest.mjs [deployment.json] [network.json]   (defaults: ../.imd/reads/...)
+// Usage: node scripts/manifest.mjs [deployment.json] [network.json]   (defaults: web/deployment/mainnet.json and network.json)
 // Copies the full ABIs into dist/abi/, checks each canonical keccak against the handoff abiHash, and lists
 // every exported file with its SHA-256. Re-run after any change to dist/.
 import { createHash } from 'node:crypto';
@@ -11,14 +11,15 @@ import { keccak256, toBytes } from 'viem';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
 const dist = path.join(root, 'dist');
-const deploymentPath = process.argv[2] ?? path.join(root, '.imd', 'reads', 'deployment.json');
-const networkPath = process.argv[3] ?? path.join(root, '.imd', 'reads', 'network.json');
+const deploymentPath = process.argv[2] ?? path.join(root, 'web', 'deployment', 'mainnet.json');
+const networkPath = process.argv[3] ?? path.join(root, 'web', 'deployment', 'network.json');
 
 const canon = (v) =>
   v === null ? 'null' : Array.isArray(v) ? `[${v.map(canon).join(',')}]` : typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}` : JSON.stringify(v);
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
 const handoff = JSON.parse(fs.readFileSync(deploymentPath, 'utf8'));
+const integrations = JSON.parse(fs.readFileSync(path.join(root, 'web', 'deployment', 'integrations.json'), 'utf8'));
 const net = fs.existsSync(networkPath) ? JSON.parse(fs.readFileSync(networkPath, 'utf8')) : null;
 if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error('dist/index.html missing: run vite build first');
 
@@ -29,11 +30,11 @@ for (const [source, target] of [['llms.txt', 'llms.txt'], ['AGENTS.md', 'agents.
 
 // ABIs: the app ships every contract it talks to; the manifest binds the handoff's contracts to theirs.
 fs.mkdirSync(path.join(dist, 'abi'), { recursive: true });
-for (const name of ['Marginalia', 'MarginaliaHook', 'MarginaliaRouter', 'MarginaliaJudge']) {
+for (const name of ['Marginalia', 'MarginaliaHook', 'MarginaliaRouter', 'MarginaliaJudge', 'MarginaliaAnnex', 'MarginaliaPages', 'MarginaliaTreasury', 'MarginaliaPricer']) {
   const src = path.join(here, '..', 'public', 'abi', `${name}.json`);
   fs.copyFileSync(src, path.join(dist, 'abi', `${name}.json`));
 }
-const contracts = handoff.contracts.map((c) => {
+const contracts = [...handoff.contracts,...integrations.contracts].map((c) => {
   const abiPath = `abi/${c.name}.json`;
   const abi = JSON.parse(fs.readFileSync(path.join(dist, abiPath), 'utf8'));
   const got = keccak256(toBytes(canon(abi))).slice(2);
