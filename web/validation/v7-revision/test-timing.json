@@ -1,0 +1,13 @@
+{
+  "inheritedTest": "Just the call posts the author\u2019s child on the same side with bounded calldata",
+  "baseline": "Original accepted dist reconstructed from HEAD; no revised source",
+  "baselineResult": [
+    {
+      "name": "Just the call posts the author\u2019s child on the same side with bounded calldata",
+      "result": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert((await text()).includes('The venue you chose is not stored on chain'))\n\n    at file:///tmp/marginalia-v7-revision/web/tests/child-call-browser.mjs:349:44\n    at async check (file:///tmp/marginalia-v7-revision/web/tests/child-call-browser.mjs:267:261)\n    at async file:///tmp/marginalia-v7-revision/web/tests/child-call-browser.mjs:344:3"
+    }
+  ],
+  "cause": "Immediate innerText assertion raced the records read, which temporarily changes the guided form while the receipt is already available. The later failure dump contains the required venue notice. The same assertion failed against both exports.",
+  "repair": "Wait for the existing venue notice before the unchanged content and calldata assertions; no PostPage behavior changed."
+}

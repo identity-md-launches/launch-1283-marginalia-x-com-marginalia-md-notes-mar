@@ -1,0 +1,16 @@
+{
+  "limitBytes": 8388608,
+  "submissionFiles": 756,
+  "submissionFileBytes": 7478898,
+  "exportFiles": 23,
+  "exportBytes": 1139927,
+  "assetCount": 22,
+  "protectedPathsChanged": [],
+  "dependencyCachesOrArchives": [],
+  "gitSubmodules": 0,
+  "ignoreFilesChanged": [],
+  "reviewControlFilesIncluded": [
+    ".imd-responses.json"
+  ],
+  "validation": "All source, lockfile, required runtime assets and validation records, including this report and the root review responses, fit below the complete-submission budget. Pinned inputs and disposable test/scratch are excluded."
+}

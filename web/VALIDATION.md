@@ -231,3 +231,47 @@ node .imd/reads/skills/design-critic/scripts/taste.mjs --out test/scratch/taste 
 Compared all changed source/configuration against v6: no contract/token/mint/economics change, no ABI/address drift, and no new payment action or approval recipient/amount. Existing router/Annex/Pages exact approvals, hook stamp and WETH native deposit remain; current calldata/approval tests pass. LARP and image metadata stay view-only/passive. App scripts remain local, bundled and checked for dynamic remote code. The sole network change is the expressly requested ordered public RPC lists. **No unresolved address, approval or script finding was found locally; any such finding is critical and must refuse hosting.** Independent hosting review remains required.
 
 WebKit launch failed because required GTK4/GStreamer and related system libraries are absent; no Safari result is claimed. Physical devices, native zoom, assistive technology, funded mainnet wallets/contract wallets, real signatures or oracle answers/lifecycle progression, production-origin CORS, production hosting, and full reorg behavior remain untested. Existing keeper, private-seal delivery and route-specific OG limitations remain. This worker's mocks, screenshots and dated read-only result certify none of those unperformed actions.
+
+
+## 2026-10-17 · v7 review revision
+
+The four review reports were evaluated against the accepted source/export before changes; all reproduce. `validation/v7-revision/reproduction.json` records the observed failures, and repository-root `.imd-responses.json` answers every finding ID. This is a focused revision of the accepted implementation.
+
+### Reproductions and fixes
+
+| Source | Reproduction and resulting behavior | Validation |
+| --- | --- | --- |
+| `src/week.ts:34` | Funded current week 2963 previously displaced funded unpaid 2962. Select the newest positive unpaid pool strictly before hook.week(); keep every funded unpaid week in Me and permit manual current-week selection. | Unit fixture now funds both weeks and checks prior paid-week exclusion; production browser selects 2962 and then manually selects funded 2963 with the connected author's own line. |
+| `src/App.tsx:73` | With Annex log responses delayed 200 ms, Hook-first refresh removed the receipt: one Observe request, receiptLost=true and confirmations=0. Retain each contract's last snapshot until its replacement arrives, also preserving prior Annex calls if refresh fails. | MutationObserver on the fixed production export reports receiptLost=false, confirmations=1, walletRequests=1; Confirmed retains its explorer transaction link. Retained Annex lifecycle and approval regressions pass. |
+| `src/chain.ts:72` | A primary HTTP 200 response with matching JSON-RPC id but no result was accepted by fallback before getLogs threw, leaving a hole without trying node 1. Validate the result array inside each node's transport. | Locked viem over local HTTP servers now completes the primary-malformed range on node 1; all-nodes-malformed leaves a hole and recovers on manual retry. Archive errors, HTTP 429, valid empty arrays, localStorage coverage and shared concurrency remain tested. |
+| `src/styles.css:131` | Weekly numeric heading touched the next column (0 px gutter at 320). Restore --space-3 right padding for non-final numeric cells. | DOM Range and computed style measurements find 12 px for every weekly header/value at 320, 390 and 1440; final numeric columns retain 0 px and no viewport overflows. |
+
+Build uses an isolated temporary mirror with the unchanged dependency lock, TypeScript and Vite configuration. `npm run typecheck`, `npm run build`, `npm run manifest` and `npm run check` pass. The inherited Vite advisory for a bundle over 500 kB remains: main JS is 753.76 kB / 219.45 kB gzip, CSS 39.07 kB. Dependency installs, browser runtimes, caches and generated unit bundles remain outside the submission. No ignore file changed.
+
+The same runtime manifest continues to bind all seven contracts, canonical ABI hashes, all 22 other exported assets and both static entrypoints. The ordered public RPC lists and all other network, Uniswap, wallet-add-chain and deployment values are unchanged in this revision. The existing v7 manifest test compares the pinned chain table after only the expressly authorized RPC-list replacement. Signing targets, exact approvals, ABI arrays, LARP read-only behavior and the function-to-home map are preserved; the changed transport validates only read-node log results.
+
+### Better Interface review of the final revision
+
+The pinned Better Interface workflow and all six core domains were applied to the changed surfaces. No visual redesign or new tokens were introduced. The implemented design remains documented in root DESIGN.md.
+
+| Domain | Coverage and result |
+| --- | --- |
+| Accessibility | Existing native labels, week input, child-call link, disclosure and Observe button retained. Browser checks cover keyboard focus, wrong-chain/connect/rejection states, reduced-motion preferences and 320/390 reflow. The receipt's role=status confirmation remains mounted through the delayed refresh. Screen-reader sessions, native zoom and physical devices were not tested. |
+| Layout | Inspected actual 390 screenshots for Me, the weekly table/judging control and the post-refresh Annex confirmation. The 12px table gutter restores separation with the existing spacing token; no sideways scrolling at 320/390/1440 in the changed-route tests. Root landing 390 screenshot shows product and Launch app; the guided main call action is at y=758.625, within 844px. |
+| Writing | Required Your week lines, child-card wording, eligibility explanation and paused Feedback paragraph are unchanged. Agent/README/design documents now distinguish completed-week pot defaults from current-week Me eligibility. No promotional or transaction wording was added. |
+| Typography | Existing scale, weights, system fonts, tabular numeric figures and wrapping remain. The restored gutter separates full amounts and state labels without clipping or reducing text size. |
+| Colors | Existing light/dark tokens retained. Actual Your week text/link contrast is 15.40:1 / 5.69:1 on light paper and 14.79:1 / 9.03:1 on dark paper; v7-metrics.json contains exact rendered RGB pairs. No color or new contrast pair was introduced. |
+| UI | Flat sections, native editable selector and existing transaction controls retained. Mocked lifecycle/approval cases check pending, rejection, success and simulation errors. Independent Hook/Annex snapshots preserve the loaded receipt/composer and success link during refresh. No new animation or external script. |
+
+The required pinned probe ran on root dist with `--out test/scratch/taste --offline` and passed **15/16** checks: render/resources, layout, targets, contrast, casing, tracking, heading labels, type scale/faces, glyphs, slogans, repetition, surfaces, motion and metadata. Its sole flag is the inherited landing copy budget (83 prose words at 390 vs 60); the owner's verbatim promise/caveat and accepted landing are intentionally preserved in this focused revision. Screenshots remained in disposable scratch; taste.json preserves measurements. The offline probe correctly shows the pot as unavailable rather than inventing chain state.
+
+Chromium production tests use a static gateway subpath and deterministic RPC/wallet responses, decode actual transaction calldata, reject unexpected outside requests and assert no page script errors. Nothing signs or broadcasts on a live chain. A WebKit launch was attempted after installing its browser outside the repository; it failed before running tests because this worker lacks GTK4/GStreamer and other system libraries. No WebKit/Safari pass is claimed. No real wallet spending, live oracle outcome, chain-history availability, hosting/domain update, native 200% zoom, RTL or assistive-technology session is certified here.
+
+
+### Final revision check results
+
+All **112 current Chromium scenarios pass**: v7 10/10, v6 18/18, v5 23/23, v4 11/11, v3 21/21, child-call 22/22 and paused Feedback 7/7 (`validation/v7-revision/browser-results.json`). All **ten TypeScript unit suites** pass, including nine v7 groups (`units.json`). The retained inactive Feedback worker (18 groups), noted-badge and adoption-ledger protocol tests pass (`service-results.json`). Initial v5 execution was terminated with exit 143 after three successes; the complete suite subsequently passed in five bounded TEST_RANGE groups. Final batches include every current case exactly once (`browser-batches.json`).
+
+One retained child-call assertion raced a record refetch in both the accepted original export and this revision: it inspected innerText immediately after the posting receipt appeared, before the explanatory venue notice had returned. The assertion now waits for that same required notice; recipient/parent/side/deadline/minimum/simulation and child-count assertions remain. No PostPage application behavior changed. The final isolated check also passes; baseline and repair evidence is in test-timing.json.
+
+Final documentation is copied into the same static export and its manifest regenerated. build-check.json, integrity.json and bundle.json record the final commands, hashes, permitted paths and submission bytes. No address, approval or script finding was identified in this scoped review; any such finding remains critical and must refuse hosting. These worker results are local evidence, not independent certification.

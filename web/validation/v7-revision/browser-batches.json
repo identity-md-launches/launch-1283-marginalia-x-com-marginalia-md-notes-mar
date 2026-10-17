@@ -1,0 +1,104 @@
+{
+  "completed": [
+    {
+      "suite": "v7",
+      "batch": "v7",
+      "passed": 10,
+      "exitCode": 0
+    },
+    {
+      "suite": "v6",
+      "batch": "v6",
+      "passed": 18,
+      "exitCode": 0
+    },
+    {
+      "suite": "v5",
+      "batch": "v5-0-5",
+      "passed": 5,
+      "exitCode": 0
+    },
+    {
+      "suite": "v5",
+      "batch": "v5-5-10",
+      "passed": 5,
+      "exitCode": 0
+    },
+    {
+      "suite": "v5",
+      "batch": "v5-10-15",
+      "passed": 5,
+      "exitCode": 0
+    },
+    {
+      "suite": "v5",
+      "batch": "v5-15-20",
+      "passed": 5,
+      "exitCode": 0
+    },
+    {
+      "suite": "v5",
+      "batch": "v5-20-23",
+      "passed": 3,
+      "exitCode": 0
+    },
+    {
+      "suite": "v4",
+      "batch": "v4-0-6",
+      "passed": 6,
+      "exitCode": 0
+    },
+    {
+      "suite": "v4",
+      "batch": "v4-6-11",
+      "passed": 5,
+      "exitCode": 0
+    },
+    {
+      "suite": "v3",
+      "batch": "v3",
+      "passed": 21,
+      "exitCode": 0
+    },
+    {
+      "suite": "child-call",
+      "batch": "child-0-8",
+      "passed": 8,
+      "exitCode": 0
+    },
+    {
+      "suite": "child-call",
+      "batch": "child-8-16",
+      "passed": 8,
+      "exitCode": 0
+    },
+    {
+      "suite": "child-call",
+      "batch": "child-16-22",
+      "passed": 6,
+      "exitCode": 0
+    },
+    {
+      "suite": "feedback",
+      "batch": "feedback",
+      "passed": 7,
+      "exitCode": 0
+    }
+  ],
+  "initialTerminatedRun": {
+    "suite": "v5-browser",
+    "exitCode": 143,
+    "passedBeforeTermination": 3,
+    "resolution": "Reran every case in five bounded groups; all 23 final cases pass."
+  },
+  "finalChildTimingCheck": [
+    {
+      "name": "Just the call posts the author\u2019s child on the same side with bounded calldata",
+      "result": "pass"
+    }
+  ],
+  "webkit": {
+    "testsRun": 0,
+    "reason": "Browser launch failed: missing GTK4/GStreamer and other system libraries."
+  }
+}

@@ -340,17 +340,35 @@ try {
   await open('/author/'+author,patch);await page.locator('.your-week li').filter({hasText:'Thesis No. 4'}).waitFor();assert.equal(await page.locator('.your-week li').count(),4);
   patch.weekPots[previous].paid=true;await open('/author/'+author,patch);await waitWeek();assert.equal(await page.locator('.your-week li').count(),1);
  });
- await check('Pots defaults to latest funded unpaid chain week and shows connected thesis lines plus eligibility explanation',async()=>{
-  await open('/pools',weekly());await waitWeek();assert.equal(await page.locator('#judge-week').inputValue(),String(previous));
+ await check('Pots skips a funded current week by default and shows connected thesis lines plus eligibility explanation',async()=>{
+  const patch=weekly();patch.weekPots[current]={pool:19n*unit,eligible:[]};
+  await open('/pools',patch);await waitWeek();assert.equal(await page.locator('#judge-week').inputValue(),String(previous));
   assert.equal(await page.locator('.your-week li').count(),3);
   const sentence=page.getByText('An eligible thesis is one whose author posted a call under it within 7 days of the thesis.',{exact:true});await sentence.waitFor();
   assert(await sentence.evaluate(e=>!!(e.compareDocumentPosition([...document.querySelectorAll('p')].find(p=>p.textContent.includes('eligible theses ·')))&Node.DOCUMENT_POSITION_FOLLOWING)));
-  await page.locator('#judge-week').fill(String(current));await page.getByText('0 eligible theses · 0 IMD',{exact:false}).waitFor();await page.locator('.your-week').waitFor({state:'hidden'});
+  await page.locator('#judge-week').fill(String(current));await page.getByText('0 eligible theses · 19 IMD',{exact:false}).waitFor();await page.locator('.your-week li').filter({hasText:`Thesis No. 4, week ${current}: needs your call`}).waitFor();
+  assert.equal(await page.locator('.your-week li').count(),1);
   assert.equal(await page.locator('#judge-week').inputValue(),String(current));
  });
  await check('Pots skips a paid newest pool and works without a connected wallet',async()=>{
   const patch=weekly();patch.weekPots[current]={pool:unit,paid:true,eligible:[]};patch.wallet=false;
   await open('/pools',patch);await page.waitForFunction(w=>document.querySelector('#judge-week')?.value===String(w),previous);assert.equal(await page.locator('.your-week').count(),0);
+ });
+ await check('Weekly pool amounts and headings retain a gutter before judging state at every supported width',async()=>{
+  await open('/pools',weekly());await waitWeek();
+  for(const width of [320,390,1440]){
+   await page.setViewportSize({width,height:844});
+   const table=page.locator('table').nth(1);await table.scrollIntoViewIfNeeded();
+   const cells=await table.locator('th.num, td.num').evaluateAll(cells=>cells.map(cell=>{
+    const text=document.createRange();text.selectNodeContents(cell);
+    const next=document.createRange();next.selectNodeContents(cell.nextElementSibling);
+    return {label:cell.textContent,padding:parseFloat(getComputedStyle(cell).paddingRight),gap:next.getBoundingClientRect().left-text.getBoundingClientRect().right};
+   }));
+   assert(cells.length>=4);for(const cell of cells){assert.equal(cell.padding,12,JSON.stringify({width,...cell}));assert(cell.gap>=11.5,JSON.stringify({width,...cell}));}
+   assert.equal(await page.locator('table').first().locator('th.num:last-child').evaluate(e=>getComputedStyle(e).paddingRight),'0px');
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   metrics['weeklyTable'+width]=cells;await shot('weekly-table-'+width);
+  }
  });
  await check('Existing child keeps exact feed badge and removes every post-child action on the thesis page',async()=>{
   await open('/',{gallery:true,social:true,childPosted:true});await page.getByRole('button',{name:'Theses',exact:true}).click();await page.getByRole('link',{name:'Child call posted (No. 4)',exact:true}).waitFor();

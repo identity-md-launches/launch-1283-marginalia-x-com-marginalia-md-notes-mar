@@ -31,7 +31,9 @@ export async function readOpenWeeks(pub: PublicClient, hook: Address, judge: Add
     }));
     for (const row of rows) if (row) weeks.push(row);
   }
-  return { current, weeks, defaultWeek: weeks[0]?.week ?? current };
+  // Current-week fees already fund a pool, but its theses are still arriving.
+  // Keep that week in Your week; open Pots on the newest completed unpaid week.
+  return { current, weeks, defaultWeek: weeks.find(w => w.week < current)?.week ?? Math.max(0, current - 1) };
 }
 
 /** Event history supplies the timestamp; noteOf verifies the wallet and thesis live. */

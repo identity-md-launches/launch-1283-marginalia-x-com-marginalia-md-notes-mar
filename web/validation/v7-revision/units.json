@@ -1,0 +1,52 @@
+[
+  {
+    "file": "backers-unit.ts",
+    "status": 0,
+    "output": "PASS A sell in an unreadable range cannot leave a former holder in the list\nPASS Every candidate is checked, including net-zero and sell-only histories\nPASS Failed balance reads are excluded and marked independently of history gaps\nPASS Complete history uses current balances, deduplicates candidates and sorts holdings\nPASS Bounded history discloses undiscovered holders but verifies sell-only candidates\nPASS Candidate balances are read in bounded batches and failures do not hide verified holders\n"
+  },
+  {
+    "file": "child-call-unit.ts",
+    "status": 0,
+    "output": "PASS child-call: ID/existence, ThesisOpen, author, inclusive grace, chain clock, fixed-block reads and fresh preflight rejection.\n"
+  },
+  {
+    "file": "history-unit.ts",
+    "status": 0,
+    "output": "PASS Fresh browser recovers the reviewer’s historical note from deployment\nPASS Returning browser retrieves the served gap after a 9,000-block absence\nPASS Automatic scan covers all history in one load and all six event types join\nPASS Refused history cannot starve later ranges; recovery retries only remaining holes\nPASS Successful coverage survives a failed overlap and a later successful replacement\nPASS Old v1 tail-only caches migrate without dropping logs and coverage\nPASS A changed block anchor discards reorganized historical logs\n7 history scenarios passed\n"
+  },
+  {
+    "file": "revision-unit.ts",
+    "status": 0,
+    "output": "PASS exact approval totals\nPASS priced calls cannot encode zero or overflow uint32\nPASS remaining refund share: integer rounding, cap, empty/count-zero\nPASS pricer revert is readable by name and selector\nPASS initial events persisted\nPASS refresh reads only overlap and tail, retains historical note\nPASS old cached note survives refused ranges, automatic history scan preserves old notes and reports refused chunks\nPASS recent failed ranges recover and complete the historical coverage\nPASS changed anchor invalidates cache and discards reorganized events\n9 unit scenarios passed\n"
+  },
+  {
+    "file": "trade-receipt-unit.ts",
+    "status": 0,
+    "output": "PASS receipt trade: exact IMD, authenticated router/author, note association, no cited identity, WETH historical-read fallback, no unrelated preceding or later leg.\n"
+  },
+  {
+    "file": "v2-unit.ts",
+    "status": 0,
+    "output": "PASS Only leading status URLs on exact X/Twitter hosts are receipts\nPASS Cited accounts count note verdicts without mutating authorship\nPASS Duels require same token, opposite sides and different posting wallets\nPASS Rates expose empty samples and rank without losing bigint score precision\nPASS Weighted wins come only from positive RIGHT settlement deltas\n5 v2 logic groups passed.\n"
+  },
+  {
+    "file": "v3-unit.ts",
+    "status": 0,
+    "output": "PASS v3: exact approvals (including overlapping IMD), baseline bounds, v2 math, TickMath boundaries/monotonicity, pinned ABI subsets/hashes, router+Annex calldata and Pages v0.10 surface.\n"
+  },
+  {
+    "file": "v5-unit.ts",
+    "status": 0,
+    "output": "PASS v5: sanitized avatars, live primary names and no-name fallback, view-only pinned calls, fixed-block identity/code gates, hit-rate ties/zero samples, child authorship, live backed holdings.\n"
+  },
+  {
+    "file": "v6-unit.ts",
+    "status": 0,
+    "output": "PASS search, tweet URL security, pot precision and thesis/call share text\nPASS full chunk coverage, name integrity, current balances, deduplication, ranking and disclosed failures\n"
+  },
+  {
+    "file": "v7-unit.ts",
+    "status": 0,
+    "output": "PASS Latest funded unpaid week selected; every week since deployment inspected, paid and empty excluded\nPASS A funded current week stays in Your week but the pot default selects the latest completed unpaid week\nPASS Own loaded theses are verified by noteOf and eligibleTheses, never a child-count inference\nPASS No thesis, another wallet, Annex entry and unfunded week produce no rows\nPASS Exact eligible, local deadline/link and expired lines; inclusive seven-day boundary\nPASS Actual viem fallback completes hook and Annex from deployment; archive failure and HTTP 429 retried elsewhere\nPASS All-node 429 leaves a coverage hole, preserves other logs, manual retry serves only holes plus overlap\nPASS Primary missing JSON-RPC result falls back to a healthy node and completes coverage\nPASS Missing JSON-RPC result on every node is never saved as covered empty history\n9 v7 unit scenarios passed; node log concurrency peaks 4, 3\n"
+  }
+]

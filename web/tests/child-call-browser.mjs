@@ -345,8 +345,11 @@ try {
     await open('/post?child='+id,{...ownThesis,noteAge:604700,reject:false});await callForm();
     await waitEnabled(await childAction('call'));await (await childAction('call')).click();
     await page.getByText(/Posted as/).waitFor();
+    // The record refetch can briefly switch the guided form while the posting
+    // receipt is already available. Wait for its venue notice before reading it.
+    await page.getByText(/The venue you chose is not stored on chain/).waitFor();
     const call=await sent('note');assert.equal(call.to.toLowerCase(),router.toLowerCase());
-    assert.equal(call.args[0].parentId,id);assert((await text()).includes('The venue you chose is not stored on chain'));assert.equal(call.args[0].side,0);
+    assert.equal(call.args[0].parentId,id);assert.equal(call.args[0].side,0);
     assert.equal(call.args[4],BigInt(f.now+100));assert(call.args[3]>0n);
     assert(f.rpc.some(r=>r.method==='eth_call'&&r.params[0].data===call.data));
     assert.equal(f.children,1);

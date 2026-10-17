@@ -11,6 +11,7 @@ import {
   type Chain,
   type Hex,
   type PublicClient,
+  type Transport,
   type WalletClient,
 } from 'viem';
 import { HookPricerAbi } from './pricer-abi';
@@ -68,11 +69,23 @@ export function makeChain(cfg: AppConfig): Chain {
 
 export function makePublicClient(cfg: AppConfig): PublicClient {
   const chain = makeChain(cfg);
+  const logCheckedHttp = (url: string): Transport => options => {
+    const node = http(url, { batch: true, retryCount: 0 })(options);
+    return custom({
+      request: async (args: Parameters<typeof node.request>[0], requestOptions: Parameters<typeof node.request>[1]) => {
+        const result = await node.request(args, requestOptions);
+        // Validate before fallback accepts this node. getLogs decodes afterwards,
+        // too late to retry an HTTP 200 response with a missing/invalid result.
+        if (args.method === 'eth_getLogs' && !Array.isArray(result)) throw new Error('The node returned no log result.');
+        return result;
+      },
+    }, { retryCount: 0 })(options);
+  };
   return createPublicClient({
     chain,
     ccipRead: false,
     // A rate limit (including HTTP 429) must pass this request to the next node.
-    transport: fallback(cfg.rpcUrls.map((u) => http(u, { batch: true, retryCount: 0 })), { retryCount: 0 }),
+    transport: fallback(cfg.rpcUrls.map(logCheckedHttp), { retryCount: 0 }),
     batch: { multicall: false },
   });
 }

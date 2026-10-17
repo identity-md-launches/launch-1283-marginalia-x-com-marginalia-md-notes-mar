@@ -28,9 +28,11 @@ let weeks=await readOpenWeeks(pub,hook,judge);
 await check('Latest funded unpaid week selected; every week since deployment inspected, paid and empty excluded',()=>{
  assert.equal(weeks.defaultWeek,week);assert.deepEqual(weeks.weeks.map(w=>w.week),[week,week-2]);assert.deepEqual(viewed,[week,week-2]);
 });
-await check('A newly funded current week becomes the default even before it has eligible theses',async()=>{
+await check('A funded current week stays in Your week but the pot default selects the latest completed unpaid week',async()=>{
  const funded={...pub,readContract:async(call:any)=>call.functionName==='thesisPool'&&call.args[0]===week+1?unit:(pub.readContract as any)(call)} as PublicClient;
- const result=await readOpenWeeks(funded,hook,judge);assert.equal(result.defaultWeek,week+1);assert.equal(result.weeks[0].eligible.length,0);
+ const result=await readOpenWeeks(funded,hook,judge);assert.equal(result.defaultWeek,week);assert.equal(result.weeks[0].week,week+1);assert.equal(result.weeks[0].eligible.length,0);
+ const paid={...funded,readContract:async(call:any)=>call.functionName==='paid'&&call.args[0]===week?true:(funded.readContract as any)(call)} as PublicClient;
+ assert.equal((await readOpenWeeks(paid,hook,judge)).defaultWeek,week-2);
 });
 const feed={notes:[{id,index:1n,author:wallet,targetBps:0,timestamp:week*604800+100}],loadedAt:now} as FeedData;
 await check('Own loaded theses are verified by noteOf and eligibleTheses, never a child-count inference',async()=>{
@@ -55,7 +57,7 @@ const event=parseAbiItem('event NotePosted(bytes32 indexed id, address indexed a
 const args={id,author:wallet,x:wallet,class:1,side:0,targetBps:0,horizonDays:0,parentId:zeroHash,text:'A historical thesis.'};
 const log={address:hook,topics:encodeEventTopics({abi:[event],eventName:'NotePosted',args}),data:encodeAbiParameters(event.inputs.filter(i=>!i.indexed),[1,0,0,0,zeroHash,args.text]),blockNumber:toHex(DEPLOY_BLOCK+100n),blockHash:zeroHash,transactionHash:id,transactionIndex:'0x0',logIndex:'0x0',removed:false};
 const head=DEPLOY_BLOCK+40999n;
-const attempts:{node:number;a:bigint;b:bigint}[]=[];const active=[0,0],peak=[0,0];let failAll=false,missingResult=false;
+const attempts:{node:number;a:bigint;b:bigint}[]=[];const active=[0,0],peak=[0,0];let failAll=false,missingResult: 'none' | 'primary' | 'all'='none';
 const servers=[0,1].map(node=>createServer(async(req,res)=>{
  let raw='';for await(const chunk of req)raw+=chunk;
  const input=JSON.parse(raw),rows=Array.isArray(input)?input:[input];
@@ -70,7 +72,7 @@ const servers=[0,1].map(node=>createServer(async(req,res)=>{
   else if(r.method==='eth_getLogs'){
    const a=BigInt(r.params[0].fromBlock),b=BigInt(r.params[0].toBlock);attempts.push({node,a,b});assert(b-a<2000n);
    if(node===0&&a===DEPLOY_BLOCK)return {jsonrpc:'2.0',id:r.id,error:{code:-32000,message:'archive unavailable'}};
-   if(missingResult&&a===DEPLOY_BLOCK+4000n)return {jsonrpc:'2.0',id:r.id};
+   if((missingResult==='all'||missingResult==='primary'&&node===0)&&a===DEPLOY_BLOCK+4000n)return {jsonrpc:'2.0',id:r.id};
    result=a<=DEPLOY_BLOCK+100n&&b>=DEPLOY_BLOCK+100n?[{...log,address:r.params[0].address}]:[];
   }else if(r.method==='eth_call')result=encodeFunctionResult({abi:MarginaliaHookAbi,functionName:'noteOf',result:{author:wallet,x:wallet,side:0,targetBps:0,horizonDays:0,class:1,status:6,postPrice:unit,postBalance:unit,deposit:unit,parentId:zeroHash,children:1}});
   else throw Error(r.method);
@@ -99,10 +101,17 @@ try{
   const retried=await loadFeed(rpc,contract);assert.equal(retried.partial,false);assert.equal(retried.notes.length,1);
   assert(attempts.filter(r=>r.node===0).every(r=>holes.includes(r.a)||r.a>=head-64n));
  });
- await check('Missing JSON-RPC result is never saved as covered empty history',async()=>{
-  missingResult=true;const contract=toHex(105,{size:20}) as Address;
+ await check('Primary missing JSON-RPC result falls back to a healthy node and completes coverage',async()=>{
+  missingResult='primary';attempts.length=0;const contract=toHex(106,{size:20}) as Address;
+  const first=await loadFeed(rpc,contract);assert.equal(first.partial,false);assert.deepEqual(first.failedRanges,[]);assert.equal(first.notes.length,1);
+  assert.deepEqual(attempts.filter(r=>r.a===DEPLOY_BLOCK+4000n).map(r=>r.node),[0,1]);
+ });
+ await check('Missing JSON-RPC result on every node is never saved as covered empty history',async()=>{
+  missingResult='all';attempts.length=0;const contract=toHex(105,{size:20}) as Address;
   const first=await loadFeed(rpc,contract);assert(first.partial);assert(first.failedRanges!.some(([a])=>a===DEPLOY_BLOCK+4000n));
+  assert.deepEqual(attempts.filter(r=>r.a===DEPLOY_BLOCK+4000n).map(r=>r.node),[0,1]);
   const cached=JSON.parse(storage.get(`marginalia.logs.v1.1.${contract}`)!);assert(!cached.ranges.some(([a,b]:any)=>BigInt(a.bigint)<=DEPLOY_BLOCK+4000n&&BigInt(b.bigint)>=DEPLOY_BLOCK+4000n));
+  missingResult='none';const retried=await loadFeed(rpc,contract);assert.equal(retried.partial,false);assert.equal(retried.notes.length,1);
  });
 }finally{await Promise.all(servers.map(s=>new Promise<void>(r=>s.close(()=>r()))));}
 console.log(`${checks} v7 unit scenarios passed; node log concurrency peaks ${peak.join(', ')}`);

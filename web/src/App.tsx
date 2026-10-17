@@ -71,36 +71,40 @@ export default function App() {
   }, []);
 
   const refreshFeed = useMemo(
-    () => () => {
-      if (!pub || !cfg) return;
-      setFeedLoading(true);
+    () => {
+      // Retain each contract's last snapshot until its replacement arrives, so a
+      // faster Hook refresh cannot remove a mounted Annex receipt or composer.
       const parts: Partial<Record<'hook' | 'annex', FeedData>> = {};
-      const publish = () => {
-        const h = parts.hook, a = parts.annex;
-        if (!h) return;
-        const waiting = !!cfg.annex && !a;
-        const f: FeedData = a ? {
-          ...h, notes: [...h.notes, ...a.notes].sort((x, y) => x.block > y.block ? -1 : 1),
-          byId: new Map([...h.byId, ...a.byId]), partial: h.partial || a.partial,
-          scanning: h.scanning || a.scanning,
-          warnings: [...h.warnings, ...a.warnings.map(w => `Annex: ${w}`)],
-          coverageDetails: [`Hook: ${h.coverage?.map(([x,y]) => `${x}–${y}`).join(', ') || 'none'}`, `Annex: ${a.coverage?.map(([x,y]) => `${x}–${y}`).join(', ') || 'none'}`],
-        } : { ...h, partial: h.partial || waiting, scanning: h.scanning || waiting };
-        setFeed(previous => ({ ...f, loadedAt: Math.max(Date.now(), (previous?.loadedAt ?? 0) + 1) }));
-        setFeedError(null);
+      return () => {
+        if (!pub || !cfg) return;
+        setFeedLoading(true);
+        const publish = () => {
+          const h = parts.hook, a = parts.annex;
+          if (!h) return;
+          const waiting = !!cfg.annex && !a;
+          const f: FeedData = a ? {
+            ...h, notes: [...h.notes, ...a.notes].sort((x, y) => x.block > y.block ? -1 : 1),
+            byId: new Map([...h.byId, ...a.byId]), partial: h.partial || a.partial,
+            scanning: h.scanning || a.scanning,
+            warnings: [...h.warnings, ...a.warnings.map(w => `Annex: ${w}`)],
+            coverageDetails: [`Hook: ${h.coverage?.map(([x,y]) => `${x}–${y}`).join(', ') || 'none'}`, `Annex: ${a.coverage?.map(([x,y]) => `${x}–${y}`).join(', ') || 'none'}`],
+          } : { ...h, partial: h.partial || waiting, scanning: h.scanning || waiting };
+          setFeed(previous => ({ ...f, loadedAt: Math.max(Date.now(), (previous?.loadedAt ?? 0) + 1) }));
+          setFeedError(null);
+        };
+        const hook = loadFeed(pub, cfg.hook, undefined, 'hook', f => { parts.hook = f; publish(); })
+          .then(f => { parts.hook = f; publish(); });
+        const annex = cfg.annex ? loadFeed(pub, cfg.annex, ANNEX_DEPLOY_BLOCK, 'annex', f => { parts.annex = f; publish(); })
+          .then(f => { parts.annex = f; publish(); })
+          .catch(() => {
+            parts.annex = { ...(parts.annex ?? { notes: [], byId: new Map(), seals: [], toBlock: 0n, loadedAt: Date.now() }), partial: true, scanning: false,
+              warnings: [parts.annex ? 'History refresh unavailable. Previously loaded calls are still shown; refresh to retry.' : 'History unavailable. Its calls are missing from this record.'] };
+            publish();
+          }) : Promise.resolve();
+        void Promise.all([hook, annex])
+          .catch((e) => setFeedError((e as Error).message))
+          .finally(() => setFeedLoading(false));
       };
-      const hook = loadFeed(pub, cfg.hook, undefined, 'hook', f => { parts.hook = f; publish(); })
-        .then(f => { parts.hook = f; publish(); });
-      const annex = cfg.annex ? loadFeed(pub, cfg.annex, ANNEX_DEPLOY_BLOCK, 'annex', f => { parts.annex = f; publish(); })
-        .then(f => { parts.annex = f; publish(); })
-        .catch(() => {
-          parts.annex = { notes: [], byId: new Map(), seals: [], toBlock: 0n, loadedAt: Date.now(), partial: true,
-            warnings: ['History unavailable. Its calls are missing from this record.'] };
-          publish();
-        }) : Promise.resolve();
-      void Promise.all([hook, annex])
-        .catch((e) => setFeedError((e as Error).message))
-        .finally(() => setFeedLoading(false));
     },
     [pub, cfg],
   );

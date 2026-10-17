@@ -1,0 +1,33 @@
+{
+  "commands": [
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run manifest",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run check",
+      "exitCode": 0
+    },
+    {
+      "command": "node tests/v7-manifest.mjs",
+      "exitCode": 0
+    }
+  ],
+  "configuration": "Existing package.json, lockfile, Vite and TypeScript configuration; dependency installation and build run in a temporary source mirror outside the repository. Final export copied to repository dist/.",
+  "output": {
+    "mainJavaScriptBytes": 753763,
+    "cssBytes": 39066,
+    "contracts": 7,
+    "assets": 22,
+    "viteReportedGzip": "219.45 kB"
+  },
+  "advisory": "Vite retains its existing warning about a chunk larger than 500 kB. No dependency or configuration change was made."
+}

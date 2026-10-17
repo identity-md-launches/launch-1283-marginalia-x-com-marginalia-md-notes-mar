@@ -1,0 +1,18 @@
+{
+  "manifestCheck": "passed in the build mirror; canonical ABI Keccak and asset SHA-256 checks pass",
+  "finalRepositorySHA256": "every exported file matches its manifest entry",
+  "assets": 22,
+  "contracts": 7,
+  "runtimeConfiguration": "all fields except final asset hashes equal the accepted v7 manifest",
+  "documentationCopies": "exact repository bytes",
+  "relativeStaticEntrypoints": [
+    "index.html",
+    "app/index.html"
+  ],
+  "externalScriptTags": [],
+  "builtSourceMatchesRepository": true,
+  "protectedPathsChanged": [],
+  "ignoreFilesChanged": [],
+  "findingResponses": 4,
+  "sourceDiffWhitespace": "git diff --check passes"
+}

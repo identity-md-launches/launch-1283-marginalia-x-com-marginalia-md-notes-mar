@@ -1,0 +1,18 @@
+{
+  "inactiveProtocolTests": [
+    {
+      "command": "node tests/feedback-worker.mjs",
+      "exitCode": 0,
+      "groupsPassed": 18
+    },
+    {
+      "command": "node tests/feedback-noted.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node tests/feedback-ledger.mjs",
+      "exitCode": 0
+    }
+  ],
+  "note": "Historical inactive service protocols retained. The exported paused Feedback route performs no signing, history/API read or Worker deployment."
+}

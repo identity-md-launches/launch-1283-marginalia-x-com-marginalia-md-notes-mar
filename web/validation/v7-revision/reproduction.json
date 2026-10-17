@@ -1,0 +1,45 @@
+{
+  "export": "accepted v7 export before this revision",
+  "checks": [
+    {
+      "finding": "acdb3044cda32d8760768b6d94f217cedadc865bf932e47e3bf9ad371d930993",
+      "test": "v7-unit: current chain week funded with empty eligibility; previous week funded and unpaid",
+      "observed": {
+        "defaultWeek": 2963,
+        "expected": 2962
+      },
+      "result": "reproduced"
+    },
+    {
+      "finding": "a973476a6941e740f8916385dca99cfe5607f51935f21da655d15411b3d112c2",
+      "test": "v3-browser: Observe on an Annex receipt, successful mocked transaction, Annex getLogs delayed 200 ms, Hook immediate; MutationObserver checks heading connectivity and missing-note transition",
+      "observed": {
+        "receiptLost": true,
+        "confirmations": 0,
+        "walletRequests": 1
+      },
+      "result": "reproduced",
+      "control": "All three retained Annex cases passed without the deliberate delay on this run; the delayed scenario consistently lost the receipt and confirmation."
+    },
+    {
+      "finding": "8ff8476ed6d96d0bd64fcc1e849518a2ee933ed51dd283710615d9c6c6fded67",
+      "test": "v7-unit: primary responds HTTP 200 with matching JSON-RPC id and no result for deployment+4000..+5999; secondary is healthy",
+      "observed": {
+        "partial": true,
+        "nodesAskedForMalformedRange": [
+          0
+        ]
+      },
+      "result": "reproduced"
+    },
+    {
+      "finding": "6ce6896c48adb7222d073b9225db74ad2a71e56d055afa33d8148af99e80b41b",
+      "test": "v7-browser: weekly pool table at 320 px with 507.6458 IMD and closed-without-judging state; computed style and DOM Range measurement",
+      "observed": {
+        "headerRightPadding": 0,
+        "headerToFollowingColumnGap": 0
+      },
+      "result": "reproduced"
+    }
+  ]
+}

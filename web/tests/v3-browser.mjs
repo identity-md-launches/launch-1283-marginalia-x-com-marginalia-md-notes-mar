@@ -222,6 +222,8 @@ async function open(route='/',patch={}) {
     const u=route.request().url();
     if(manifest.network.rpcUrls.some(r=>u===r||u===r+'/')) {
       const req=JSON.parse(route.request().postData());
+      const rows=Array.isArray(req)?req:[req];
+      if(f.annexLogDelay&&rows.some(r=>r.method==='eth_getLogs'&&r.params[0].address.toLowerCase()===annex.toLowerCase())) await new Promise(r=>setTimeout(r,f.annexLogDelay));
       const respond = r => {
         if(f.primaryRefusesHistory && u.startsWith(manifest.network.rpcUrls[0]) && r.method==='eth_getLogs' && BigInt(r.params[0].fromBlock)<f.head-7999n) {
           f.rpc.push(r);f.primaryFailures=(f.primaryFailures||0)+1;
@@ -284,6 +286,27 @@ try {
  await check('Unavailable USD stays explicit and does not block token-denominated posting',async()=>{await open('/call',{usd:false});await tradeReady();await waitEnabled(page.locator('.trade-action button'));assert.match(await text(),/USD unavailable/);assert(!/≈\s*\$/.test(await text()));});
  await check('Annex admission validates the batch and approves only the current panel fee',async()=>{await open('/call',{allowance:0n,reject:false});await page.getByText('Request a hook admission',{exact:true}).click();await page.locator('#admission-hooks').fill([other,other].join('\n'));assert.match(await text(),/distinct contract/);await page.locator('#admission-hooks').fill(other);const a=page.getByRole('button',{name:'Approve 0.5 IMD for admission',exact:true});await waitEnabled(a);await a.click();const r=page.getByRole('button',{name:'Request admission',exact:true});await waitEnabled(r);await r.click();await page.getByText(/Confirmed/).first().waitFor();const ap=await sent('approve');assert.equal(ap.args[0].toLowerCase(),annex.toLowerCase());assert.equal(ap.args[1],unit/2n);const request=await sent('requestAdmission');assert.deepEqual(request.args[0],[other]);});
  await check('Annex note lifecycle uses the Annex and current horizon',async()=>{await open('/note/'+id,{annexNotes:true,status:0,noteBlock:26179000n,horizonEnd:Math.floor(Date.now()/1000)-1800,reject:false});await page.getByRole('heading',{name:'Launched-token receipt',exact:true}).waitFor();const o=page.getByRole('button',{name:'Observe',exact:true});await waitEnabled(o);assert(await page.getByRole('button',{name:'Settle',exact:true}).isDisabled());await o.click();await page.getByText(/Confirmed/).first().waitFor();assert.equal((await sent('observe')).to.toLowerCase(),annex.toLowerCase());});
+ await check('Annex receipt and confirmation stay mounted while a slower Annex history refresh completes',async()=>{
+  await open('/note/'+id,{annexNotes:true,status:0,noteBlock:26179000n,horizonEnd:Math.floor(Date.now()/1000)-1800,reject:false,annexLogDelay:200});
+  await page.getByRole('heading',{name:'Launched-token receipt',exact:true}).waitFor();await page.locator('.history').waitFor({state:'hidden'});
+  await page.evaluate(()=>{
+   const heading=[...document.querySelectorAll('h1')].find(e=>e.textContent==='Launched-token receipt');
+   window.__receiptLost=false;
+   window.__receiptObserver=new MutationObserver(()=>{if(!heading.isConnected||document.querySelector('main').textContent.includes('This note is not in the available history'))window.__receiptLost=true;});
+   window.__receiptObserver.observe(document.querySelector('main'),{childList:true,subtree:true});
+  });
+  const before=f.rpc.filter(r=>r.method==='eth_getLogs'&&r.params[0].address.toLowerCase()===annex.toLowerCase()).length;
+  const observe=page.getByRole('button',{name:'Observe',exact:true});await waitEnabled(observe);await observe.click();
+  await page.waitForTimeout(1000);
+  const receiptLost=await page.evaluate(()=>window.__receiptLost),confirmations=await page.locator('.status.ok').count();
+  metrics.annexRefresh={receiptLost,confirmations,walletRequests:f.requests.length};await shot('annex-refresh-390');
+  assert(f.rpc.filter(r=>r.method==='eth_getLogs'&&r.params[0].address.toLowerCase()===annex.toLowerCase()).length>before,'The action must refresh Annex history');
+  assert.equal(receiptLost,false,'Loaded receipt disappeared during refresh');
+  assert.equal(confirmations,1);assert.match(await page.locator('.status.ok').innerText(),/Confirmed/);
+  assert.equal(await page.locator('.status.ok a').getAttribute('href'),manifest.network.explorer+'/tx/'+tx);
+  assert.equal(f.requests.length,1);assert.equal((await sent('observe')).to.toLowerCase(),annex.toLowerCase());
+  await page.evaluate(()=>window.__receiptObserver.disconnect());
+ });
  await check('Judging and treasury controls use fresh pool state and configured companions',async()=>{await open('/pools',{pool:3n*unit,reject:false});await page.locator('#judge-week').fill(String(Math.floor(f.now/604800)-2));const r=page.getByRole('button',{name:'Request judging',exact:true});await waitEnabled(r);await r.click();await page.getByText(/Confirmed/).first().waitFor();assert.equal((await sent('requestJudging')).to.toLowerCase(),judge.toLowerCase());const d=page.getByRole('button',{name:'Drip to the pools',exact:true});await waitEnabled(d);await d.click();await page.waitForFunction(()=>window.__sent.length===2);assert.equal((await sent('drip')).to.toLowerCase(),treasury.toLowerCase());});
  await check('All primary routes and secondary composer tabs reflow at 320 and 390',async()=>{
   for(const route of ['/scoreboard','/feed','/author/'+author,'/note/'+id,'/duel/'+toHex(2,{size:32}),'/post','/seal','/pools','/about','/pages/market_reader']){
