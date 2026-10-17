@@ -1,0 +1,55 @@
+{
+  "publicNodes": [
+    "https://rpc.mevblocker.io",
+    "https://gateway.tenderly.co/public/mainnet",
+    "https://ethereum-rpc.publicnode.com",
+    "https://eth.drpc.org"
+  ],
+  "chainId": 1,
+  "companionsVerified": true,
+  "currentWeek": 2963,
+  "defaultWeek": 2963,
+  "openWeeks": [
+    {
+      "week": 2963,
+      "pool": "19313148125119822049",
+      "eligible": 0
+    },
+    {
+      "week": 2962,
+      "pool": "558902097689499834642",
+      "eligible": 5
+    }
+  ],
+  "history": [
+    {
+      "source": "hook",
+      "toBlock": "26211374",
+      "notes": 16,
+      "complete": true,
+      "coverage": [
+        [
+          "26169583",
+          "26211374"
+        ]
+      ],
+      "failedRanges": [],
+      "warnings": []
+    },
+    {
+      "source": "annex",
+      "toBlock": "26211374",
+      "notes": 0,
+      "complete": true,
+      "coverage": [
+        [
+          "26178192",
+          "26211374"
+        ]
+      ],
+      "failedRanges": [],
+      "warnings": []
+    }
+  ],
+  "transactionsSent": 0
+}

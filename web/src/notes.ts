@@ -2,7 +2,7 @@
 // live `noteOf` state. The venue is not in NotePosted nor noteOf; it stays with the author (see Post).
 import { parseAbiItem, type Address, type Hex, type PublicClient } from 'viem';
 import { MarginaliaHookAbi } from './abi';
-import { DEPLOY_BLOCK, LOG_CHUNK, LOG_TAIL, LOG_HISTORY_CHUNKS, LOG_REORG_OVERLAP } from './config';
+import { DEPLOY_BLOCK, LOG_CHUNK, LOG_TAIL, LOG_CONCURRENCY, LOG_REORG_OVERLAP } from './config';
 
 export interface Settlement {
   status: number;
@@ -62,6 +62,10 @@ export interface FeedData {
   loadedAt: number;
   partial: boolean;
   warnings: string[];
+  scanning?: boolean;
+  coverage?: [bigint, bigint][];
+  coverageDetails?: string[];
+  failedRanges?: [bigint, bigint][];
 }
 
 const ev = {
@@ -74,8 +78,23 @@ const ev = {
 };
 
 // Store decoded events, never cached noteOf state, under a chain-and-hook-specific key.
-const fetchLogs = (pub: PublicClient, hook: Address, fromBlock: bigint, toBlock: bigint) =>
-  pub.getLogs({ address: hook, events: Object.values(ev), strict: true, fromBlock, toBlock });
+// Shared by hook and Annex scans, including fallback attempts: at most four log
+// requests can reach any node at once. A failed transport never becomes an empty result.
+const logQueues = new WeakMap<PublicClient, { active: number; waiting: (() => void)[] }>();
+async function fetchLogs(pub: PublicClient, hook: Address, fromBlock: bigint, toBlock: bigint) {
+  let queue = logQueues.get(pub);
+  if (!queue) { queue = { active: 0, waiting: [] }; logQueues.set(pub, queue); }
+  if (queue.active >= LOG_CONCURRENCY) await new Promise<void>(resolve => queue!.waiting.push(resolve));
+  else queue.active++;
+  try {
+    const logs = await pub.getLogs({ address: hook, events: Object.values(ev), strict: true, fromBlock, toBlock });
+    if (!Array.isArray(logs)) throw new Error('The node returned no log result.');
+    return logs;
+  } finally {
+    const next = queue.waiting.shift();
+    if (next) next(); else queue.active--;
+  }
+}
 type EventLog = Awaited<ReturnType<typeof fetchLogs>>[number];
 type Range = [bigint, bigint];
 interface LogCache {
@@ -127,10 +146,10 @@ function readCache(key: string): LogCache | undefined {
       && c.logs.every(l => typeof l.blockNumber === 'bigint' && l.args && l.eventName in ev)) return c;
   } catch { /* inaccessible, obsolete or corrupted local storage: read the recent chain tail */ }
 }
-async function mapBounded<T, R>(items: T[], fn: (item: T) => Promise<R>): Promise<R[]> {
+async function mapBounded<T, R>(items: T[], fn: (item: T) => Promise<R>, limit = 8): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let index = 0;
-  await Promise.all(Array.from({ length: Math.min(8, items.length) }, async () => {
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (index < items.length) { const i = index++; out[i] = await fn(items[i]); }
   }));
   return out;
@@ -146,22 +165,23 @@ async function blockTime(pub: PublicClient, n: bigint): Promise<number> {
   return t;
 }
 
-export function loadFeed(pub: PublicClient, hook: Address, deployBlock = DEPLOY_BLOCK, source: 'hook' | 'annex' = 'hook'): Promise<FeedData> {
+export function loadFeed(pub: PublicClient, hook: Address, deployBlock = DEPLOY_BLOCK, source: 'hook' | 'annex' = 'hook', onProgress?: (feed: FeedData) => void): Promise<FeedData> {
   let jobs = pending.get(pub);
   if (!jobs) { jobs = new Map(); pending.set(pub, jobs); }
   const key = hook.toLowerCase();
   const active = jobs.get(key);
   if (active) return active;
-  const job = scanFeed(pub, hook, deployBlock, source).finally(() => jobs!.delete(key));
+  const job = scanFeed(pub, hook, deployBlock, source, onProgress).finally(() => jobs!.delete(key));
   jobs.set(key, job);
   return job;
 }
 
-async function scanFeed(pub: PublicClient, hook: Address, deployBlock: bigint, source: 'hook' | 'annex'): Promise<FeedData> {
+async function scanFeed(pub: PublicClient, hook: Address, deployBlock: bigint, source: 'hook' | 'annex', onProgress?: (feed: FeedData) => void): Promise<FeedData> {
   const toBlock = await pub.getBlockNumber({ cacheTime: 0 });
   const key = `marginalia.logs.v1.1.${hook.toLowerCase()}`;
   let cache = readCache(key);
   const warnings: string[] = [];
+  const failedRanges: Range[] = [];
   if (cache?.anchor) {
     try {
       const anchor = await pub.getBlock({ blockNumber: cache.anchor.block });
@@ -193,6 +213,7 @@ async function scanFeed(pub: PublicClient, hook: Address, deployBlock: bigint, s
       saved.ranges = mergeRanges([...saved.ranges, [a, b]]);
       for (const block of tsCache.keys()) if (block >= a && block <= b) tsCache.delete(block);
     } catch {
+      failedRanges.push([a, b]);
       warnings.push(`The public nodes did not serve blocks ${a}–${b}. Other available entries are still shown.`);
     }
     // Save each completed request so a reload mid-batch keeps successful ranges, including empty ones.
@@ -200,38 +221,30 @@ async function scanFeed(pub: PublicClient, hook: Address, deployBlock: bigint, s
   };
   // Prioritize current events and the reorg overlap, retaining coverage if a rescan is refused.
   const recent = [[from, toBlock] as Range, ...missingRanges(saved.ranges, tailStart, from - 1n)];
-  let recentAttempts = 0;
-  for (const range of chunks(recent)) {
-    if (recentAttempts++ === Number(LOG_TAIL / LOG_CHUNK)) break;
-    await scanRange(range);
-  }
+  await mapBounded([...chunks(recent)], scanRange, LOG_CONCURRENCY);
 
-  // Sweep forward from deployment, skipping successful ranges. Wrap after reaching the tail so
-  // refused holes are retried on later batches without starving later, potentially readable history.
-  const historyEnd = tailStart - 1n;
-  const start = saved.historyCursor! < deployBlock || saved.historyCursor! > historyEnd ? deployBlock : saved.historyCursor!;
-  const history = [
-    ...missingRanges(saved.ranges, start, historyEnd),
-    ...missingRanges(saved.ranges, deployBlock, start - 1n),
-  ];
-  let attempted = 0;
-  for (const range of chunks(history)) {
-    if (attempted++ === LOG_HISTORY_CHUNKS) break;
-    await scanRange(range);
-    saved.historyCursor = range[1] >= historyEnd ? deployBlock : range[1] + 1n;
-    persist();
-  }
-  const logs = saved.logs;
-  logs.sort((a, b) => a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1);
-  const coverage = saved.ranges;
-  const partial = coverage.length !== 1 || coverage[0][0] > deployBlock || coverage[0][1] < toBlock;
-  if (partial) warnings.unshift(`History is incomplete. Each refresh reads recent events and continues a bounded history scan from deployment block ${deployBlock}. Successful ranges stay in this browser; missing ranges are retried on later batches. Notes, seals, observations and claims may be missing until coverage is complete.`);
+  // Publish the recent window before continuing automatically. Persist each result,
+  // skip cached ranges, and try every hole once; a failed chunk remains a manual retry.
+  const history = [...chunks(missingRanges(saved.ranges, deployBlock, tailStart - 1n))];
+  if (onProgress && history.length) onProgress(await hydrateFeed(pub, hook, source, saved, toBlock, deployBlock, [...warnings], failedRanges, true));
+  await mapBounded(history, scanRange, LOG_CONCURRENCY);
+  saved.historyCursor = deployBlock; // retain v1 cache compatibility
   const anchorBlock = toBlock - LOG_REORG_OVERLAP;
   if (anchorBlock >= deployBlock) {
     try { const anchor = await pub.getBlock({ blockNumber: anchorBlock }); if (anchor.hash) saved.anchor = { block: anchorBlock, hash: anchor.hash }; }
     catch { /* overlap is still re-read even if an anchor cannot be saved */ }
   }
   persist();
+  return hydrateFeed(pub, hook, source, saved, toBlock, deployBlock, warnings, failedRanges, false);
+}
+
+async function hydrateFeed(pub: PublicClient, hook: Address, source: 'hook' | 'annex', saved: LogCache, toBlock: bigint, deployBlock: bigint, warnings: string[], failedRanges: Range[], scanning: boolean): Promise<FeedData> {
+  const logs = [...saved.logs].sort((a, b) => a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1);
+  const coverage = saved.ranges.map(r => [...r] as Range);
+  const partial = missingRanges(coverage, deployBlock, toBlock).length > 0;
+  if (partial) warnings.unshift(scanning
+    ? `History scan continues automatically from deployment block ${deployBlock}. Older notes and theses are still loading.`
+    : `History is incomplete from deployment block ${deployBlock}. The public nodes refused the listed ranges. Load more history retries missing chunks; successful ranges stay in this browser.`);
   const posted = logs.filter(l => l.eventName === 'NotePosted');
   const settled = logs.filter(l => l.eventName === 'Settled');
   const observed = logs.filter(l => l.eventName === 'Observed');
@@ -305,7 +318,7 @@ async function scanFeed(pub: PublicClient, hook: Address, deployBlock: bigint, s
     timestamp: tsCache.get(l.blockNumber) ?? 0,
   }));
   seals.sort((a, b) => (a.block > b.block ? -1 : 1));
-  return { notes, byId, seals, toBlock, loadedAt: Date.now(), partial: partial || warnings.some(w => w.includes('temporarily omitted')), warnings };
+  return { notes, byId, seals, toBlock, loadedAt: Date.now(), scanning, coverage, failedRanges: [...failedRanges], partial: partial || warnings.some(w => w.includes('temporarily omitted')), warnings };
 }
 
 export function horizonEndOf(n: Note): number {

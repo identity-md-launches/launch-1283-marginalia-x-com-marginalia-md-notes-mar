@@ -1,0 +1,50 @@
+[
+  {
+    "suite": "child-call-browser",
+    "range": "0:11",
+    "exitCode": 0,
+    "seconds": 112.32
+  },
+  {
+    "suite": "child-call-browser",
+    "range": "11:23",
+    "exitCode": 0,
+    "seconds": 77.98
+  },
+  {
+    "suite": "v3-browser",
+    "range": "0:10",
+    "exitCode": 0,
+    "seconds": 58.99
+  },
+  {
+    "suite": "v3-browser",
+    "range": "10:21",
+    "exitCode": 0,
+    "seconds": 107.06
+  },
+  {
+    "suite": "v5-browser",
+    "range": "0:12",
+    "exitCode": 0,
+    "seconds": 86.31
+  },
+  {
+    "suite": "v5-browser",
+    "range": "12:24",
+    "exitCode": 0,
+    "seconds": 101.33
+  },
+  {
+    "suite": "v6-browser",
+    "range": "0:9",
+    "exitCode": 0,
+    "seconds": 49.61
+  },
+  {
+    "suite": "v6-browser",
+    "range": "9:18",
+    "exitCode": 0,
+    "seconds": 85.07
+  }
+]

@@ -226,8 +226,6 @@ export function Footer({ hook, marg }: { hook: Address; marg: Address }) {
           hook on Etherscan
         </a>{' '}
         ·{' '}
-        <a href="#/feedback">Feedback</a>{' '}
-        ·{' '}
         <a href="#/about">About</a>
       </p>
       <p>

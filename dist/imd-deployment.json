@@ -95,43 +95,43 @@
     },
     {
       "path": "agents.md",
-      "sha256": "f3139f9d975b8125718361dc50b0d2b0e0624d93a6f9fe28aeaba6bcf55058d9"
+      "sha256": "9faf2dc740bbba9586e56118bfc022eaa8f5791c16f947022a29a9f283831e92"
     },
     {
       "path": "app/index.html",
-      "sha256": "3a2a0591c0addb9fbc048bb78c1aff9f8889a1545333a89ab1cd84797d48cf9c"
+      "sha256": "f353071ecc89eddc659de50e59f9848a994e24a405c968613da7e452c2fb1db0"
     },
     {
-      "path": "assets/ccip-Cd1Xocel.js",
-      "sha256": "007fe7260ae0ee53a88d0ebd332c06340978bd52973e05192739548d49269cc8"
+      "path": "assets/ccip-BIoTOU7m.js",
+      "sha256": "d9b14188abcb67f7af6c5d42377ae322e09f709fad6ed50a15fa6d3790e95155"
     },
     {
-      "path": "assets/index-Cpz-eHKw.js",
-      "sha256": "ae6070050a61a96db739e77147676f448f5d33101b84e98abf04851110548ee0"
+      "path": "assets/index-CwW6e-PR.css",
+      "sha256": "3578b28b786f7bb2262cf6c7888c4bc0247125c29d3952d0d13f23dec8b72944"
     },
     {
-      "path": "assets/index-IkwAK3iA.css",
-      "sha256": "8cb1905ea71ef3b9d9c6c06f88fd3ae6916bcca8f136a6c27e37fe8589f153f7"
+      "path": "assets/index-D-OKcgqP.js",
+      "sha256": "aaf943628f1fd9017f109b64027c5a64a8405623476b3ea022f6d8b34cb020f4"
     },
     {
       "path": "docs/CHANGELOG.md",
-      "sha256": "0f845aa2b659aa5a61f3766bdf57b1b3b8b837c5fd1a0d668004913a6452aeba"
+      "sha256": "09cf59788789d22e513b860d310f2f8d72a555617c7941a44378fc50d16a3cc7"
     },
     {
       "path": "docs/STATUS.md",
-      "sha256": "a464868bbdde85717e6a7c62d9dab3a74c46f2cf833245c8d9cfabab4c659a07"
+      "sha256": "d31e52f60f776bba62ff01a8951a871c64d7dd89d1cac559a6bdd367a5651e33"
     },
     {
       "path": "docs/loop.md",
-      "sha256": "803829eed2a87d35ba81a095c173de64b7822bd4d6445a5c5ad8d3451df951fc"
+      "sha256": "6f1906eceb3049b67c31a8386dce058574de080d09c8206d3d0109ffb158df1b"
     },
     {
       "path": "index.html",
-      "sha256": "729fa8fdd2cb090c400076e2247f8aa58a7a9373ff8f0f933c70d6c9d81c4a9d"
+      "sha256": "8d61e2b4156f19699374597e2e674c037e9d861f24fe90b4fdc4b9cc3f810c66"
     },
     {
       "path": "llms.txt",
-      "sha256": "3fbf7e2f65960b21ba9322ecfc1f41ec4018d5649823b609216b8540600b102e"
+      "sha256": "b23e752f5d222222711827affedba4b353f9f98df8839df36759d7634d8741cd"
     },
     {
       "path": "share-card.png",
@@ -143,6 +143,8 @@
     "name": "Ethereum",
     "testnet": false,
     "rpcUrls": [
+      "https://rpc.mevblocker.io",
+      "https://gateway.tenderly.co/public/mainnet",
       "https://ethereum-rpc.publicnode.com",
       "https://eth.drpc.org"
     ],
@@ -181,6 +183,8 @@
     "chainId": "0x1",
     "chainName": "Ethereum",
     "rpcUrls": [
+      "https://rpc.mevblocker.io",
+      "https://gateway.tenderly.co/public/mainnet",
       "https://ethereum-rpc.publicnode.com",
       "https://eth.drpc.org"
     ],

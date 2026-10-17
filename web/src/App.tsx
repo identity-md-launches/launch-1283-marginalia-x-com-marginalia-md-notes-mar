@@ -74,29 +74,44 @@ export default function App() {
     () => () => {
       if (!pub || !cfg) return;
       setFeedLoading(true);
-      loadFeed(pub, cfg.hook)
-        .then(async (hookFeed) => {
-          let f = hookFeed;
-          if (cfg.annex) {
-            try { const a = await loadFeed(pub, cfg.annex, ANNEX_DEPLOY_BLOCK, 'annex'); f = { ...hookFeed, notes:[...hookFeed.notes,...a.notes].sort((x,y)=>x.block>y.block?-1:1),byId:new Map([...hookFeed.byId,...a.byId]),partial:hookFeed.partial||a.partial,warnings:[...hookFeed.warnings,...a.warnings.map(w=>`Annex: ${w}`)] }; }
-            catch { f = {...hookFeed,partial:true,warnings:[...hookFeed.warnings,'Annex history unavailable. Its calls are missing from this record.']}; }
-          }
-          setFeed(f);
-          setFeedError(null);
-        })
+      const parts: Partial<Record<'hook' | 'annex', FeedData>> = {};
+      const publish = () => {
+        const h = parts.hook, a = parts.annex;
+        if (!h) return;
+        const waiting = !!cfg.annex && !a;
+        const f: FeedData = a ? {
+          ...h, notes: [...h.notes, ...a.notes].sort((x, y) => x.block > y.block ? -1 : 1),
+          byId: new Map([...h.byId, ...a.byId]), partial: h.partial || a.partial,
+          scanning: h.scanning || a.scanning,
+          warnings: [...h.warnings, ...a.warnings.map(w => `Annex: ${w}`)],
+          coverageDetails: [`Hook: ${h.coverage?.map(([x,y]) => `${x}–${y}`).join(', ') || 'none'}`, `Annex: ${a.coverage?.map(([x,y]) => `${x}–${y}`).join(', ') || 'none'}`],
+        } : { ...h, partial: h.partial || waiting, scanning: h.scanning || waiting };
+        setFeed(previous => ({ ...f, loadedAt: Math.max(Date.now(), (previous?.loadedAt ?? 0) + 1) }));
+        setFeedError(null);
+      };
+      const hook = loadFeed(pub, cfg.hook, undefined, 'hook', f => { parts.hook = f; publish(); })
+        .then(f => { parts.hook = f; publish(); });
+      const annex = cfg.annex ? loadFeed(pub, cfg.annex, ANNEX_DEPLOY_BLOCK, 'annex', f => { parts.annex = f; publish(); })
+        .then(f => { parts.annex = f; publish(); })
+        .catch(() => {
+          parts.annex = { notes: [], byId: new Map(), seals: [], toBlock: 0n, loadedAt: Date.now(), partial: true,
+            warnings: ['History unavailable. Its calls are missing from this record.'] };
+          publish();
+        }) : Promise.resolve();
+      void Promise.all([hook, annex])
         .catch((e) => setFeedError((e as Error).message))
         .finally(() => setFeedLoading(false));
     },
     [pub, cfg],
   );
   useEffect(() => {
-    refreshFeed();
-  }, [refreshFeed]);
+    if (!feedbackRoute) refreshFeed();
+  }, [refreshFeed, feedbackRoute]);
 
   // The shell and Feedback remain reachable while verified chain reads are unavailable.
   if (!cfg || !pub || !contracts || bootError) return <Shell route={route} wallet={wallet}>
     <main id="main" tabIndex={-1} className="app-main">
-      {route.startsWith('/pages') ? <><h1>Pages</h1><p>Back a writer by holding their pages.</p><PagesSearch/><p role="status">{bootError ? 'Pages reads unavailable. Retry to load holdings and enable backing.' : 'Verifying Pages and reading Ethereum…'}</p>{bootError && <button onClick={() => window.location.reload()}>Retry connection</button>}</> : feedbackRoute ? <><h1>Feedback</h1><Feedback wallet={wallet} now={now}/></> : route.startsWith('/about') ? <><h1>About Marginalia</h1><Caveat/><p>Calls, theses and backing, recorded on Ethereum.</p></> : <>
+      {route.startsWith('/pages') ? <><h1>Pages</h1><p>Back a writer by holding their pages.</p><PagesSearch/><p role="status">{bootError ? 'Pages reads unavailable. Retry to load holdings and enable backing.' : 'Verifying Pages and reading Ethereum…'}</p>{bootError && <button onClick={() => window.location.reload()}>Retry connection</button>}</> : feedbackRoute ? <><h1>Feedback</h1><Feedback/></> : route.startsWith('/about') ? <><h1>About Marginalia</h1><Caveat/><p>Calls, theses and backing, recorded on Ethereum.</p></> : <>
         <div className="section-head"><h1>Feed</h1><button type="button" className="quiet" onClick={wallet.connect} disabled={wallet.connecting}>{wallet.account ? 'Wallet connected' : 'Connect wallet'}</button></div>
         <div className="feed-tabs tabs" aria-label="Feed views">{['Latest', 'Settling soon', 'Theses', 'Backed'].map(t => <button type="button" key={t} disabled>{t}</button>)}</div>
         <p className="empty" role="status">{bootError ? 'Ethereum reads unavailable. Retry to load the record and enable calls.' : 'Checking the deployment and reading Ethereum…'}</p>
@@ -117,7 +132,7 @@ export default function App() {
   if ((seg = m(/^\/author\/(0x[0-9a-fA-F]{40})$/))) page = <AuthorPage key={route} address={seg[1] as `0x${string}`} {...feedState} />;
   else if ((seg = m(/^\/note\/(0x[0-9a-fA-F]{1,64})$/))) { const n=feed?.notes.find(n=>n.id.toLowerCase()===seg![1].toLowerCase()); page = n?.source==='annex' ? <AnnexNote key={route} n={n} refresh={refreshFeed}/> : <NotePage key={route} id={seg[1] as `0x${string}`} {...feedState} />; }
   else if ((seg = m(/^\/duel\/(0x[0-9a-fA-F]{1,64})$/))) page = <DuelPage key={route} id={seg[1] as `0x${string}`} {...feedState} />;
-  else if (feedbackRoute) page = <><h1>Feedback</h1><section className="trade-shell writing-shell"><Feedback wallet={wallet} now={now}/></section></>;
+  else if (feedbackRoute) page = <><h1>Feedback</h1><section className="trade-shell writing-shell"><Feedback/></section></>;
   else if (route.startsWith('/feed')) { page = <FeedPage key={route} {...feedState} />; isFeedPage = true; }
   else if (route.startsWith('/call') || route.startsWith('/thesis') || (route.split('?')[0] === '/' && q.has('child'))) {
     const thesis = route.startsWith('/thesis');
@@ -141,9 +156,9 @@ export default function App() {
       <IdentityProvider><FeedContext.Provider value={feed}><DollarProvider>
         <Shell route={route} wallet={wallet} pot={<PotChip/>}>
           <main id="main" tabIndex={-1} className="app-main">
-            {wallet.account && !wallet.onChain && <WalletBar/>}
+            {!feedbackRoute && wallet.account && !wallet.onChain && <WalletBar/>}
             {wallet.error && !feedbackRoute && <p className="status bad" role="alert">{wallet.error}</p>}
-            {!isFeedPage && feed && (feed.partial || feed.warnings.length > 0) && <HistoryStatus {...feedState} />}
+            {!isFeedPage && !feedbackRoute && feed && (feed.partial || feed.warnings.length > 0) && <HistoryStatus {...feedState} />}
             {page}
           </main>
           <footer className="app-footer"><a href="#/about">About</a><a href="#/post">Exact-parameter Post</a><a href="#/seal">Seal</a></footer>

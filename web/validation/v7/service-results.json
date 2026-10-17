@@ -1,0 +1,18 @@
+{
+  "commands": [
+    {
+      "command": "node tests/feedback-worker.mjs",
+      "exitCode": 0,
+      "groups": 18
+    },
+    {
+      "command": "node tests/feedback-noted.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node tests/feedback-ledger.mjs",
+      "exitCode": 0
+    }
+  ],
+  "scope": "Historical inactive service protocols remain unchanged; observed worker results, not a production service check."
+}

@@ -18,7 +18,7 @@ export function Shell({ route, wallet, pot, children }: { route: string; wallet:
   const me = !!wallet.account && route.toLowerCase().startsWith(`/author/${wallet.account.toLowerCase()}`);
   return <div className="app-frame">
     <a className="skip-link" href="#main">Skip to content</a>
-    <header className="app-topbar"><a className="brand" href="#/"><span className="mark" aria-hidden="true">☞</span> Marginalia</a>{pot ?? <a className="pot-chip" href="#/pools" aria-label="Weekly pot unavailable · Open Pots"><span className="pot-wide">Weekly pot ◈ … IMD</span><span className="pot-narrow" aria-hidden="true">◈ … IMD</span></a>}<a className="feedback-link" href="#/feedback">Feedback</a></header>
+    <header className="app-topbar"><a className="brand" href="#/"><span className="mark" aria-hidden="true">☞</span> Marginalia</a>{pot ?? <a className="pot-chip" href="#/pools" aria-label="Weekly pot unavailable · Open Pots"><span className="pot-wide">Weekly pot ◈ … IMD</span><span className="pot-narrow" aria-hidden="true">◈ … IMD</span></a>}</header>
     {children}
     <nav className="bottom-bar" aria-label="App navigation">
       <a href="#/" aria-current={feed ? 'page' : undefined}><NavIcon name="feed"/>Feed</a>

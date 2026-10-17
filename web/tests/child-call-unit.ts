@@ -6,7 +6,7 @@ import { Status } from '../src/lib';
 const author = '0x1234567890AbcdEF1234567890aBcdef12345678' as const;
 const other = '0x2222222222222222222222222222222222222222' as const;
 const id = parentIdOf('0x1')!;
-const parent: ThesisParent = { id, author, status: Status.ThesisOpen, targetBps: 0, graceEnd: 604900, chainTime: 100 };
+const parent: ThesisParent = { id, author, status: Status.ThesisOpen, targetBps: 0, graceEnd: 604900, chainTime: 100, children: 0 };
 assert.equal(parentIdOf(' 0x1 '), id);
 assert.equal(parentIdOf('0xAB'), `0x${'0'.repeat(62)}ab`);
 for (const invalid of ['', '1', '0x', '0xxyz', zeroHash, `0x${'1'.repeat(65)}`]) assert.equal(parentIdOf(invalid), null);
@@ -36,7 +36,7 @@ const pub = {
   readContract: async (call: (typeof calls)[number]) => {
     calls.push(call);
     if (call.functionName === 'horizonEnd') return 100n;
-    return { author, status, targetBps: 0 };
+    return { author, status, targetBps: 0, children: 0 };
   },
 } as unknown as PublicClient;
 assert.deepEqual(await readThesisParent(pub, other, id, 604800), { ...parent, chainTime: 200 });

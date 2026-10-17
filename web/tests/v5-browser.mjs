@@ -286,7 +286,8 @@ async function callForm() {
   await page.waitForTimeout(200);
 }
 async function sent(fn){const all=await page.evaluate(()=>window.__sent);const entry=all.map(t=>({...t,...decodeFunctionData({abi,data:t.data})})).find(t=>t.functionName===fn);assert(entry,`No ${fn} wallet request`);return entry;}
-async function check(name,fn){if(process.env.TEST_FILTER&&!name.includes(process.env.TEST_FILTER))return;try{await fn();assert.deepEqual(errors,[],'Browser script errors');assert.deepEqual(external,[],'Unexpected outside request'); reports.push({name,result:'pass'});console.log('PASS',name);}catch(e){reports.push({name,result:'FAIL',error:e.stack});console.error('FAIL',name,e.message);if(page)console.error((await page.locator('body').innerText()).slice(0,3500));process.exitCode=1;}}async function tradeReady(){await page.locator('#trade-why').fill('A tested call');await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();}
+let checkIndex=0;
+async function check(name,fn){const index=checkIndex++;if(process.env.TEST_RANGE){const [start,end]=process.env.TEST_RANGE.split(':').map(Number);if(index<start||index>=end)return;}if(process.env.TEST_FILTER&&!name.includes(process.env.TEST_FILTER))return;try{await fn();assert.deepEqual(errors,[],'Browser script errors');assert.deepEqual(external,[],'Unexpected outside request'); reports.push({name,result:'pass'});console.log('PASS',name);}catch(e){reports.push({name,result:'FAIL',error:e.stack});console.error('FAIL',name,e.message);if(page)console.error((await page.locator('body').innerText()).slice(0,3500));process.exitCode=1;}}async function tradeReady(){await page.locator('#trade-why').fill('A tested call');await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();}
 async function waitEnabled(locator){await locator.waitFor();await page.waitForFunction(sel=>!document.querySelector(sel)?.disabled,await locator.evaluate(e=>{e.dataset.awaitEnabled='yes';return '[data-await-enabled="yes"]';}));}
 
 const social = {gallery:true,social:true};
@@ -422,11 +423,11 @@ try {
  await check('App host: root document mapping uses the same relative assets and runtime manifest',async()=>{
   await open('/',{...social,appHost:true});await page.goto(new URL(url).origin+'/');await page.locator('.social-card').first().waitFor();assert.equal(await page.locator('body').getAttribute('data-surface'),'app');assert.equal(await page.locator('main h1').innerText(),'Feed');assert.equal(await page.locator('.bottom-bar a').count(),5);assert.equal(f.requests.length,0);
  });
- await check('App shell: Feed first, pot, Feedback, five bottom controls and Me connect',async()=>{
+ await check('App shell: Feed first, pot, no Feedback entry, five bottom controls and Me connect',async()=>{
   await open('/',{...social,wallet:false});await page.locator('.social-card').first().waitFor();
   assert.equal(await page.locator('main h1').innerText(),'Feed');assert.deepEqual(await page.locator('.bottom-bar').locator('a,button').allTextContents(),['Feed','Pages','+','Record','Me']);
   assert.equal(await page.locator('.feed-tabs button').count(),4);await page.getByRole('button',{name:'Me · Connect wallet'}).click();await page.getByRole('alert').filter({hasText:'No browser wallet found'}).waitFor();
-  assert.match(await page.locator('.pot-chip').innerText(),/1\.0 IMD/);await page.getByRole('link',{name:'Feedback',exact:true}).click();await page.locator('#feedback-text').waitFor();
+  assert.match(await page.locator('.pot-chip').innerText(),/1\.0 IMD/);assert.equal(await page.getByRole('link',{name:'Feedback',exact:true}).count(),0);await page.goto(url+'app/#/feedback');await page.getByText('Feedback intake is paused.',{exact:false}).waitFor();
  });
  await check('Feed cards: hook and Annex, identity fallback, counts, age, claims and Counter Share Back',async()=>{
   await open('/',social);await page.locator('.social-card').first().waitFor();await page.locator('.social-card').filter({hasText:'Supply is falling'}).locator('.author-rate').filter({hasText:'%'}).waitFor();
@@ -470,9 +471,9 @@ try {
   await page.locator('#trade-token').fill(other);await page.getByRole('button',{name:'Close compose'}).click();await page.getByRole('link',{name:'Make a call',exact:true}).click();assert.equal(await page.locator('#trade-token').inputValue(),other);
   await page.keyboard.press('Escape');assert.equal(await page.locator('dialog').count(),0);assert(await page.locator('.compose-trigger').evaluate(e=>e===document.activeElement),'Compose restores focus to its trigger');await page.getByRole('link',{name:'Make a call',exact:true}).click();await page.getByRole('button',{name:'Close compose'}).focus();await page.keyboard.press('Shift+Tab');assert(await page.evaluate(()=>!!document.activeElement.closest('dialog')));
  });
- await check('Child-call fix: posted receipt on thesis card and page, further call is secondary',async()=>{
+ await check('Child-call fix: posted receipt on thesis card and page replaces the post-child action',async()=>{
   await open('/',{...social,childPosted:true});const label='Child call posted (No. 4)';await page.getByRole('link',{name:label,exact:true}).waitFor();assert.match(await page.locator('.social-card').filter({hasText:'own child call tests'}).innerText(),/under thesis No. 3/);
-  await page.goto(url+'app/#/note/'+toHex(3,{size:32}));await page.getByRole('link',{name:label,exact:true}).waitFor();assert.equal(await page.getByRole('link',{name:'Post the child call',exact:true}).count(),0);const more=page.getByRole('link',{name:'Post another child call',exact:true});await more.waitFor();assert(!(await more.getAttribute('class')).includes('primary'));
+  await page.goto(url+'app/#/note/'+toHex(3,{size:32}));await page.getByRole('link',{name:label,exact:true}).waitFor();assert.equal(await page.getByRole('link',{name:'Post the child call',exact:true}).count(),0);assert.equal(await page.getByRole('link',{name:'Post another child call',exact:true}).count(),0);
  });
  await check('Every app surface: 320 and 390 dark, no overflow, score absent, phone first action',async()=>{
   for(const route of ['/','/call','/thesis','/author/'+author,'/scoreboard','/pools','/post','/seal','/about','/feedback','/note/'+toHex(1,{size:32}),'/pages/market_reader']) {

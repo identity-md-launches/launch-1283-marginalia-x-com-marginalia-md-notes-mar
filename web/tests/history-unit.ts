@@ -59,7 +59,7 @@ await check('Returning browser retrieves the served gap after a 9,000-block abse
   assert.deepEqual(feed.notes.map(n => n.index), [2n, 1n]);
   assert.equal(feed.partial, false);
 });
-await check('Historical cursor advances across bounded batches and all six event types join', async () => {
+await check('Automatic scan covers all history in one load and all six event types join', async () => {
   const f = fixture(50000n); const note = f.posted(1, 16000n); f.events.push(note);
   const base = { blockNumber: DEPLOY_BLOCK + 16100n, transactionHash: note.transactionHash };
   f.events.push(
@@ -70,12 +70,10 @@ await check('Historical cursor advances across bounded batches and all six event
     { ...base, logIndex: 5, eventName: 'Revealed', args: { id: note.args.id, hash: note.args.id } },
   );
   let feed = await f.load();
-  assert(feed.partial); assert(f.calls.length <= 8);
+  assert.equal(feed.partial, false);
+  assert.equal(f.calls.length, 26);
   const saved = JSON.parse(storage.get(f.key)!);
-  assert(BigInt(saved.historyCursor.bigint) > DEPLOY_BLOCK);
-  for (let i = 0; feed.partial && i < 10; i++) {
-    f.calls.length = 0; feed = await f.load(); assert(f.calls.length <= 8);
-  }
+  assert.equal(BigInt(saved.historyCursor.bigint), DEPLOY_BLOCK);
   assert.equal(feed.partial, false);
   assert.equal(feed.notes.length, 1);
   assert.equal(feed.notes[0].observations[0].xRead, 99n);

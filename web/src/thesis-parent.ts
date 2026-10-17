@@ -9,6 +9,7 @@ export interface ThesisParent {
   targetBps: number;
   graceEnd: number;
   chainTime: number;
+  children?: number;
 }
 
 export function parentIdOf(value: string): Hex | null {
@@ -34,7 +35,7 @@ export async function readThesisParent(pub: PublicClient, hook: Address, id: Hex
     const note = await pub.readContract({ ...at, functionName: 'noteOf', args: [id] });
     // A thesis has zero horizon, so horizonEnd is its original postedAt timestamp.
     const postedAt = note.targetBps === 0 ? Number(await pub.readContract({ ...at, functionName: 'horizonEnd', args: [id] })) : 0;
-    return { id, author: note.author, status: note.status, targetBps: note.targetBps, graceEnd: postedAt + grace, chainTime: Number(block.timestamp) };
+    return { id, children: Number(note.children), author: note.author, status: note.status, targetBps: note.targetBps, graceEnd: postedAt + grace, chainTime: Number(block.timestamp) };
   } catch (error) {
     const revert = error instanceof BaseError ? error.walk(e => e instanceof ContractFunctionRevertedError) : undefined;
     if (revert instanceof ContractFunctionRevertedError && revert.data?.errorName === 'UnknownNote') {

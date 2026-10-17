@@ -70,9 +70,9 @@ export function NotePage({ id: rawId, feed, error, loading, refresh }: FeedProps
       <p className="entry-claim">
         {thesis ? 'Thesis' : <>{n.x.toLowerCase() === contracts.marg.toLowerCase() ? 'MARG' : <Addr a={n.x} />} {describeTarget(n.side, n.targetBps)} within {n.horizonDays} days</>}
       </p>
-      {thesis && <ChildPosted n={n} feed={feed}/>}
-      {thesis && childParent.ready && childParent.parent && <div className="actions">
-        <a className={n.children > 0 || postedChild(n, feed) ? "small" : "button primary"} href={childCallHref(n.id)}>{n.children > 0 || postedChild(n, feed) ? "Post another child call" : "Post the child call"}</a>
+      {thesis && <ChildPosted n={{...n, children: childParent.parent?.children ?? n.children}} feed={feed}/>}
+      {thesis && mine && n.children === 0 && (childParent.parent?.children ?? 0) === 0 && !postedChild(n, feed) && childParent.ready && childParent.parent && <div className="actions">
+        <a className="button primary" href={childCallHref(n.id)}>Post the child call</a>
         <span className="small">Due {fmtDate(childParent.parent.graceEnd)}</span>
       </div>}
       <Citation text={n.text} />

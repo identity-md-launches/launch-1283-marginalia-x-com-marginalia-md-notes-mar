@@ -1,0 +1,45 @@
+
+> marginalia-site@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> marginalia-site@0.1.0 build
+> tsc -p tsconfig.json --noEmit && vite build
+
+vite v7.1.9 building for production...
+transforming...
+✓ 502 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/index.html                   2.47 kB │ gzip:   0.92 kB
+../dist/assets/index-CwW6e-PR.css   38.99 kB │ gzip:   8.16 kB
+../dist/assets/ccip-BIoTOU7m.js      2.89 kB │ gzip:   1.33 kB
+../dist/assets/index-D-OKcgqP.js   753.39 kB │ gzip: 219.32 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 7.24s
+
+> marginalia-site@0.1.0 manifest
+> node scripts/manifest.mjs
+
+wrote dist/imd-deployment.json: 7 contracts, 22 assets, network=true
+
+> marginalia-site@0.1.0 check
+> node scripts/check.mjs
+
+note: assets/index-D-OKcgqP.js contains URL https://abitype.dev${o}
+note: assets/index-D-OKcgqP.js contains URL https://docs.soliditylang.org/en/latest/cheatsheet.html
+note: assets/index-D-OKcgqP.js contains URL https://4byte.sourcify.dev/?q=${n}.
+note: assets/index-D-OKcgqP.js contains URL https://4byte.sourcify.dev/?q=${b}.
+note: assets/index-D-OKcgqP.js contains URL https://oxlib.sh
+note: assets/index-D-OKcgqP.js contains URL https://ipfs.io
+note: assets/index-D-OKcgqP.js contains URL https://arweave.net
+note: assets/index-D-OKcgqP.js contains URL https://ipfs.io/ipfs/
+note: assets/index-D-OKcgqP.js contains URL https://${n[1].toLowerCase(
+note: assets/index-D-OKcgqP.js contains URL https://${n}
+note: assets/index-D-OKcgqP.js contains URL https://x.com/intent/tweet?text=${encodeURIComponent(D.message
+manifest check OK: 7 contracts, 22 assets
+PASS v7 manifest: exact ordered public RPC and wallet lists; all other chain settings preserved

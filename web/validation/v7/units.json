@@ -1,0 +1,42 @@
+[
+  {
+    "suite": "backers-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "child-call-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "history-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "revision-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "trade-receipt-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "v2-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "v3-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "v5-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "v6-unit.ts",
+    "exitCode": 0
+  },
+  {
+    "suite": "v7-unit.ts",
+    "exitCode": 0
+  }
+]

@@ -71,7 +71,8 @@ export function makePublicClient(cfg: AppConfig): PublicClient {
   return createPublicClient({
     chain,
     ccipRead: false,
-    transport: fallback(cfg.rpcUrls.map((u) => http(u, { batch: true, retryCount: 2 }))),
+    // A rate limit (including HTTP 429) must pass this request to the next node.
+    transport: fallback(cfg.rpcUrls.map((u) => http(u, { batch: true, retryCount: 0 })), { retryCount: 0 }),
     batch: { multicall: false },
   });
 }

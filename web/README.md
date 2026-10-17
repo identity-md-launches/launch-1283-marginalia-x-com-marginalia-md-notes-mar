@@ -1,4 +1,4 @@
-# Marginalia site v6
+# Marginalia site v7
 
 React 19, TypeScript, Vite and viem, retaining the project's existing dependency lock and build configuration. The repository-root `dist/` is the complete static export. The landing is `dist/index.html`; the app is `dist/app/index.html`. Both use one compiled component tree, local bundled scripts and `dist/imd-deployment.json`. No wallet key, provider key or WalletConnect project ID is required. Visitors sign with an injected EIP-1193 wallet.
 
@@ -22,11 +22,11 @@ From the repository root run `python3 -m http.server 4173 --directory dist` and 
 
 Publish the complete `dist/` tree. At marginalia.chat, `/` serves index.html and `/app/` serves app/index.html. At app.marginalia.chat, map only the root document `/` to dist/app/index.html, while `/assets/`, `/abi/`, `/imd-deployment.json`, `/agents.md`, `/llms.txt`, `/docs/` and `/share-card.png` serve the same files from dist root. This is an entrypoint mapping, not a second independently configured build. The app's relative `../` assets resolve correctly from `/app/` and normalize to the root on the app host. Do not deploy only the app directory: its shared assets live above it. Generic OG imagery uses the given marginalia.chat domain; route-specific unfurls remain client-side share cards.
 
-Feedback still POSTs to same-origin `/api/feedback` with the exact v3.2 message shape and reads the same public documents. Mount the existing Worker routes on each served origin using the same service/storage; do not change the message's `site:'marginalia.chat'`. See [worker/README.md](worker/README.md). Plain static hosts without that optional route show the intake failure honestly. Nothing here publishes the Worker, DNS or an IPFS CID.
+Feedback intake and weekly ranking are paused. Old `#/feedback` and `#/?tab=feedback` links show only the requested X contact paragraph, without API/history reads or signatures. No Feedback navigation entry remains. Historical Worker code and its protocol tests are retained as inactive source; no Worker deployment is required.
 
 ## Configuration and safety
 
-`deployment/mainnet.json` preserves the supplied main deployment, `deployment/network.json` the unchanged chain table, and `deployment/integrations.json` the explicitly authorized Annex, Pages and read-only LARP contracts. These are build inputs. At runtime `src/config.ts` loads only the exported manifest for deployment addresses, ABI paths, chain/network and Uniswap configuration. Boot checks ABI hashes, chain ID, code and hook/router/Annex/Pages bindings. Factories and WETH are checked against the router. Unknown-chain switch failures offer the unchanged wallet_addEthereumChain parameters and switch again.
+`deployment/mainnet.json` preserves the supplied main deployment, `deployment/network.json` the chain table with the owner-authorized v7 public RPC order, and `deployment/integrations.json` the explicitly authorized Annex, Pages and read-only LARP contracts. These are build inputs. At runtime `src/config.ts` loads only the exported manifest for deployment addresses, ABI paths, chain/network and Uniswap configuration. Boot checks ABI hashes, chain ID, code and hook/router/Annex/Pages bindings. Factories and WETH are checked against the router. Unknown-chain switch failures offer the configured wallet_addEthereumChain parameters and switch again.
 
 LARP is pinned to launch 1436 source `0ef5649c67e948c75bf432d619dbf0613648cb8d`; [provenance](../docs/integrations/larp.md) records full hashes, public-source verification and passive avatar policy. Failed identity reads show addresses/generated marks. An X citation is never an author's identity. No remote script, identity write or name-registration control was added.
 
@@ -48,7 +48,7 @@ All existing transaction paths remain: exact router/Annex/Pages allowances, hook
 | `#/pools` | Deposits/refunds, sweep, judging request/payment/abandonment, treasury drip |
 | `#/pages` | Search handle or wallet, subjects ranked by verified backers then supply, next-page quote, Your pages and sell-back |
 | `#/pages/<handle>` | Handle registration/trades, escrow and recycle date, exact sentence → URL/ID → 0.5 IMD approval → claim request → pending/answer/deadline; abandon, recycle and deferred burn |
-| `#/feedback`, `#/?tab=feedback` | Unchanged signed Feedback intake and board |
+| `#/feedback`, `#/?tab=feedback` | Paused contact paragraph; no form or service reads |
 | `#/about` | Full caveat, mechanics, identity explanation, contracts and agent documents |
 
 Hit rate excludes no-data outcomes and always has its settled sample beside it. Contract score is still read as part of the immutable record tuple but has no rendered surface. Missing history, backing reads or receipt amounts are disclosed rather than shown as zero. A WETH-funded trade may show its historical IMD equivalent, explicitly approximate; when that quote is unavailable it shows WETH and says the equivalent is unavailable. Neither value enters transaction or settlement math.
@@ -58,6 +58,7 @@ Hit rate excludes no-data outcomes and always has its settled sample beside it. 
 From `web/`, with Playwright installed outside the repository and Chromium available:
 
 ```sh
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v7 node tests/v7-browser.mjs
 PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v6 node tests/v6-browser.mjs
 PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v5 node tests/v5-browser.mjs
 PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs EVIDENCE_DIR=../test/scratch/v4 node tests/v4-browser.mjs
@@ -84,3 +85,15 @@ This is the owner's Pages product brief, with no credits or attestation. The v5 
 `tests/v6-unit.ts` covers search and tweet parsing, full log coverage, fixed-block verification, rank order, unknown values, fixed-decimal pots and share text. `tests/v6-browser.mjs` drives the production export for discovery, sell-back, claim sequence and URL parsing, pending polling/payee/deadline, wallet changes/rejection, exact approvals, copy and responsive layouts. `tests/v6-live.ts` is an optional read-only smoke check: bundle it like the units, then pass the authorized RPC URL and the absolute manifest path. It prints public-source evidence without recording the supplied RPC URL and sends no transaction. The live oracle fee is checked before each claim signature; a value other than the brief's 0.5 IMD disables this flow.
 
 Dependency and build configuration remain unchanged. This task installed the existing lockfile in a temporary mirror under `/tmp/`, built there, and copied the production export back, avoiding edits to repository node_modules or package files. Build, typecheck, browser, manifest and pinned-design results are in VALIDATION.md; publication remains pending.
+
+## v7 continuation
+
+The own profile adds Your week for every positive, unpaid thesis pool, using judge eligibility and fresh noteOf verification. The same lines appear under the selected pot's judging controls. Pots finds the newest funded unpaid chain week by reading every week since deployment; manual selection is retained. The exact child badges remain; an existing child removes the own-thesis post-child button.
+
+`deployment/network.json` is the sole build input for the RPC lists: MEV Blocker, Tenderly public mainnet, PublicNode, dRPC. This explicit v7 request overrides the older two-node pinned list; all addresses and other network fields remain identical. At runtime the manifest supplies these lists to viem fallback and wallet_addEthereumChain. HTTP 429 is a transport failure, not an empty history result.
+
+The event loader preserves v1 caches and publishes the recent 8,000 blocks first, then scans every missing 2,000-block range automatically. Hook and Annex share a queue of four log requests. Each successful result is persisted immediately, including an actual empty array; missing results and all-node failures remain holes. Once the pass finishes, Load more history manually retries holes (and refreshes the live reorg overlap). Coverage, incomplete/complete status and live-state read failures remain explicit.
+
+`tests/v7-unit.ts` checks week discovery, all three line states, no-thesis cases and actual local HTTP fallback with archive errors, HTTP 429, missing results, shared concurrency and cache recovery. `tests/v7-browser.mjs` checks the production UI, automatic history, links, defaults, retained badges, Feedback removal and responsive keyboard layouts. The retained feedback-browser tests now assert the paused route; historical service protocol tests remain runnable. See VALIDATION.md for current results and untested live-chain behavior.
+
+The optional `tests/v7-live.ts` smoke check takes the runtime manifest path (no wallet or RPC credential), uses its exact public node order, verifies companion bindings and scans Hook/Annex history. Its printed chain state is dated evidence, not a fixed default week. For bounded browser runs, `TEST_RANGE=start:end` selects zero-based scenarios, end exclusive; for example run v5 with `0:12` and `12:24` to include all 23 cases. Final v7 worker results are 110 current Chromium scenarios and ten unit suites; Safari and funded actions remain unverified.

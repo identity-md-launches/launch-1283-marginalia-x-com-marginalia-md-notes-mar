@@ -1,10 +1,10 @@
 # Marginalia — notes in the margin of every trade
 
-## Static site v6
+## Static site v7
 
 The landing and social app are delivered in `web/` and repository-root `dist/`. Open `dist/index.html` through a static server for the landing or `dist/app/index.html` for the feed. The app keeps every existing contract control, adds read-only LARP identity and ranks records only by hit rate with settled count. The Pages tab adds handle/wallet search, ranked subjects and your sellable holdings. Handle claims follow the exact sentence, tweet URL/ID, exact approval, request and pending/answered states; caveats distinguish immutable contracts from the rebuilt site. The child-call suite remains ported to app routes. No contract is deployed by this job.
 
-See [frontend setup and hosting](web/README.md), [worker validation](web/VALIDATION.md), [design](DESIGN.md), [function-to-home map](docs/STATUS.md) and [LARP provenance](docs/integrations/larp.md). Publication, funded wallet actions and production Feedback mounting remain operator steps.
+See [frontend setup and hosting](web/README.md), [worker validation](web/VALIDATION.md), [design](DESIGN.md), [function-to-home map](docs/STATUS.md) and [LARP provenance](docs/integrations/larp.md). Your week now shows own-thesis eligibility and child-call deadlines on Me and Pots. Pots selects the newest funded unpaid week; the history loader automatically completes deployment coverage through the ordered public fallback nodes. Feedback navigation/intake is paused; old routes show the X contact paragraph. Publication and funded wallet actions remain operator steps.
 
 This launch deploys the fixed-supply Marginalia token and its Uniswap v4 hook on Ethereum mainnet. The hook clones the live launch-1240 Router, Judge and Treasury and calls the live Pricer; none of those implementations is redeployed. Buying MARG through the
 router with a note attached posts a falsifiable call on an ERC-20 other than IMD itself, backed by a flat 0.1 IMD stamp and an

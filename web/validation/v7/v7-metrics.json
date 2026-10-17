@@ -1,0 +1,86 @@
+{
+  "/author/0x1111111111111111111111111111111111111111 light": [
+    {
+      "width": 320,
+      "scroll": 320
+    },
+    {
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "width": 1440,
+      "scroll": 1440
+    }
+  ],
+  "lightEligibilityContrast": [
+    {
+      "selector": ".your-week li",
+      "color": "rgb(29, 26, 22)",
+      "background": "rgb(246, 241, 231)",
+      "contrast": 15.396841810687667
+    },
+    {
+      "selector": ".your-week a",
+      "color": "rgb(166, 60, 24)",
+      "background": "rgb(246, 241, 231)",
+      "contrast": 5.685760461413468
+    }
+  ],
+  "/pools light": [
+    {
+      "width": 320,
+      "scroll": 320
+    },
+    {
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "width": 1440,
+      "scroll": 1440
+    }
+  ],
+  "/author/0x1111111111111111111111111111111111111111 dark": [
+    {
+      "width": 320,
+      "scroll": 320
+    },
+    {
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "width": 1440,
+      "scroll": 1440
+    }
+  ],
+  "darkEligibilityContrast": [
+    {
+      "selector": ".your-week li",
+      "color": "rgb(236, 229, 214)",
+      "background": "rgb(21, 19, 15)",
+      "contrast": 14.793551878728657
+    },
+    {
+      "selector": ".your-week a",
+      "color": "rgb(241, 162, 129)",
+      "background": "rgb(21, 19, 15)",
+      "contrast": 9.033471666933785
+    }
+  ],
+  "/pools dark": [
+    {
+      "width": 320,
+      "scroll": 320
+    },
+    {
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "width": 1440,
+      "scroll": 1440
+    }
+  ]
+}

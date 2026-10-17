@@ -38,6 +38,6 @@ export function Landing() {
       <a className="button primary launch-app" href="./app/">Launch app <span aria-hidden="true">↗</span></a>
       <Caveat />
     </main>
-    <footer><a href="./app/#/feedback">Feedback</a><a href="./app/#/about">About</a><a href="./agents.md">agents.md</a><a href="./llms.txt">llms.txt</a></footer>
+    <footer><a href="./app/#/about">About</a><a href="./agents.md">agents.md</a><a href="./llms.txt">llms.txt</a></footer>
   </div>;
 }

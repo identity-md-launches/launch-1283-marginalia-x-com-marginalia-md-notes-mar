@@ -8,11 +8,12 @@ export function HistoryStatus({ feed, loading, refresh }: { feed: FeedData | nul
   return (
     <details className="history small">
       <summary aria-label={`${count}. ${status}. Read coverage details`}>
-        {count}{(feed.partial || feed.warnings.length > 0) && <> · <strong>{status}</strong></>}
+        {count} · <strong>{status}</strong>
       </summary>
-      <p>Read up to block {feed.toBlock.toString()}. {feed.partial ? 'Load more history to continue the scan and retry missing ranges.' : 'Event coverage from deployment is complete.'}</p>
+      <p>Read up to block {feed.toBlock.toString()}. {feed.scanning ? 'Older history is loading automatically.' : feed.partial ? 'Load more history to retry missing ranges.' : 'Event coverage from deployment is complete.'}</p>
+      {feed.coverageDetails ? feed.coverageDetails.map(detail => <p key={detail}>Covered blocks · {detail}.</p>) : feed.coverage && <p>Covered blocks: {feed.coverage.map(([a, b]) => `${a}–${b}`).join(', ') || 'none yet'}.</p>}
       {feed.warnings.length > 0 && <ul>{feed.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
-      {(feed.partial || feed.warnings.length > 0) && <button type="button" className="quiet" onClick={refresh} disabled={loading}>{loading ? 'Reading…' : feed.partial ? 'Load more history' : 'Refresh history'}</button>}
+      {!feed.scanning && (feed.partial || feed.warnings.length > 0) && <button type="button" className="quiet" onClick={refresh} disabled={loading}>{loading ? 'Reading…' : feed.partial ? 'Load more history' : 'Refresh history'}</button>}
     </details>
   );
 }

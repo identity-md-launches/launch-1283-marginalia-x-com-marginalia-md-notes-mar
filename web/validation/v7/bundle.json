@@ -1,0 +1,12 @@
+{
+  "limitBytes": 8388608,
+  "submissionFiles": 743,
+  "submissionFileBytes": 7390638,
+  "exportFiles": 23,
+  "exportBytes": 1135113,
+  "protectedPathsChanged": [],
+  "dependencyCachesOrArchives": [],
+  "gitSubmodules": 0,
+  "assetCount": 22,
+  "validation": "All current source/export files including this report, excluding pinned inputs and test/scratch, fit below the complete-submission budget. No ignore file changed."
+}

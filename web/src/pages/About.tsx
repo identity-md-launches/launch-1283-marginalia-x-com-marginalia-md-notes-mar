@@ -68,7 +68,7 @@ export function AboutPage() {
         </dd>
       </dl>
       <p className="small">
-        Marginalia has no owner, pause or upgrade. Trading reads the chain through the public nodes above and signs with your wallet only; Feedback uses the same-origin intake. The site has no analytics.
+        Marginalia has no owner, pause or upgrade. Trading reads the chain through the public nodes above and signs with your wallet only. The site has no analytics.
       </p>
     </>
   );

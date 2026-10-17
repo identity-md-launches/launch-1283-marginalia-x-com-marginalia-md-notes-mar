@@ -147,7 +147,7 @@ export function PoolsPage({ feed, refresh }: FeedProps) {
           })}
         </tbody>
       </table>
-      <JudgingControls/>
+      <JudgingControls feed={feed}/>
       <h2>Sweep</h2>
       <p className="small">
         A pool left unclaimed for 28 days after its period rolls forward into the current week's thesis prize. Anyone may sweep; it pays nothing. A

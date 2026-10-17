@@ -180,3 +180,9 @@ summary { cursor:pointer; min-height:44px; padding-block:.6rem; }
 /* Keep browser focus scrolling above the fixed app navigation. */
 html { scroll-padding-block-end:calc(6rem + env(safe-area-inset-bottom)); }
 .handle-claim :is(input, textarea, button, a) { scroll-margin-block:1rem 6rem; }
+
+/* Own thesis eligibility uses the existing paper, type and link tokens. */
+.your-week { margin-block: 0 24px; }
+.your-week h2 { margin-block: 0 12px; }
+.your-week ul { margin: 0; padding-inline-start: 20px; }
+.your-week li { margin-block: 8px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }

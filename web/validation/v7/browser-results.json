@@ -1,0 +1,477 @@
+{
+  "v3": {
+    "passed": 20,
+    "scenarios": [
+      {
+        "name": "Trade first, caveat visible, no Pages without manifest; mobile and desktop fit",
+        "result": "pass"
+      },
+      {
+        "name": "Absent wallet gives actionable feedback",
+        "result": "pass"
+      },
+      {
+        "name": "Wrong chain precedes signing; unknown chain receives exact add-chain parameters",
+        "result": "pass"
+      },
+      {
+        "name": "Exact combined IMD approval, confirmation, then bounded tradeAndNote simulation and signing",
+        "result": "pass"
+      },
+      {
+        "name": "Wallet rejection recovers and no double submission during pending approval",
+        "result": "pass"
+      },
+      {
+        "name": "Missing checkpoint saves draft and exposes countdown without real-time waiting",
+        "result": "pass"
+      },
+      {
+        "name": "Young checkpoint matures using a controlled clock",
+        "result": "pass"
+      },
+      {
+        "name": "Text byte limit and failed simulation disable or reject before wallet signing",
+        "result": "pass"
+      },
+      {
+        "name": "Side presets select SELL and its input token; amount minima are retained",
+        "result": "pass"
+      },
+      {
+        "name": "Annex tab uses its own approval and positive 3% baseline bound",
+        "result": "pass"
+      },
+      {
+        "name": "Original guided call, thesis and seal routes remain usable",
+        "result": "pass"
+      },
+      {
+        "name": "Pages are enabled only by manifest; handle registration precedes first trade",
+        "result": "pass"
+      },
+      {
+        "name": "Pages sell remains available without eligibility; exact claim sentence and burn recovery",
+        "result": "pass"
+      },
+      {
+        "name": "WETH shortage wraps exactly the missing amount before ERC-20 trade",
+        "result": "pass"
+      },
+      {
+        "name": "Unavailable USD stays explicit and does not block token-denominated posting",
+        "result": "pass"
+      },
+      {
+        "name": "Annex admission validates the batch and approves only the current panel fee",
+        "result": "pass"
+      },
+      {
+        "name": "Annex note lifecycle uses the Annex and current horizon",
+        "result": "pass"
+      },
+      {
+        "name": "Judging and treasury controls use fresh pool state and configured companions",
+        "result": "pass"
+      },
+      {
+        "name": "All primary routes and secondary composer tabs reflow at 320 and 390",
+        "result": "pass"
+      },
+      {
+        "name": "Keyboard focus, dark mode and long values remain within 320px",
+        "result": "pass"
+      }
+    ]
+  },
+  "v4": {
+    "passed": 11,
+    "scenarios": [
+      {
+        "name": "First screen: v4 promise and caveat retained on the v5 landing with Launch app",
+        "result": "pass"
+      },
+      {
+        "name": "App navigation routes to the call sheet, thesis sheet and connected profile",
+        "result": "pass"
+      },
+      {
+        "name": "One call flow: defaults, visible fields, one button, advanced behind More, trade-it-too on when the wallet holds IMD",
+        "result": "pass"
+      },
+      {
+        "name": "Trade it too off posts just the call through router.note with an exact 0.6 IMD approval to the router",
+        "result": "pass"
+      },
+      {
+        "name": "Trade it too on keeps the exact combined 1.6 IMD approval and tradeAndNote",
+        "result": "pass"
+      },
+      {
+        "name": "Trade it too defaults off when the wallet holds no IMD; token from the URL wins over the last token",
+        "result": "pass"
+      },
+      {
+        "name": "Baseline rule is explained where it bites: warm-up with countdown, ready, and the warm-up button",
+        "result": "pass"
+      },
+      {
+        "name": "Thesis flow states the 7-day child rule before the bond and again on the receipt with the button",
+        "result": "pass"
+      },
+      {
+        "name": "Profile page: wallet, hit rate with count, calls/theses/backers and Pages controls; score removed",
+        "result": "pass"
+      },
+      {
+        "name": "Own profile shows earnings; paused Feedback resolves from old routes without a top-bar link",
+        "result": "pass"
+      },
+      {
+        "name": "Every v4 route reflows at 320 and 390 in dark mode with focus visible",
+        "result": "pass"
+      }
+    ]
+  },
+  "v5": {
+    "passed": 23,
+    "scenarios": [
+      {
+        "name": "Revision: Annex-only child preserves parent and blocks posting",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: Annex-only child preserves parent and blocks warm-up",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: Annex-only child blocks approval, explicit parent removal permits a standalone call",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: manual and saved thesis parents stay blocked after Annex resolution",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: just-the-call sends selected IMD v4 key",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: just-the-call sends selected native ETH v4 key",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: Annex detail expands full why at 390 dark",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: Annex detail expands full why at 320 dark",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: gapped Pages sell excludes former holder at fixed head",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: failed current Pages balance is unknown, retry recovers",
+        "result": "pass"
+      },
+      {
+        "name": "Revision: admission rules are named one-sentence keyboard tap hints",
+        "result": "pass"
+      },
+      {
+        "name": "Landing: verbatim promise and caveat, live pot, metadata, one Launch app and static subpath",
+        "result": "pass"
+      },
+      {
+        "name": "App host: root document mapping uses the same relative assets and runtime manifest",
+        "result": "pass"
+      },
+      {
+        "name": "App shell: Feed first, pot, no Feedback entry, five bottom controls and Me connect",
+        "result": "pass"
+      },
+      {
+        "name": "Feed cards: hook and Annex, identity fallback, counts, age, claims and Counter Share Back",
+        "result": "pass"
+      },
+      {
+        "name": "LARP: verified primary name and passive avatar; citation never becomes author",
+        "result": "pass"
+      },
+      {
+        "name": "Identity failures stay passive: absent registry code and SVG scripts cannot sign or execute",
+        "result": "pass"
+      },
+      {
+        "name": "Trade card reads authenticated router receipt and reports IMD spent",
+        "result": "pass"
+      },
+      {
+        "name": "Record: hit rate only, ties by settled count and zero settled below ranked wallets",
+        "result": "pass"
+      },
+      {
+        "name": "Profile: one rate with sample, pages, theses, backing control, tabs and own earnings",
+        "result": "pass"
+      },
+      {
+        "name": "Compose: defaults and tap hints, last token, one action, caveat and modal keyboard",
+        "result": "pass"
+      },
+      {
+        "name": "Child-call fix: posted receipt on thesis card and page replaces the post-child action",
+        "result": "pass"
+      },
+      {
+        "name": "Every app surface: 320 and 390 dark, no overflow, score absent, phone first action",
+        "result": "pass"
+      }
+    ]
+  },
+  "v6": {
+    "passed": 18,
+    "scenarios": [
+      {
+        "name": "Pages tab order, active state, pot destination and handle/address search",
+        "result": "pass"
+      },
+      {
+        "name": "Directory ranks by verified backers then supply and shows names, counts and next cost",
+        "result": "pass"
+      },
+      {
+        "name": "Your pages sells one page with bounded output and no approval or eligibility gate",
+        "result": "pass"
+      },
+      {
+        "name": "Directory discloses missing log ranges and unknown balances, refresh recovers",
+        "result": "pass"
+      },
+      {
+        "name": "Directory empty and disconnected states retain search and wallet action",
+        "result": "pass"
+      },
+      {
+        "name": "Handle explanation, escrow and clock precede controls; default one and receive lines",
+        "result": "pass"
+      },
+      {
+        "name": "Claim exact message and X composer, URL parsing, exact approval then request, pending lock",
+        "result": "pass"
+      },
+      {
+        "name": "Claim rejects hostile URL and changed live fee without a wallet request",
+        "result": "pass"
+      },
+      {
+        "name": "Pending claim polls to answered payee and allows tweet deletion",
+        "result": "pass"
+      },
+      {
+        "name": "Pending deadline exposes abandon; answer without payee can retry",
+        "result": "pass"
+      },
+      {
+        "name": "Claim wallet rejection remains recoverable",
+        "result": "pass"
+      },
+      {
+        "name": "Claim wallet changes reset tweet and preserve the exact new payee sentence",
+        "result": "pass"
+      },
+      {
+        "name": "Weekly pot fixed decimals and responsive label; exact caveats",
+        "result": "pass"
+      },
+      {
+        "name": "Thesis share uses first sentence and status; call keeps target and status",
+        "result": "pass"
+      },
+      {
+        "name": "Annex call share retains target and status",
+        "result": "pass"
+      },
+      {
+        "name": "Pages rendered contrast, normal phone first screen and focus in both themes",
+        "result": "pass"
+      },
+      {
+        "name": "Claim field and request stay clear of phone navigation when focused",
+        "result": "pass"
+      },
+      {
+        "name": "Changed screens reflow at 320/390/1440 in both themes, keyboard focus and long pot",
+        "result": "pass"
+      }
+    ]
+  },
+  "child-call": {
+    "passed": 22,
+    "scenarios": [
+      {
+        "name": "Owner thesis CTA opens both composers with only the parent supplied",
+        "result": "pass"
+      },
+      {
+        "name": "CTA is hidden for other wallets, disconnected, closed and expired theses",
+        "result": "pass"
+      },
+      {
+        "name": "A child link discards unrelated saved trade and seal prefills",
+        "result": "pass"
+      },
+      {
+        "name": "trade: all three chain gates and nonexistent/malformed parents block posting",
+        "result": "pass"
+      },
+      {
+        "name": "call: all three chain gates and nonexistent/malformed parents block posting",
+        "result": "pass"
+      },
+      {
+        "name": "Just the call posts the author\u2019s child on the same side with bounded calldata",
+        "result": "pass"
+      },
+      {
+        "name": "Trade child supports another token and either side, with combined/exact approval intact",
+        "result": "pass"
+      },
+      {
+        "name": "Trade child approval still sums IMD and caps the transaction deadline at grace end",
+        "result": "pass"
+      },
+      {
+        "name": "Live wallet change invalidates prior parent eligibility",
+        "result": "pass"
+      },
+      {
+        "name": "Grace expiry during editing disables the child action without real-time waiting",
+        "result": "pass"
+      },
+      {
+        "name": "trade: fresh preflight refuses a parent closed after the last UI read",
+        "result": "pass"
+      },
+      {
+        "name": "call: fresh preflight refuses a parent closed after the last UI read",
+        "result": "pass"
+      },
+      {
+        "name": "Failed chain reads stay disabled and recover with an explicit retry",
+        "result": "pass"
+      },
+      {
+        "name": "Parent reads work independently of missing event history",
+        "result": "pass"
+      },
+      {
+        "name": "Thesis confirmation uses its receipt block and links to its own child composer",
+        "result": "pass"
+      },
+      {
+        "name": "Home Write a thesis returns to the child composer even within the same route",
+        "result": "pass"
+      },
+      {
+        "name": "Feed needs-child label follows live children, including after a recorded child",
+        "result": "pass"
+      },
+      {
+        "name": "Counters retain other-author, same-token and opposite-side rules",
+        "result": "pass"
+      },
+      {
+        "name": "Annex composer never offers or submits a hook child parent",
+        "result": "pass"
+      },
+      {
+        "name": "Disconnected and wrong-chain child actions offer connect or add-chain before posting",
+        "result": "pass"
+      },
+      {
+        "name": "Child surfaces reflow at 320, 390 and 1440; keyboard and dark focus stay visible",
+        "result": "pass"
+      },
+      {
+        "name": "Retired Feedback route stays readable after composer changes, with no form",
+        "result": "pass"
+      }
+    ]
+  },
+  "feedback": {
+    "passed": 7,
+    "scenarios": [
+      {
+        "name": "Old Feedback URL renders the exact paused paragraph even when Ethereum is unavailable",
+        "result": "pass"
+      },
+      {
+        "name": "No form, composer, board, adopted ledger or signature control remains",
+        "result": "pass"
+      },
+      {
+        "name": "Legacy tab alias resolves to the same paragraph",
+        "result": "pass"
+      },
+      {
+        "name": "Top bar and app footer contain no Feedback entry",
+        "result": "pass"
+      },
+      {
+        "name": "Landing footer contains no Feedback entry",
+        "result": "pass"
+      },
+      {
+        "name": "X handle is a real keyboard-focusable link to the requested account",
+        "result": "pass"
+      },
+      {
+        "name": "Paused route reflows in both themes at 320, 390 and 1440",
+        "result": "pass"
+      }
+    ]
+  },
+  "v7": {
+    "passed": 9,
+    "scenarios": [
+      {
+        "name": "Me shows eligible, needs-call local deadline and forfeitable lines above the profile",
+        "result": "pass"
+      },
+      {
+        "name": "No thesis in an open week, disconnected wallet and another profile show no Your week block",
+        "result": "pass"
+      },
+      {
+        "name": "Every unpaid funded week is read; paid and empty weeks disappear",
+        "result": "pass"
+      },
+      {
+        "name": "Pots defaults to latest funded unpaid chain week and shows connected thesis lines plus eligibility explanation",
+        "result": "pass"
+      },
+      {
+        "name": "Pots skips a paid newest pool and works without a connected wallet",
+        "result": "pass"
+      },
+      {
+        "name": "Existing child keeps exact feed badge and removes every post-child action on the thesis page",
+        "result": "pass"
+      },
+      {
+        "name": "Feedback has no entry, composer, signing or history/API reads; old aliases resolve",
+        "result": "pass"
+      },
+      {
+        "name": "Automatic scan reaches deploy block in one load and retains complete summary/coverage",
+        "result": "pass"
+      },
+      {
+        "name": "Changed Me and Pots fit 320/390/1440, both themes, long values and keyboard child link",
+        "result": "pass"
+      }
+    ]
+  }
+}

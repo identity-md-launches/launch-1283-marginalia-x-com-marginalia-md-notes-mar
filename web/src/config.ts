@@ -22,9 +22,9 @@ export const PAGES_DEPLOY_BLOCK = 26180753n;
 export const USDC: Address = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 /** Public nodes limit eth_getLogs ranges; this chunk size is served by the configured public RPCs. */
 export const LOG_CHUNK = 2000n;
-/** Read the recent tail first, then continue historical coverage in a separate bounded batch. */
+/** Read the recent tail first, then automatically finish historical coverage. */
 export const LOG_TAIL = 8000n;
-export const LOG_HISTORY_CHUNKS = 4;
+export const LOG_CONCURRENCY = 4;
 export const LOG_REORG_OVERLAP = 64n;
 
 /** Canonical Uniswap factories and WETH on Ethereum mainnet, as named by the brief. The router exposes the

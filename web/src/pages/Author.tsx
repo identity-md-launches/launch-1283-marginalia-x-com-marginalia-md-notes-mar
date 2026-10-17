@@ -10,6 +10,7 @@ import { formatRate, recordRate, settledCount } from '../scoreboard';
 import { Share } from '../share';
 import { Notice } from '../ui';
 import { Person } from '../identity';
+import { YourWeek } from '../your-week';
 import { Entry, type FeedProps } from './Feed';
 export const BACKING_COPY = 'Readers back a writer by holding their pages. 8% of every page trade goes to the writer. Holders can sell back to the curve at any time.';
 export function AuthorPage({ address, feed, error, loading, refresh }: FeedProps & { address: Address }) {
@@ -33,6 +34,7 @@ export function AuthorPage({ address, feed, error, loading, refresh }: FeedProps
   const rate = r ? formatRate(recordRate(r)) : '…';
   return <section className="profile">
     <h1 className="visually-hidden">{mine ? 'Your profile' : 'Writer profile'}</h1>
+    {mine && <YourWeek feed={feed}/>}
     <div className="profile-identity"><Person address={address} large/><span className="small">{mine ? 'Your record' : 'Writer'}</span></div>
     <section className="profile-rate" aria-label="Hit rate"><span className="small">Hit rate</span><div><strong className="rate-large">{rate}</strong><span>{r ? `${r[2]} of ${settledCount(r)} settled` : 'Reading record…'}</span></div></section>
     {rec.error && <Notice kind="bad"><p>Record unavailable. <button type="button" onClick={rec.refresh}>Retry record</button></p></Notice>}

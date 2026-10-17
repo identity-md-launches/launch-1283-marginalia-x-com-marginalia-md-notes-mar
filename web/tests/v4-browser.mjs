@@ -255,7 +255,8 @@ async function callForm() {
   await page.waitForTimeout(200);
 }
 async function sent(fn){const all=await page.evaluate(()=>window.__sent);const entry=all.map(t=>({...t,...decodeFunctionData({abi,data:t.data})})).find(t=>t.functionName===fn);assert(entry,`No ${fn} wallet request`);return entry;}
-async function check(name,fn){if(process.env.TEST_FILTER&&!name.includes(process.env.TEST_FILTER))return;try{await fn();assert.deepEqual(errors,[],'Browser script errors');assert.deepEqual(external,[],'Unexpected outside request'); reports.push({name,result:'pass'});console.log('PASS',name);}catch(e){reports.push({name,result:'FAIL',error:e.stack});console.error('FAIL',name,e.message);if(page)console.error((await page.locator('body').innerText()).slice(0,3500));process.exitCode=1;}}async function tradeReady(){await page.locator('#trade-why').fill('A tested call');await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();}
+let checkIndex=0;
+async function check(name,fn){const index=checkIndex++;if(process.env.TEST_RANGE){const [start,end]=process.env.TEST_RANGE.split(':').map(Number);if(index<start||index>=end)return;}if(process.env.TEST_FILTER&&!name.includes(process.env.TEST_FILTER))return;try{await fn();assert.deepEqual(errors,[],'Browser script errors');assert.deepEqual(external,[],'Unexpected outside request'); reports.push({name,result:'pass'});console.log('PASS',name);}catch(e){reports.push({name,result:'FAIL',error:e.stack});console.error('FAIL',name,e.message);if(page)console.error((await page.locator('body').innerText()).slice(0,3500));process.exitCode=1;}}async function tradeReady(){await page.locator('#trade-why').fill('A tested call');await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();}
 async function waitEnabled(locator){await locator.waitFor();await page.waitForFunction(sel=>!document.querySelector(sel)?.disabled,await locator.evaluate(e=>{e.dataset.awaitEnabled='yes';return '[data-await-enabled="yes"]';}));}
 const PROMISE=['Build your trader reputation on-chain.','Write your notes and theses with your trades.','Let readers back you by holding your pages.'];
 const after=async(a,b)=>page.evaluate(([x,y])=>!!(document.querySelector(x).compareDocumentPosition(document.querySelector(y))&Node.DOCUMENT_POSITION_FOLLOWING),[a,b]);
@@ -333,10 +334,10 @@ try {
   await page.getByRole('button',{name:/Back this writer/}).click();assert.equal(await page.locator('#pages-heading').innerText(),'Back this writer');assert(await page.locator('.share').count()>0);
   assert(!/early access|rooms|returns/i.test(await text()));await noOverflow('/author');await shot('author-390');
  });
- await check('Own profile shows earnings; Feedback opens from top bar and the old tab alias',async()=>{
+ await check('Own profile shows earnings; paused Feedback resolves from old routes without a top-bar link',async()=>{
   await open('/author/'+author,{gallery:true});await page.locator('.rate-large').waitFor();assert.match(await text(),/You earned/);
-  await page.locator('.app-topbar a[href="#/feedback"]').click();await page.locator('#feedback-text').waitFor();assert.equal(await page.locator('main h1').innerText(),'Feedback');
-  await page.goto(url+'#/?tab=feedback');await page.locator('#feedback-text').waitFor();await noOverflow('/feedback');
+  assert.equal(await page.locator('.app-topbar a[href="#/feedback"]').count(),0);await page.goto(url+'#/feedback');await page.getByText('Feedback intake is paused.',{exact:false}).waitFor();assert.equal(await page.locator('main h1').innerText(),'Feedback');
+  await page.goto(url+'#/?tab=feedback');await page.getByText('Feedback intake is paused.',{exact:false}).waitFor();await noOverflow('/feedback');
  });
  await check('Every v4 route reflows at 320 and 390 in dark mode with focus visible',async()=>{
   for(const route of ['/','/call','/thesis','/author/'+author,'/feedback','/scoreboard','/post','/seal','/pools','/about','/pages/market_reader']){await open(route,{gallery:true});await page.emulateMedia({colorScheme:'dark'});await noOverflow(route);}

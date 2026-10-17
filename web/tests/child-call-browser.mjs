@@ -263,7 +263,8 @@ async function callForm() {
   await page.waitForTimeout(200);
 }
 async function sent(fn){const all=await page.evaluate(()=>window.__sent);const entry=all.map(t=>({...t,...decodeFunctionData({abi,data:t.data})})).find(t=>t.functionName===fn);assert(entry,`No ${fn} wallet request`);return entry;}
-async function check(name,fn){if(process.env.TEST_FILTER&&!name.includes(process.env.TEST_FILTER))return;try{await fn();assert.deepEqual(errors,[],'Browser script errors');assert.deepEqual(external,[],'Unexpected outside request'); reports.push({name,result:'pass'});console.log('PASS',name);}catch(e){reports.push({name,result:'FAIL',error:e.stack});console.error('FAIL',name,e.message);if(page)console.error((await page.locator('body').innerText()).slice(0,3500));process.exitCode=1;}}async function tradeReady(){await page.locator('#trade-why').fill('A tested call');await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();}
+let checkIndex=0;
+async function check(name,fn){const index=checkIndex++;if(process.env.TEST_RANGE){const [start,end]=process.env.TEST_RANGE.split(':').map(Number);if(index<start||index>=end)return;}if(process.env.TEST_FILTER&&!name.includes(process.env.TEST_FILTER))return;try{await fn();assert.deepEqual(errors,[],'Browser script errors');assert.deepEqual(external,[],'Unexpected outside request'); reports.push({name,result:'pass'});console.log('PASS',name);}catch(e){reports.push({name,result:'FAIL',error:e.stack});console.error('FAIL',name,e.message);if(page)console.error((await page.locator('body').innerText()).slice(0,3500));process.exitCode=1;}}async function tradeReady(){await page.locator('#trade-why').fill('A tested call');await page.locator('.baseline-status').filter({hasText:'Baseline ready.'}).waitFor();}
 async function waitEnabled(locator){await locator.waitFor();await page.waitForFunction(sel=>!document.querySelector(sel)?.disabled,await locator.evaluate(e=>{e.dataset.awaitEnabled='yes';return '[data-await-enabled="yes"]';}));}
 const ownThesis = { thesis:true, status:6, noteAge:3600 };
 const parentLabel = 'More';
@@ -450,12 +451,11 @@ try {
     await page.locator('#trade-parent').fill('0x'+'f'.repeat(64));await page.locator('#trade-parent-status').filter({hasText:'does not exist'}).waitFor();assert((await page.evaluate(()=>document.documentElement.scrollWidth))<=320);await shot('child-error-dark-320');
     await open('/call',{wallet:false});const box=await page.locator('.trade-action button').boundingBox();assert(box.y+box.height<=844);await shot('home-390');
   });
-  await check('Loaded home Feedback preserves a draft across composer changes',async()=>{
-    await open('/');await page.getByRole('link',{name:'Feedback',exact:true}).click();
-    await page.locator('#feedback-text').fill('Make the first step clearer.');
+  await check('Retired Feedback route stays readable after composer changes, with no form',async()=>{
+    await open('/feedback');await page.getByText('Feedback intake is paused.',{exact:false}).waitFor();
+    assert.equal(await page.locator('textarea').count(),0);
     await page.getByRole('link',{name:'Make a call',exact:true}).click();await page.getByRole('button',{name:'Close compose'}).click();
-    await page.getByRole('link',{name:'Feedback',exact:true}).click();
-    assert.equal(await page.locator('#feedback-text').inputValue(),'Make the first step clearer.');
+    await page.goto(url+'app/#/feedback');await page.getByRole('link',{name:'@marginalia_md'}).waitFor();
     assert.equal(f.requests.length,0);
   });
 } finally {
